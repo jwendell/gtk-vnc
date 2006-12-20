@@ -1,0 +1,13 @@
+%%
+headers
+#include <Python.h>
+#include "pygobject.h"
+#include "vncdisplay.h"
+%%
+modulename vnc
+%%
+import gtk.DrawingArea as PyGtkDrawingArea_Type
+%%
+ignore-glob
+  *_get_type
+%%
