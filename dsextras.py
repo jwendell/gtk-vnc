@@ -318,7 +318,7 @@ try:
     from codegen.defsparser import DefsParser
     from codegen.codegen import register_types, SourceWriter, \
          FileOutput
-    import codegen.createdefs
+    import codegen.codegen
 except ImportError, e:
     template_classes_enabled=False
 
@@ -365,7 +365,7 @@ class Template(object):
             if distutils.dep_util.newer_group(sources,target):
                 # createdefs is mostly called from the CLI !
                 args=['dummy',target]+sources
-                codegen.createdefs.main(args)
+                codegen.codegen.main(args)
 
 
     def generate(self):

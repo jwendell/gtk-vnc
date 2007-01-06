@@ -16,7 +16,7 @@ PYLIBDIR = $(prefix)/lib/python$(PYVERSION)/site-packages
 
 CFLAGS += -I$(prefix)/include/python$(PYVERSION)
 
-all: gen-vnc.defs.c
+all: vnc.defs
 
 vnc-test: vnc-test.o gvnc.o coroutine.o continuation.o vncdisplay.o d3des.o
 

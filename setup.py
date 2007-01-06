@@ -1,5 +1,11 @@
+import sys
+
+sys.path.insert(-1, '/usr/share/pygtk/2.0')
+
 from distutils.core import setup
-from dsextras import PkgConfigExtension
+from dsextras import PkgConfigExtension, BuildExt
+
+# woah, what a hack
 setup(name='vnc',
       version='1.0',
       maintainer='Anthony Liguori',
@@ -11,8 +17,8 @@ setup(name='vnc',
                                       sources=['src/continuation.c',
                                                'src/d3des.c',
                                                'src/coroutine.c',
-                                               'src/gen-vnc.defs.c',
                                                'src/gvnc.c',
                                                'src/vncdisplay.c',
-                                               'src/vncmodule.c'])])
+                                               'src/vncmodule.c',
+                                               'src/gen-vnc.defs.c'])])
       
