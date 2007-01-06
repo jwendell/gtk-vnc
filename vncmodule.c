@@ -1,4 +1,14 @@
 /*
+ * Copyright (C) 2006  Anthony Liguori <anthony@codemonkey.ws>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ *  GTK VNC Widget
+ */
+
+/*
  * qemu-module.c -- QEMU GTK Widget Python Bindings
  *
  *  Copyright (C) 2006 Anthony Liguori <anthony@codemonkey.ws>
@@ -13,8 +23,7 @@
 void vnc_register_classes (PyObject *d); 
 extern PyMethodDef vnc_functions[];
  
-DL_EXPORT(void)
-initvnc(void)
+DL_EXPORT(void) initvnc(void)
 {
     PyObject *m, *d;
  
