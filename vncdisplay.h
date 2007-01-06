@@ -36,7 +36,8 @@ struct _VncDisplayClass
 {
 	GtkDrawingAreaClass parent;
 
-	void (*kvm_switched)(VncDisplayClass *obj, const gchar *string);
+	int enter_grab_event_id;
+	int leave_grab_event_id;
 };
 
 G_BEGIN_DECLS

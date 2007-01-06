@@ -80,6 +80,7 @@ static gboolean expose_event(GtkWidget *widget, GdkEventExpose *expose,
 static void toggle_grab(VncDisplay *obj)
 {
 	VncDisplayPrivate *priv = obj->priv;
+	VncDisplayClass *klass = VNC_DISPLAY_GET_CLASS(obj);
 
 	if (priv->in_grab) {
 		priv->in_grab = 0;
@@ -93,6 +94,7 @@ static void toggle_grab(VncDisplay *obj)
 					      NULL);
 		priv->last_x = -1;
 		priv->last_y = -1;
+		g_signal_emit(obj, klass->leave_grab_event_id, 0);
 	} else {
 		priv->in_grab = 1;
 		gdk_keyboard_grab(GTK_WIDGET(obj)->window,
@@ -108,6 +110,7 @@ static void toggle_grab(VncDisplay *obj)
 				 NULL,
 				 priv->null_cursor,
 				 GDK_CURRENT_TIME);
+		g_signal_emit(obj, klass->enter_grab_event_id, 0);
 	}
 }
 
@@ -330,6 +333,9 @@ static void *vnc_coroutine(void *opaque)
 	};
 
 	priv->gvnc = gvnc_connect(priv->channel, FALSE, priv->password);
+	if (priv->gvnc == NULL)
+		return NULL;
+
 	gvnc_set_encodings(priv->gvnc, 5, encodings);
 
 	on_resize(obj, 640, 480);
@@ -373,6 +379,28 @@ void vnc_display_open(VncDisplay *obj, int fd)
 static void vnc_display_class_init(VncDisplayClass *klass)
 {
 	g_type_class_add_private(klass, sizeof(VncDisplayPrivate));
+
+	klass->enter_grab_event_id =
+		g_signal_new("enter-grab-event",
+			     G_TYPE_FROM_CLASS(klass),
+			     G_SIGNAL_RUN_LAST | G_SIGNAL_NO_HOOKS,
+			     0,
+			     NULL,
+			     NULL,
+			     g_cclosure_marshal_VOID__VOID,
+			     G_TYPE_NONE,
+			     0);
+
+	klass->leave_grab_event_id =
+		g_signal_new("leave-grab-event",
+			     G_TYPE_FROM_CLASS(klass),
+			     G_SIGNAL_RUN_LAST | G_SIGNAL_NO_HOOKS,
+			     0,
+			     NULL,
+			     NULL,
+			     g_cclosure_marshal_VOID__VOID,
+			     G_TYPE_NONE,
+			     0);
 }
 
 static void vnc_display_init(GTypeInstance *instance, gpointer klass)
