@@ -1,0 +1,44 @@
+;; -*- scheme -*-
+; object definitions ...
+(define-object Display
+  (in-module "Vnc")
+  (parent "GtkDrawingArea")
+  (c-name "VncDisplay")
+  (gtype-id "VNC_TYPE_DISPLAY")
+)
+
+;; Enumerations and flags ...
+
+
+;; From vncdisplay.h
+
+(define-function vnc_display_get_type
+  (c-name "vnc_display_get_type")
+  (return-type "GType")
+)
+
+(define-function vnc_display_new
+  (c-name "vnc_display_new")
+  (is-constructor-of "VncDisplay")
+  (return-type "GtkWidget*")
+)
+
+(define-method open
+  (of-object "VncDisplay")
+  (c-name "vnc_display_open")
+  (return-type "none")
+  (parameters
+    '("int" "fd")
+  )
+)
+
+(define-method set_password
+  (of-object "VncDisplay")
+  (c-name "vnc_display_set_password")
+  (return-type "none")
+  (parameters
+    '("const-gchar*" "password")
+  )
+)
+
+

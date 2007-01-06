@@ -1,0 +1,18 @@
+from distutils.core import setup
+from dsextras import PkgConfigExtension
+setup(name='vnc',
+      version='1.0',
+      maintainer='Anthony Liguori',
+      maintainer_email='anthony@codemonkey.ws',
+      url='http://hg.codemonkey.ws/gtk-vnc',
+      description='GTK VNC widget',
+      ext_modules=[PkgConfigExtension(name='vnc', pkc_name='gtk+-2.0',
+                                      pkc_version='2.0',
+                                      sources=['src/continuation.c',
+                                               'src/d3des.c',
+                                               'src/coroutine.c',
+                                               'src/gen-vnc.defs.c',
+                                               'src/gvnc.c',
+                                               'src/vncdisplay.c',
+                                               'src/vncmodule.c'])])
+      
