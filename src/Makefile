@@ -1,9 +1,9 @@
 prefix = /usr
 
-CFLAGS := -g -Wall -O2
+CFLAGS := -g -Wall -O2 -fPIC
 
-CFLAGS += $(shell pkg-config --cflags gtk+-2.0 pygtk-2.0)
-LDLIBS += $(shell pkg-config --libs gtk+-2.0 pygtk-2.0)
+CFLAGS += $(shell pkg-config --cflags gtk+-2.0 pygtk-2.0 gnutls)
+LDLIBS += $(shell pkg-config --libs gtk+-2.0 pygtk-2.0 gnutls)
 
 CFLAGS += -pg
 LDFLAGS += -pg
@@ -16,7 +16,7 @@ PYLIBDIR = $(prefix)/lib/python$(PYVERSION)/site-packages
 
 CFLAGS += -I$(prefix)/include/python$(PYVERSION)
 
-all: vnc.defs
+all: vnc.so
 
 vnc-test: vnc-test.o gvnc.o coroutine.o continuation.o vncdisplay.o d3des.o
 

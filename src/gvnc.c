@@ -24,9 +24,19 @@
 #include <string.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include "coroutine.h"
 #include "d3des.h"
+
+#include <gnutls/gnutls.h>
+#include <gnutls/x509.h>
+
+#define CA_FILE "ca-cert.pem"
+#define CRL_FILE "ca-crl.pem"
+#define KEY_FILE "key.pem"
+#define CERT_FILE "cert.pem"
 
 static gboolean g_io_wait_helper(GIOChannel *channel, GIOCondition cond,
 				 gpointer data)
@@ -62,6 +72,10 @@ struct gvnc
 	int height;
 	char *name;
 
+	int major;
+	int minor;
+	gnutls_session_t tls_session;
+
 	char read_buffer[4096];
 	int read_offset;
 	int read_size;
@@ -80,18 +94,48 @@ struct gvnc
 	int absolute;
 };
 
+enum {
+  GVNC_AUTH_INVALID = 0,
+  GVNC_AUTH_NONE = 1,
+  GVNC_AUTH_VNC = 2,
+  GVNC_AUTH_RA2 = 5,
+  GVNC_AUTH_RA2NE = 6,
+  GVNC_AUTH_TIGHT = 16,
+  GVNC_AUTH_ULTRA = 17,
+  GVNC_AUTH_TLS = 18,
+  GVNC_AUTH_VENCRYPT = 19
+};
+
+enum {
+  GVNC_AUTH_VENCRYPT_PLAIN = 256,
+  GVNC_AUTH_VENCRYPT_TLSNONE = 257,
+  GVNC_AUTH_VENCRYPT_TLSVNC = 258,
+  GVNC_AUTH_VENCRYPT_TLSPLAIN = 259,
+  GVNC_AUTH_VENCRYPT_X509NONE = 260,
+  GVNC_AUTH_VENCRYPT_X509VNC = 261,
+  GVNC_AUTH_VENCRYPT_X509PLAIN = 262,
+};
+
+
 #if 0
 #define GVNC_DEBUG(fmt, ...) do { fprintf(stderr, fmt, ## __VA_ARGS__); } while (0)
 #else
 #define GVNC_DEBUG(fmt, ...) do { } while (0)
 #endif
 
+static void debug_log(int level, const char* str) {
+#if 0
+	GVNC_DEBUG("%d %s", level, str);
+#endif
+}
+
 #define nibhi(a) (((a) >> 4) & 0x0F)
 #define niblo(a) ((a) & 0x0F)
 
+
 /* IO functions */
 
-static void gvnc_read(struct gvnc *gvnc, void *data, size_t len)
+static void gvnc_raw_read(struct gvnc *gvnc, void *data, size_t len)
 {
 	int fd = g_io_channel_unix_get_fd(gvnc->channel);
 	char *ptr = data;
@@ -135,7 +179,7 @@ static void gvnc_read(struct gvnc *gvnc, void *data, size_t len)
 	}
 }
 
-void gvnc_write(struct gvnc *gvnc, const void *data, size_t len)
+void gvnc_raw_write(struct gvnc *gvnc, const void *data, size_t len)
 {
 	int fd = g_io_channel_unix_get_fd(gvnc->channel);
 	const char *ptr = data;
@@ -165,6 +209,52 @@ void gvnc_write(struct gvnc *gvnc, const void *data, size_t len)
 		offset += ret;
 	}
 }
+
+
+void gvnc_read(struct gvnc *gvnc, void *data, size_t len)
+{
+	if (gvnc->tls_session) {
+		if (gnutls_read(gvnc->tls_session, data, len) != len)
+			gvnc->has_error = TRUE;
+	} else {
+		gvnc_raw_read(gvnc, data, len);
+	}
+}
+
+void gvnc_write(struct gvnc *gvnc, const void *data, size_t len)
+{
+	if (gvnc->tls_session) {
+		if (gnutls_write(gvnc->tls_session, data, len) != len)
+			gvnc->has_error = TRUE;
+	} else {
+		gvnc_raw_write(gvnc, data, len);
+	}
+}
+
+ssize_t gvnc_tls_push(gnutls_transport_ptr_t transport,
+		      const void *data,
+		      size_t len) {
+	struct gvnc *gvnc = (struct gvnc *)transport;
+	gvnc_raw_write(gvnc, data, len);
+	if (gvnc->has_error) {
+		return -1;
+	}
+	return len;
+}
+
+
+ssize_t gvnc_tls_pull(gnutls_transport_ptr_t transport,
+		      void *data,
+		      size_t len) {
+	struct gvnc *gvnc = (struct gvnc *)transport;
+	gvnc_raw_read(gvnc, data, len);
+	if (gvnc->has_error) {
+		return -1;
+	}
+	return len;
+}
+
+
 
 static uint8_t gvnc_read_u8(struct gvnc *gvnc)
 {
@@ -217,6 +307,161 @@ static void gvnc_write_s32(struct gvnc *gvnc, int32_t value)
 	gvnc_write(gvnc, &value, sizeof(value));
 }
 
+
+static gboolean gvnc_tls_initialize(void)
+{
+	static int tlsinitialized = 0;
+
+	if (tlsinitialized)
+		return TRUE;
+
+	if (gnutls_global_init () < 0)
+		return FALSE;
+
+
+	gnutls_global_set_log_level(10);
+	gnutls_global_set_log_function(debug_log);
+
+	tlsinitialized = TRUE;
+
+	return TRUE;
+}
+
+static gnutls_anon_client_credentials gvnc_tls_initialize_anon_cred(void)
+{
+	gnutls_anon_client_credentials anon_cred;
+	int ret;
+
+	if ((ret = gnutls_anon_allocate_client_credentials(&anon_cred)) < 0) {
+		GVNC_DEBUG("Cannot allocate credentials %s\n", gnutls_strerror(ret));
+		return NULL;
+	}
+
+	return anon_cred;
+}
+
+static gnutls_certificate_credentials_t gvnc_tls_initialize_cert_cred(void)
+{
+	gnutls_certificate_credentials_t x509_cred;
+	int ret;
+	struct stat st;
+
+	if ((ret = gnutls_certificate_allocate_credentials(&x509_cred)) < 0) {
+		GVNC_DEBUG("Cannot allocate credentials %s\n", gnutls_strerror(ret));
+		return NULL;
+	}
+	if ((ret = gnutls_certificate_set_x509_trust_file(x509_cred, CA_FILE, GNUTLS_X509_FMT_PEM)) < 0) {
+		GVNC_DEBUG("Cannot load CA certificate %s\n", gnutls_strerror(ret));
+		return NULL;
+	}
+
+	if ((ret = gnutls_certificate_set_x509_key_file (x509_cred, CERT_FILE, KEY_FILE,
+							 GNUTLS_X509_FMT_PEM)) < 0) {
+		GVNC_DEBUG("Cannot load certificate & key %s\n", gnutls_strerror(ret));
+		return NULL;
+	}
+
+	if (stat(CRL_FILE, &st) < 0) {
+		if (errno != ENOENT) {
+			return NULL;
+		}
+	} else {
+		if ((ret = gnutls_certificate_set_x509_crl_file(x509_cred, CRL_FILE, GNUTLS_X509_FMT_PEM)) < 0) {
+			GVNC_DEBUG("Cannot load CRL %s\n", gnutls_strerror(ret));
+			return NULL;
+		}
+	}
+
+	return x509_cred;
+}
+
+static int gvnc_validate_certificate(struct gvnc *vnc)
+{
+	int ret;
+	unsigned int status;
+	const gnutls_datum_t *certs;
+	unsigned int nCerts, i;
+	time_t now;
+
+	GVNC_DEBUG("Validating\n");
+	if ((ret = gnutls_certificate_verify_peers2 (vnc->tls_session, &status)) < 0) {
+		GVNC_DEBUG("Verify failed %s\n", gnutls_strerror(ret));
+		return FALSE;
+	}
+
+	if ((now = time(NULL)) == ((time_t)-1)) {
+		return FALSE;
+	}
+
+	if (status != 0) {
+		if (status & GNUTLS_CERT_INVALID)
+			GVNC_DEBUG ("The certificate is not trusted.\n");
+
+		if (status & GNUTLS_CERT_SIGNER_NOT_FOUND)
+			GVNC_DEBUG ("The certificate hasn't got a known issuer.\n");
+
+		if (status & GNUTLS_CERT_REVOKED)
+			GVNC_DEBUG ("The certificate has been revoked.\n");
+
+		if (status & GNUTLS_CERT_INSECURE_ALGORITHM)
+			GVNC_DEBUG ("The certificate uses an insecure algorithm\n");
+
+		return FALSE;
+	} else {
+		GVNC_DEBUG("Certificate is valid!\n");
+	}
+
+	if (gnutls_certificate_type_get(vnc->tls_session) != GNUTLS_CRT_X509)
+		return FALSE;
+
+	if (!(certs = gnutls_certificate_get_peers(vnc->tls_session, &nCerts)))
+		return FALSE;
+
+	for (i = 0 ; i < nCerts ; i++) {
+		gnutls_x509_crt_t cert;
+		GVNC_DEBUG ("Checking chain %d\n", i);
+		if (gnutls_x509_crt_init (&cert) < 0)
+			return FALSE;
+
+		if (gnutls_x509_crt_import(cert, &certs[i], GNUTLS_X509_FMT_DER) < 0) {
+			gnutls_x509_crt_deinit (cert);
+			return FALSE;
+		}
+
+		if (gnutls_x509_crt_get_expiration_time (cert) < now) {
+			GVNC_DEBUG("The certificate has expired\n");
+			gnutls_x509_crt_deinit (cert);
+			return FALSE;
+		}
+
+		if (gnutls_x509_crt_get_activation_time (cert) > now) {
+			GVNC_DEBUG("The certificate is not yet activated\n");
+			gnutls_x509_crt_deinit (cert);
+			return FALSE;
+		}
+
+		if (gnutls_x509_crt_get_activation_time (cert) > now) {
+			GVNC_DEBUG("The certificate is not yet activated\n");
+			gnutls_x509_crt_deinit (cert);
+			return FALSE;
+		}
+
+		if (i == 0) {
+			/* XXX Fixme */
+			const char *hostname = "foo";
+			if (!gnutls_x509_crt_check_hostname (cert, hostname)) {
+				GVNC_DEBUG ("The certificate's owner does not match hostname '%s'\n",
+					    hostname);
+				gnutls_x509_crt_deinit (cert);
+				return FALSE;
+			}
+		}
+	}
+
+	return TRUE;
+}
+
+
 static void gvnc_read_pixel_format(struct gvnc *gvnc, struct vnc_pixel_format *fmt)
 {
 	uint8_t pad[3];
@@ -225,6 +470,9 @@ static void gvnc_read_pixel_format(struct gvnc *gvnc, struct vnc_pixel_format *f
 	fmt->depth           = gvnc_read_u8(gvnc);
 	fmt->big_endian_flag = gvnc_read_u8(gvnc);
 	fmt->true_color_flag = gvnc_read_u8(gvnc);
+
+	GVNC_DEBUG("Pixel format BPP: %d,  Depth: %d, Endian: %d, True color: %d\n",
+		   fmt->bits_per_pixel, fmt->depth, fmt->big_endian_flag, fmt->true_color_flag);
 
 	fmt->red_max         = gvnc_read_u16(gvnc);
 	fmt->green_max       = gvnc_read_u16(gvnc);
@@ -642,13 +890,315 @@ gboolean gvnc_server_message(struct gvnc *gvnc)
 	return gvnc_has_error(gvnc);
 }
 
+static gboolean gvnc_check_auth_result(struct gvnc *gvnc)
+{
+	uint32_t result;
+	GVNC_DEBUG("Checking auth result\n");
+	result = gvnc_read_u32(gvnc);
+	if (!result) {
+		GVNC_DEBUG("Success\n");
+		return TRUE;
+	}
+
+	if (gvnc->minor >= 8) {
+		uint32_t len;
+		char reason[1024];
+		len = gvnc_read_u32(gvnc);
+		if (len > (sizeof(reason)-1))
+			return FALSE;
+		gvnc_read(gvnc, reason, len);
+		reason[len] = '\0';
+		GVNC_DEBUG("Fail %s\n", reason);
+	} else {
+		GVNC_DEBUG("Fail\n");
+	}
+	return FALSE;
+}
+
+static gboolean gvnc_perform_auth_vnc(struct gvnc *gvnc, const char *password)
+{
+	uint8_t challenge[16];
+	uint8_t key[8];
+
+	GVNC_DEBUG("Challenge with %s\n",password);
+	if (!password)
+		return FALSE;
+
+	gvnc_read(gvnc, challenge, 16);
+
+	memset(key, 0, 8);
+	strncpy((char*)key, (char*)password, 8);
+
+	deskey(key, EN0);
+	des(challenge, challenge);
+	des(challenge + 8, challenge + 8);
+
+	gvnc_write(gvnc, challenge, 16);
+
+	return gvnc_check_auth_result(gvnc);
+}
+
+
+static gboolean gvnc_start_tls(struct gvnc *gvnc, int anonTLS) {
+	static const int cert_type_priority[] = { GNUTLS_CRT_X509, 0 };
+	static const int protocol_priority[]= { GNUTLS_TLS1_1, GNUTLS_SSL3, 0 };
+	static const int kx_priority[] = {GNUTLS_KX_DHE_DSS, GNUTLS_KX_RSA, GNUTLS_KX_DHE_RSA, GNUTLS_KX_SRP, 0};
+	static const int kx_anon[] = {GNUTLS_KX_ANON_DH, 0};
+	int ret;
+
+	GVNC_DEBUG("Do TLS handshake\n");
+	if (gvnc_tls_initialize() < 0) {
+		GVNC_DEBUG("Failed to init TLS\n");
+		gvnc->has_error = TRUE;
+		return FALSE;
+	}
+	if (gvnc->tls_session == NULL) {
+		if (gnutls_init(&gvnc->tls_session, GNUTLS_CLIENT) < 0) {
+			gvnc->has_error = TRUE;
+			return FALSE;
+		}
+
+		if (gnutls_set_default_priority(gvnc->tls_session) < 0) {
+			gnutls_deinit(gvnc->tls_session);
+			gvnc->has_error = TRUE;
+			return FALSE;
+		}
+
+		if (gnutls_kx_set_priority(gvnc->tls_session, anonTLS ? kx_anon : kx_priority) < 0) {
+			gnutls_deinit(gvnc->tls_session);
+			gvnc->has_error = TRUE;
+			return FALSE;
+		}
+#if 0
+		if (gnutls_certificate_type_set_priority(gvnc->tls_session, cert_type_priority) < 0) {
+			gnutls_deinit(gvnc->tls_session);
+			gvnc->has_error = TRUE;
+			return FALSE;
+		}
+		if (gnutls_protocol_set_priority(gvnc->tls_session, protocol_priority) < 0) {
+			gnutls_deinit(gvnc->tls_session);
+			gvnc->has_error = TRUE;
+			return FALSE;
+		}
+#endif
+
+		if (anonTLS) {
+			gnutls_anon_client_credentials anon_cred = gvnc_tls_initialize_anon_cred();
+			if (!anon_cred) {
+				gnutls_deinit(gvnc->tls_session);
+				gvnc->has_error = TRUE;
+				return FALSE;
+			}
+			if (gnutls_credentials_set(gvnc->tls_session, GNUTLS_CRD_ANON, anon_cred) < 0) {
+				gnutls_deinit(gvnc->tls_session);
+				gvnc->has_error = TRUE;
+				return FALSE;
+			}
+		} else {
+			gnutls_certificate_credentials_t x509_cred = gvnc_tls_initialize_cert_cred();
+			if (!x509_cred) {
+				gnutls_deinit(gvnc->tls_session);
+				gvnc->has_error = TRUE;
+				return FALSE;
+			}
+			if (gnutls_credentials_set(gvnc->tls_session, GNUTLS_CRD_CERTIFICATE, x509_cred) < 0) {
+				gnutls_deinit(gvnc->tls_session);
+				gvnc->has_error = TRUE;
+				return FALSE;
+			}
+		}
+
+		gnutls_transport_set_ptr(gvnc->tls_session, (gnutls_transport_ptr_t)gvnc);
+		gnutls_transport_set_push_function(gvnc->tls_session, gvnc_tls_push);
+		gnutls_transport_set_pull_function(gvnc->tls_session, gvnc_tls_pull);
+	}
+
+	if ((ret = gnutls_handshake(gvnc->tls_session)) < 0) {
+		GVNC_DEBUG("Handshake failed %s\n", gnutls_strerror(ret));
+		gnutls_deinit(gvnc->tls_session);
+		gvnc->tls_session = NULL;
+		gvnc->has_error = TRUE;
+		return FALSE;
+	}
+	
+	GVNC_DEBUG("Handshake done\n");
+
+	if (!gvnc_validate_certificate(gvnc)) {
+		GVNC_DEBUG("Certificate validation failed\n");
+		gvnc->has_error = TRUE;
+		return FALSE;
+	}
+	
+	return TRUE;
+
+}
+
+static gboolean gvnc_perform_auth_vencrypt(struct gvnc *gvnc, const char *password)
+{
+	int major, minor, status, nauth, i, wantAuth = GVNC_AUTH_INVALID, anonTLS;
+	int auth[20];
+
+	major = gvnc_read_u8(gvnc);
+	minor = gvnc_read_u8(gvnc);
+
+	if (major != 0 &&
+	    minor != 2) {
+		GVNC_DEBUG("Unsupported VeNCrypt version %d %d\n", major, minor);
+		return FALSE;
+	}
+
+	gvnc_write_u8(gvnc, major);
+	gvnc_write_u8(gvnc, minor);
+
+	status = gvnc_read_u8(gvnc);
+	if (status != 0) {
+		GVNC_DEBUG("Server refused VeNCrypt version %d %d\n", major, minor);
+		return FALSE;
+	}
+
+	nauth = gvnc_read_u8(gvnc);
+	if (nauth > (sizeof(auth)/sizeof(auth[0]))) {
+		GVNC_DEBUG("Too many (%d) auth types\n", nauth);
+		return FALSE;
+	}
+
+	for (i = 0 ; i < nauth ; i++) {
+		auth[i] = gvnc_read_u32(gvnc);
+	}
+
+	for (i = 0 ; i < nauth ; i++) {
+		GVNC_DEBUG("Possible auth %d\n", auth[i]);
+	}
+
+	if (gvnc->has_error)
+		return FALSE;
+
+	for (i = 0 ; i < nauth ; i++) {
+		if (auth[i] == GVNC_AUTH_VENCRYPT_TLSNONE ||
+		    auth[i] == GVNC_AUTH_VENCRYPT_TLSPLAIN ||
+		    auth[i] == GVNC_AUTH_VENCRYPT_TLSVNC ||
+		    auth[i] == GVNC_AUTH_VENCRYPT_X509NONE ||
+		    auth[i] == GVNC_AUTH_VENCRYPT_X509PLAIN ||
+		    auth[i] == GVNC_AUTH_VENCRYPT_X509VNC) {
+			wantAuth = auth[i];
+			break;
+		}
+	}
+
+	if (wantAuth == GVNC_AUTH_VENCRYPT_PLAIN) {
+		GVNC_DEBUG("Cowardly refusing to transmit plain text password\n");
+		return FALSE;
+	}
+
+	//wantAuth = 260;
+	GVNC_DEBUG("Choose auth %d\n", wantAuth);
+	gvnc_write_u32(gvnc, wantAuth);
+
+	status = gvnc_read_u8(gvnc);
+	if (status != 1) {
+		GVNC_DEBUG("Server refused VeNCrypt auth %d\n", wantAuth);
+		return FALSE;
+	}
+
+	if (wantAuth == GVNC_AUTH_VENCRYPT_TLSNONE ||
+	    wantAuth ==  GVNC_AUTH_VENCRYPT_TLSPLAIN ||
+	    wantAuth ==  GVNC_AUTH_VENCRYPT_TLSVNC)
+		anonTLS = 1;
+	else
+		anonTLS = 0;
+
+	if (!gvnc_start_tls(gvnc, anonTLS)) {
+		GVNC_DEBUG("Could not start TLS\n");
+		return FALSE;
+	}
+	GVNC_DEBUG("Completed TLS setup\n");
+
+	gvnc_write_u8(gvnc, 1);
+
+	switch (wantAuth) {
+		/* Plain certificate based auth */
+	case GVNC_AUTH_VENCRYPT_TLSNONE:
+	case GVNC_AUTH_VENCRYPT_X509NONE:
+		GVNC_DEBUG("Completing auth\n");
+		return gvnc_check_auth_result(gvnc);
+
+		/* Regular VNC layered over TLS */
+	case GVNC_AUTH_VENCRYPT_TLSVNC:
+	case GVNC_AUTH_VENCRYPT_X509VNC:
+		GVNC_DEBUG("Handing off to VNC auth\n");
+		return gvnc_perform_auth_vnc(gvnc, password);
+
+	default:
+		return FALSE;
+	}
+}
+
+static gboolean gvnc_perform_auth(struct gvnc *gvnc, const char *password)
+{
+	int nauth, wantAuth = GVNC_AUTH_INVALID, i;
+	int auth[10];
+
+	if (gvnc->minor == 3) {
+		nauth = 1;
+		auth[0] = gvnc_read_u8(gvnc);
+	} else {
+		int i;
+		nauth = gvnc_read_u8(gvnc);
+		if (gvnc_has_error(gvnc))
+			return FALSE;
+
+		if (nauth == 0)
+			return gvnc_check_auth_result(gvnc);
+
+		if (nauth > sizeof(auth)) {
+			gvnc->has_error = TRUE;
+			return FALSE;
+		}
+		for (i = 0 ; i < nauth ; i++)
+			auth[i] = gvnc_read_u8(gvnc);
+	}
+
+	for (i = 0 ; i < nauth ; i++) {
+		GVNC_DEBUG("Possible auth %d\n", auth[i]);
+	}
+
+	if (gvnc->has_error)
+		return FALSE;
+
+	for (i = 0 ; i < nauth ; i++) {
+		if (auth[i] == GVNC_AUTH_NONE ||
+		    auth[i] == GVNC_AUTH_VNC ||
+		    auth[i] == GVNC_AUTH_VENCRYPT) {
+			wantAuth = auth[i];
+			break;
+		}
+	}
+
+	GVNC_DEBUG("Chose auth %d\n", wantAuth);
+	gvnc_write_u8(gvnc, wantAuth);
+
+	switch (wantAuth) {
+	case GVNC_AUTH_NONE:
+		return gvnc_check_auth_result(gvnc);
+
+	case GVNC_AUTH_VNC:
+		return gvnc_perform_auth_vnc(gvnc, password);
+
+	case GVNC_AUTH_VENCRYPT:
+		return gvnc_perform_auth_vencrypt(gvnc, password);
+
+	default:
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
 struct gvnc *gvnc_connect(GIOChannel *channel, gboolean shared_flag, const char *password)
 {
 	int s;
 	int ret;
 	char version[13];
-	int major, minor;
-	uint32_t auth;
 	uint32_t n_name;
 	struct gvnc *gvnc = NULL;
 
@@ -669,39 +1219,25 @@ struct gvnc *gvnc_connect(GIOChannel *channel, gboolean shared_flag, const char 
 	gvnc_read(gvnc, version, 12);
 	version[12] = 0;
 
- 	ret = sscanf(version, "RFB %03d.%03d\n", &major, &minor);
+ 	ret = sscanf(version, "RFB %03d.%03d\n", &gvnc->major, &gvnc->minor);
 	if (ret != 2)
 		goto error;
 
-	gvnc_write(gvnc, "RFB 003.003\n", 12);
+	if (gvnc->major != 3)
+		goto error;
+	if (gvnc->minor != 3 &&
+	    gvnc->minor != 7 &&
+	    gvnc->minor != 8)
+		goto error;
 
-	auth = gvnc_read_u32(gvnc);
-	switch (auth) {
-	case 1:
-		break;
-	case 2: {
-		uint8_t challenge[16];
-		uint8_t key[8];
-		uint32_t result;
+	snprintf(version, 12, "RFB %03d.%03d\n", gvnc->major, gvnc->minor);
+	gvnc_write(gvnc, version, 12);
 
-		gvnc_read(gvnc, challenge, 16);
+	GVNC_DEBUG("Negotiated protocol %d %d\n", gvnc->major, gvnc->minor);
 
-		memset(key, 0, 8);
-		strncpy((char*)key, (char*)password, 8);
-
-		deskey(key, EN0);
-		des(challenge, challenge);
-		des(challenge + 8, challenge + 8);
-
-		gvnc_write(gvnc, challenge, 16);
-
-		result = gvnc_read_u32(gvnc);
-		if (result != 0) {
-			goto error;
-		}
-	}	break;
-	default:
-		break;
+	if (!gvnc_perform_auth(gvnc, password)) {
+		GVNC_DEBUG("Auth failed\n");
+		goto error;
 	}
 
 	gvnc_write_u8(gvnc, shared_flag); /* shared flag */
@@ -721,6 +1257,7 @@ struct gvnc *gvnc_connect(GIOChannel *channel, gboolean shared_flag, const char 
 
 	gvnc_read(gvnc, gvnc->name, n_name);
 	gvnc->name[n_name] = 0;
+	GVNC_DEBUG("Display name '%s'\n", gvnc->name);
 
 	gvnc_resize(gvnc, gvnc->width, gvnc->height);
 
@@ -794,3 +1331,11 @@ const char *gvnc_get_name(struct gvnc *gvnc)
 {
 	return gvnc->name;
 }
+
+/*
+ * Local variables:
+ *  c-indent-level: 8
+ *  c-basic-offset: 8
+ *  tab-width: 8
+ * End:
+ */
