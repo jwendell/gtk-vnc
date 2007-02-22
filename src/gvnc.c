@@ -920,7 +920,7 @@ static gboolean gvnc_perform_auth_vnc(struct gvnc *gvnc, const char *password)
 	uint8_t challenge[16];
 	uint8_t key[8];
 
-	GVNC_DEBUG("Challenge with %s\n",password);
+	GVNC_DEBUG("Do Challenge\n");
 	if (!password)
 		return FALSE;
 
@@ -941,7 +941,7 @@ static gboolean gvnc_perform_auth_vnc(struct gvnc *gvnc, const char *password)
 
 static gboolean gvnc_start_tls(struct gvnc *gvnc, int anonTLS) {
 	static const int cert_type_priority[] = { GNUTLS_CRT_X509, 0 };
-	static const int protocol_priority[]= { GNUTLS_TLS1_1, GNUTLS_SSL3, 0 };
+	static const int protocol_priority[]= { GNUTLS_TLS1_1, GNUTLS_TLS1_0, GNUTLS_SSL3, 0 };
 	static const int kx_priority[] = {GNUTLS_KX_DHE_DSS, GNUTLS_KX_RSA, GNUTLS_KX_DHE_RSA, GNUTLS_KX_SRP, 0};
 	static const int kx_anon[] = {GNUTLS_KX_ANON_DH, 0};
 	int ret;
@@ -969,7 +969,7 @@ static gboolean gvnc_start_tls(struct gvnc *gvnc, int anonTLS) {
 			gvnc->has_error = TRUE;
 			return FALSE;
 		}
-#if 0
+
 		if (gnutls_certificate_type_set_priority(gvnc->tls_session, cert_type_priority) < 0) {
 			gnutls_deinit(gvnc->tls_session);
 			gvnc->has_error = TRUE;
@@ -980,7 +980,6 @@ static gboolean gvnc_start_tls(struct gvnc *gvnc, int anonTLS) {
 			gvnc->has_error = TRUE;
 			return FALSE;
 		}
-#endif
 
 		if (anonTLS) {
 			gnutls_anon_client_credentials anon_cred = gvnc_tls_initialize_anon_cred();
@@ -1023,14 +1022,16 @@ static gboolean gvnc_start_tls(struct gvnc *gvnc, int anonTLS) {
 	
 	GVNC_DEBUG("Handshake done\n");
 
-	if (!gvnc_validate_certificate(gvnc)) {
-		GVNC_DEBUG("Certificate validation failed\n");
-		gvnc->has_error = TRUE;
-		return FALSE;
+	if (anonTLS) {
+		return TRUE;
+	} else {
+		if (!gvnc_validate_certificate(gvnc)) {
+			GVNC_DEBUG("Certificate validation failed\n");
+			gvnc->has_error = TRUE;
+			return FALSE;
+		}
+		return TRUE;
 	}
-	
-	return TRUE;
-
 }
 
 static gboolean gvnc_perform_auth_vencrypt(struct gvnc *gvnc, const char *password)
@@ -1090,7 +1091,6 @@ static gboolean gvnc_perform_auth_vencrypt(struct gvnc *gvnc, const char *passwo
 		return FALSE;
 	}
 
-	//wantAuth = 260;
 	GVNC_DEBUG("Choose auth %d\n", wantAuth);
 	gvnc_write_u32(gvnc, wantAuth);
 
@@ -1112,8 +1112,6 @@ static gboolean gvnc_perform_auth_vencrypt(struct gvnc *gvnc, const char *passwo
 		return FALSE;
 	}
 	GVNC_DEBUG("Completed TLS setup\n");
-
-	gvnc_write_u8(gvnc, 1);
 
 	switch (wantAuth) {
 		/* Plain certificate based auth */
