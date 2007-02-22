@@ -348,8 +348,6 @@ static void *vnc_coroutine(void *opaque)
 
 	gvnc_set_encodings(priv->gvnc, 5, encodings);
 
-	on_resize(obj, 640, 480);
-
 	gvnc_set_vnc_ops(priv->gvnc, &ops);
 	gvnc_framebuffer_update_request(priv->gvnc, 0, 0, 0, priv->fb.width, priv->fb.height);
 
