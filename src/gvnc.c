@@ -1138,7 +1138,7 @@ static gboolean gvnc_perform_auth(struct gvnc *gvnc, const char *password)
 
 	if (gvnc->minor == 3) {
 		nauth = 1;
-		auth[0] = gvnc_read_u8(gvnc);
+		auth[0] = gvnc_read_u32(gvnc);
 	} else {
 		int i;
 		nauth = gvnc_read_u8(gvnc);
@@ -1172,13 +1172,16 @@ static gboolean gvnc_perform_auth(struct gvnc *gvnc, const char *password)
 		}
 	}
 
-	GVNC_DEBUG("Chose auth %d\n", wantAuth);
-	gvnc_write_u8(gvnc, wantAuth);
+	if (gvnc->minor != 3) {
+		GVNC_DEBUG("Chose auth %d\n", wantAuth);
+		gvnc_write_u8(gvnc, wantAuth);
+	}
 
 	switch (wantAuth) {
 	case GVNC_AUTH_NONE:
-		return gvnc_check_auth_result(gvnc);
-
+		if (gvnc->minor == 8)
+			return gvnc_check_auth_result(gvnc);
+		return TRUE;
 	case GVNC_AUTH_VNC:
 		return gvnc_perform_auth_vnc(gvnc, password);
 
