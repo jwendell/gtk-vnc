@@ -77,8 +77,11 @@ struct gvnc
 	gnutls_session_t tls_session;
 
 	char read_buffer[4096];
-	int read_offset;
-	int read_size;
+	size_t read_offset;
+	size_t read_size;
+
+	char write_buffer[4096];
+	size_t write_offset;
 
 	gboolean perfect_match;
 	struct framebuffer local;
@@ -147,8 +150,8 @@ static void gvnc_read(struct gvnc *gvnc, void *data, size_t len)
 		size_t tmp;
 
 		if (gvnc->read_offset == gvnc->read_size) {
-			ssize_t ret;
-			
+			int ret;
+
 			if (gvnc->tls_session) {
 				ret = gnutls_read(gvnc->tls_session, gvnc->read_buffer, 4096);
 				if (ret < 0) {
@@ -187,56 +190,92 @@ static void gvnc_read(struct gvnc *gvnc, void *data, size_t len)
 	}
 }
 
-static void gvnc_raw_write(struct gvnc *gvnc, const void *data, size_t len)
+static void gvnc_flush(struct gvnc *gvnc)
 {
 	int fd = g_io_channel_unix_get_fd(gvnc->channel);
-	const char *ptr = data;
 	size_t offset = 0;
+	while (offset < gvnc->write_offset) {
+		int ret;
 
-	while (offset < len) {
-		ssize_t ret;
-
-		ret = write(fd, ptr + offset, len - offset);
-		if (ret == -1) {
-			switch (errno) {
-			case EAGAIN:
-				g_io_wait(gvnc->channel, G_IO_OUT);
-			case EINTR:
-				continue;
-			default:
+		if (gvnc->tls_session) {
+			ret = gnutls_write(gvnc->tls_session,
+					   gvnc->write_buffer+offset,
+					   gvnc->write_offset-offset);
+			if (ret < 0) {
 				gvnc->has_error = TRUE;
 				return;
 			}
+		} else {
+			ret = write(fd,
+				    gvnc->write_buffer+offset,
+				    gvnc->write_offset-offset);
+			if (ret == -1) {
+				switch (errno) {
+				case EAGAIN:
+					g_io_wait(gvnc->channel, G_IO_OUT);
+				case EINTR:
+					continue;
+				default:
+					gvnc->has_error = TRUE;
+					return;
+				}
+			}
 		}
-
 		if (ret == 0) {
 			gvnc->has_error = TRUE;
 			return;
 		}
-
 		offset += ret;
 	}
+	gvnc->write_offset = 0;
 }
-
 
 static void gvnc_write(struct gvnc *gvnc, const void *data, size_t len)
 {
-	if (gvnc->tls_session) {
-		if (gnutls_write(gvnc->tls_session, data, len) != len)
-			gvnc->has_error = TRUE;
-	} else {
-		gvnc_raw_write(gvnc, data, len);
+	const char *ptr = data;
+	size_t offset = 0;
+
+	while (offset < len) {
+		ssize_t tmp;
+
+		if (gvnc->write_offset == sizeof(gvnc->write_buffer)) {
+			gvnc_flush(gvnc);
+		}
+
+		tmp = MIN(sizeof(gvnc->write_buffer), len - offset);
+
+		memcpy(gvnc->write_buffer+gvnc->write_offset, ptr + offset, tmp);
+
+		gvnc->write_offset += tmp;
+		offset += tmp;
 	}
 }
+
 
 static ssize_t gvnc_tls_push(gnutls_transport_ptr_t transport,
 			      const void *data,
 			      size_t len) {
 	struct gvnc *gvnc = (struct gvnc *)transport;
-	gvnc_raw_write(gvnc, data, len);
-	if (gvnc->has_error) {
-		return -1;
+	int fd = g_io_channel_unix_get_fd(gvnc->channel);
+	int ret;
+	size_t sent = 0;
+
+	while (sent < len) {
+		ret = write(fd, data+sent, len-sent);
+		if (ret == -1 && errno == EINTR)
+			continue;
+		if (ret == -1 && errno == EAGAIN) {
+			g_io_wait(gvnc->channel, G_IO_OUT);
+			continue;
+		}
+		if (ret <= 0) {
+			gvnc->has_error = TRUE;
+			return -1;
+		} else {
+			sent += ret;
+		}
 	}
+
 	return len;
 }
 
@@ -246,16 +285,16 @@ static ssize_t gvnc_tls_pull(gnutls_transport_ptr_t transport,
 			     size_t len) {
 	struct gvnc *gvnc = (struct gvnc *)transport;
 	int fd = g_io_channel_unix_get_fd(gvnc->channel);
-	int ret, got = 0;
+	int ret;
+	size_t got = 0;
 
 	while (got < len) {
-	reread:
 		ret = read(fd, data+got, len-got);
 		if (ret == -1 && errno == EINTR)
-			goto reread;
+			continue;
 		if (ret == -1 && errno == EAGAIN) {
 			g_io_wait(gvnc->channel, G_IO_IN);
-			goto reread;
+			continue;
 		}
 		if (ret <= 0) {
 			gvnc->has_error = TRUE;
@@ -536,7 +575,7 @@ gboolean gvnc_set_pixel_format(struct gvnc *gvnc,
 	gvnc_write_u8(gvnc, fmt->blue_shift);
 
 	gvnc_write(gvnc, pad, 3);
-
+	gvnc_flush(gvnc);
 	memcpy(&gvnc->fmt, fmt, sizeof(*fmt));
 
 	return gvnc_has_error(gvnc);
@@ -552,7 +591,7 @@ gboolean gvnc_set_encodings(struct gvnc *gvnc, int n_encoding, int32_t *encoding
 	gvnc_write_u16(gvnc, n_encoding);
 	for (i = 0; i < n_encoding; i++)
 		gvnc_write_s32(gvnc, encoding[i]);
-
+	gvnc_flush(gvnc);
 	return gvnc_has_error(gvnc);
 }
 
@@ -567,7 +606,7 @@ gboolean gvnc_framebuffer_update_request(struct gvnc *gvnc,
 	gvnc_write_u16(gvnc, y);
 	gvnc_write_u16(gvnc, width);
 	gvnc_write_u16(gvnc, height);
-
+	gvnc_flush(gvnc);
 	return gvnc_has_error(gvnc);
 }
 
@@ -579,7 +618,7 @@ gboolean gvnc_key_event(struct gvnc *gvnc, uint8_t down_flag, uint32_t key)
 	gvnc_write_u8(gvnc, down_flag);
 	gvnc_write(gvnc, pad, 2);
 	gvnc_write_u32(gvnc, key);
-
+	gvnc_flush(gvnc);
 	return gvnc_has_error(gvnc);
 }
 
@@ -590,7 +629,7 @@ gboolean gvnc_pointer_event(struct gvnc *gvnc, uint8_t button_mask,
 	gvnc_write_u8(gvnc, button_mask);
 	gvnc_write_u16(gvnc, x);
 	gvnc_write_u16(gvnc, y);
-
+	gvnc_flush(gvnc);
 	return gvnc_has_error(gvnc);	
 }
 
@@ -603,7 +642,7 @@ gboolean gvnc_client_cut_text(struct gvnc *gvnc,
 	gvnc_write(gvnc, pad, 3);
 	gvnc_write_u32(gvnc, length);
 	gvnc_write(gvnc, data, length);
-
+	gvnc_flush(gvnc);
 	return gvnc_has_error(gvnc);
 }
 
@@ -956,7 +995,7 @@ static gboolean gvnc_perform_auth_vnc(struct gvnc *gvnc, const char *password)
 	des(challenge + 8, challenge + 8);
 
 	gvnc_write(gvnc, challenge, 16);
-
+	gvnc_flush(gvnc);
 	return gvnc_check_auth_result(gvnc);
 }
 
@@ -1059,8 +1098,9 @@ static gboolean gvnc_start_tls(struct gvnc *gvnc, int anonTLS) {
 
 static gboolean gvnc_perform_auth_vencrypt(struct gvnc *gvnc, const char *password)
 {
-	int major, minor, status, nauth, i, wantAuth = GVNC_AUTH_INVALID, anonTLS;
-	int auth[20];
+	int major, minor, status, wantAuth = GVNC_AUTH_INVALID, anonTLS;
+	unsigned int nauth, i;
+	unsigned int auth[20];
 
 	major = gvnc_read_u8(gvnc);
 	minor = gvnc_read_u8(gvnc);
@@ -1073,7 +1113,7 @@ static gboolean gvnc_perform_auth_vencrypt(struct gvnc *gvnc, const char *passwo
 
 	gvnc_write_u8(gvnc, major);
 	gvnc_write_u8(gvnc, minor);
-
+	gvnc_flush(gvnc);
 	status = gvnc_read_u8(gvnc);
 	if (status != 0) {
 		GVNC_DEBUG("Server refused VeNCrypt version %d %d\n", major, minor);
@@ -1116,7 +1156,7 @@ static gboolean gvnc_perform_auth_vencrypt(struct gvnc *gvnc, const char *passwo
 
 	GVNC_DEBUG("Choose auth %d\n", wantAuth);
 	gvnc_write_u32(gvnc, wantAuth);
-
+	gvnc_flush(gvnc);
 	status = gvnc_read_u8(gvnc);
 	if (status != 1) {
 		GVNC_DEBUG("Server refused VeNCrypt auth %d %d\n", wantAuth, status);
@@ -1156,14 +1196,14 @@ static gboolean gvnc_perform_auth_vencrypt(struct gvnc *gvnc, const char *passwo
 
 static gboolean gvnc_perform_auth(struct gvnc *gvnc, const char *password)
 {
-	int nauth, wantAuth = GVNC_AUTH_INVALID, i;
-	int auth[10];
+	int wantAuth = GVNC_AUTH_INVALID;
+	unsigned int nauth, i;
+	unsigned int auth[10];
 
 	if (gvnc->minor == 3) {
 		nauth = 1;
 		auth[0] = gvnc_read_u8(gvnc);
 	} else {
-		int i;
 		nauth = gvnc_read_u8(gvnc);
 		if (gvnc_has_error(gvnc))
 			return FALSE;
@@ -1197,7 +1237,7 @@ static gboolean gvnc_perform_auth(struct gvnc *gvnc, const char *password)
 
 	GVNC_DEBUG("Chose auth %d\n", wantAuth);
 	gvnc_write_u8(gvnc, wantAuth);
-
+	gvnc_flush(gvnc);
 	switch (wantAuth) {
 	case GVNC_AUTH_NONE:
 		return gvnc_check_auth_result(gvnc);
@@ -1253,7 +1293,7 @@ struct gvnc *gvnc_connect(GIOChannel *channel, gboolean shared_flag, const char 
 
 	snprintf(version, 12, "RFB %03d.%03d\n", gvnc->major, gvnc->minor);
 	gvnc_write(gvnc, version, 12);
-
+	gvnc_flush(gvnc);
 	GVNC_DEBUG("Negotiated protocol %d %d\n", gvnc->major, gvnc->minor);
 
 	if (!gvnc_perform_auth(gvnc, password)) {
@@ -1262,7 +1302,7 @@ struct gvnc *gvnc_connect(GIOChannel *channel, gboolean shared_flag, const char 
 	}
 
 	gvnc_write_u8(gvnc, shared_flag); /* shared flag */
-
+	gvnc_flush(gvnc);
 	gvnc->width = gvnc_read_u16(gvnc);
 	gvnc->height = gvnc_read_u16(gvnc);
 
