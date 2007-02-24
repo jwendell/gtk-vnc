@@ -89,6 +89,8 @@ struct gvnc
 	gvnc_blt_func *blt;
 	gvnc_hextile_func *hextile;
 
+	int shared_memory_enabled;
+
 	struct vnc_ops ops;
 
 	int absolute;
@@ -520,6 +522,16 @@ gboolean gvnc_set_pixel_format(struct gvnc *gvnc,
 	return gvnc_has_error(gvnc);
 }
 
+gboolean gvnc_set_shared_buffer(struct gvnc *gvnc, int line_size, int shmid)
+{
+	gvnc_write_u8(gvnc, 255);
+	gvnc_write_u8(gvnc, 0);
+	gvnc_write_u16(gvnc, line_size);
+	gvnc_write_u32(gvnc, shmid);
+
+	return gvnc_has_error(gvnc);
+}
+
 gboolean gvnc_set_encodings(struct gvnc *gvnc, int n_encoding, int32_t *encoding)
 {
 	uint8_t pad[1] = {0};
@@ -773,6 +785,13 @@ static void gvnc_pointer_type_change(struct gvnc *gvnc, int absolute)
 	gvnc->has_error = !gvnc->ops.pointer_type_change(gvnc->ops.user, absolute);
 }
 
+static void gvnc_shared_memory_rmid(struct gvnc *gvnc, int shmid)
+{
+	if (gvnc->has_error || !gvnc->ops.shared_memory_rmid)
+		return;
+	gvnc->has_error = !gvnc->ops.shared_memory_rmid(gvnc->ops.user, shmid);
+}
+
 static void gvnc_framebuffer_update(struct gvnc *gvnc, int32_t etype,
 				    uint16_t x, uint16_t y,
 				    uint16_t width, uint16_t height)
@@ -795,6 +814,21 @@ static void gvnc_framebuffer_update(struct gvnc *gvnc, int32_t etype,
 		break;
 	case -257: /* PointerChangeType */
 		gvnc_pointer_type_change(gvnc, x);
+		break;
+	case -258: /* SharedMemory */
+		switch (gvnc_read_u32(gvnc)) {
+		case 0:
+			gvnc->shared_memory_enabled = 1;
+			break;
+		case 1:
+			gvnc_shared_memory_rmid(gvnc, gvnc_read_u32(gvnc));
+			break;
+		case 2:
+			gvnc_resize(gvnc, gvnc->width, gvnc->height);
+			break;
+		case 3:
+			break;
+		} 
 		break;
 	default:
 		gvnc->has_error = TRUE;
@@ -1319,6 +1353,11 @@ gboolean gvnc_set_local(struct gvnc *gvnc, struct framebuffer *fb)
 		gvnc->blt = gvnc_blt_fast;
 
 	return gvnc_has_error(gvnc);
+}
+
+gboolean gvnc_shared_memory_enabled(struct gvnc *gvnc)
+{
+	return gvnc->shared_memory_enabled;
 }
 
 gboolean gvnc_set_vnc_ops(struct gvnc *gvnc, struct vnc_ops *ops)

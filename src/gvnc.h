@@ -14,6 +14,7 @@ struct vnc_ops
 	gboolean (*server_cut_text)(void *, const void *, size_t);
 	gboolean (*resize)(void *, int, int);
 	gboolean (*pointer_type_change)(void *, int);
+	gboolean (*shared_memory_rmid)(void *, int);
 	void *user;
 };
 
@@ -34,6 +35,8 @@ struct vnc_pixel_format
 struct framebuffer
 {
 	uint8_t *data;
+
+	int shm_id;
 
 	int width;
 	int height;
@@ -74,11 +77,15 @@ gboolean gvnc_set_encodings(struct gvnc *gvnc, int n_encoding, int32_t *encoding
 gboolean gvnc_set_pixel_format(struct gvnc *gvnc,
 			       const struct vnc_pixel_format *fmt);
 
+gboolean gvnc_set_shared_buffer(struct gvnc *gvnc, int line_size, int shmid);
+
 gboolean gvnc_has_error(struct gvnc *gvnc);
 
 gboolean gvnc_set_local(struct gvnc *gvnc, struct framebuffer *fb);
 
 gboolean gvnc_set_vnc_ops(struct gvnc *gvnc, struct vnc_ops *ops);
+
+gboolean gvnc_shared_memory_enabled(struct gvnc *gvnc);
 
 const char *gvnc_get_name(struct gvnc *gvnc);
 

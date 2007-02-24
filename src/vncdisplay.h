@@ -59,6 +59,8 @@ void		vnc_display_open(VncDisplay *obj, int fd);
 
 void		vnc_display_set_password(VncDisplay *obj, const gchar *password);
 
+void		vnc_display_set_use_shm(VncDisplay *obj, gboolean enable);
+
 G_END_DECLS
 
 #endif

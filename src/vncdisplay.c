@@ -11,10 +11,13 @@
 #include "vncdisplay.h"
 #include "coroutine.h"
 #include "gvnc.h"
+#include "vncshmimage.h"
 
 #include <gtk/gtk.h>
 #include <string.h>
 #include <gdk/gdkkeysyms.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
 
 #define VNC_DISPLAY_GET_PRIVATE(obj) \
       (G_TYPE_INSTANCE_GET_PRIVATE((obj), VNC_TYPE_DISPLAY, VncDisplayPrivate))
@@ -23,7 +26,7 @@ struct _VncDisplayPrivate
 {
 	GIOChannel *channel;
 	GdkGC *gc;
-	GdkImage *image;
+	VncShmImage *shm_image;
 	GdkCursor *null_cursor;
 
 	struct framebuffer fb;
@@ -38,6 +41,8 @@ struct _VncDisplayPrivate
 	const char *password;
 
 	int absolute;
+
+	int use_shm;
 };
 
 GtkWidget *vnc_display_new(void)
@@ -69,7 +74,7 @@ static gboolean expose_event(GtkWidget *widget, GdkEventExpose *expose,
 	VncDisplayPrivate *priv = obj->priv;
 	int x, y, w, h;
 
-	if (priv->image == NULL)
+	if (priv->shm_image == NULL)
 		return TRUE;
 
 	x = MIN(expose->area.x, priv->fb.width);
@@ -79,11 +84,9 @@ static gboolean expose_event(GtkWidget *widget, GdkEventExpose *expose,
 	w -= x;
 	h -= y;
 
-	gdk_draw_image(widget->window,
-		       priv->gc, 
-		       priv->image,
-		       x, y, x, y, w, h);
-
+	vnc_shm_image_draw(priv->shm_image, widget->window,
+			   priv->gc, 
+			   x, y, x, y, w, h);
 	return TRUE;
 }
 
@@ -279,8 +282,11 @@ static gboolean on_resize(void *opaque, int width, int height)
 	GdkVisual *visual;
 	int depth;
 
-	if (priv->image)
-		gdk_image_unref(priv->image);
+	if (priv->shm_image)
+		g_object_unref(priv->shm_image);
+
+	if (priv->fb.shm_id != -1)
+		shmctl(priv->fb.shm_id, IPC_RMID, NULL);
 
 	if (priv->gc == NULL) {
 		priv->null_cursor = create_null_cursor();
@@ -291,7 +297,9 @@ static gboolean on_resize(void *opaque, int width, int height)
 
 	depth = gdk_drawable_get_depth(GTK_WIDGET(obj)->window);
 	visual = gdk_visual_get_best_with_depth(depth);
-	priv->image = gdk_image_new(GDK_IMAGE_FASTEST, visual, width, height);
+
+	priv->shm_image = vnc_shm_image_new(visual, width, height, priv->use_shm);
+	priv->fb.shm_id = priv->shm_image->shmid;
 
 	priv->fb.red_mask = visual->red_mask >> visual->red_shift;
 	priv->fb.green_mask = visual->green_mask >> visual->green_shift;
@@ -299,12 +307,16 @@ static gboolean on_resize(void *opaque, int width, int height)
 	priv->fb.red_shift = visual->red_shift;
 	priv->fb.green_shift = visual->green_shift;
 	priv->fb.blue_shift = visual->blue_shift;
-	priv->fb.depth = priv->image->depth;
-	priv->fb.bpp = priv->image->bpp;
-	priv->fb.width = priv->image->width;
-	priv->fb.height = priv->image->height;
-	priv->fb.linesize = priv->image->bpl;
-	priv->fb.data = priv->image->mem;
+	priv->fb.depth = priv->shm_image->depth;
+	priv->fb.bpp = priv->shm_image->bpp;
+	priv->fb.width = priv->shm_image->width;
+	priv->fb.height = priv->shm_image->height;
+	priv->fb.linesize = priv->shm_image->bytes_per_line;
+	priv->fb.data = (uint8_t *)priv->shm_image->pixels;
+
+	if (gvnc_shared_memory_enabled(priv->gvnc) && priv->fb.shm_id != -1)
+		gvnc_set_shared_buffer(priv->gvnc,
+				       priv->fb.linesize, priv->fb.shm_id);
 
 	gtk_widget_set_size_request(GTK_WIDGET(obj), width, height);
 
@@ -329,16 +341,33 @@ static gboolean on_pointer_type_change(void *opaque, int absolute)
 	return TRUE;
 }
 
+static gboolean on_shared_memory_rmid(void *opaque, int shmid)
+{
+	VncDisplay *obj = VNC_DISPLAY(opaque);
+	VncDisplayPrivate *priv = obj->priv;
+
+	/* this needs to be much more robust */
+	if (shmid != priv->fb.shm_id) {
+		printf("server sent wrong shmid!\n");
+	}
+
+	shmctl(shmid, IPC_RMID, NULL);
+	if (shmid == priv->fb.shm_id)
+		priv->fb.shm_id = -1;
+	return TRUE;
+}
+
 static void *vnc_coroutine(void *opaque)
 {
 	VncDisplay *obj = VNC_DISPLAY(opaque);
 	VncDisplayPrivate *priv = obj->priv;
-	int32_t encodings[] = { -223, -257, 5, 1, 0 };
+	int32_t encodings[] = { -223, -258, -257, 5, 1, 0 };
 	int ret;
 	struct vnc_ops ops = {
 		.update = on_update,
 		.resize = on_resize,
 		.pointer_type_change = on_pointer_type_change,
+		.shared_memory_rmid = on_shared_memory_rmid,
 		.user = obj,
 	};
 
@@ -346,7 +375,7 @@ static void *vnc_coroutine(void *opaque)
 	if (priv->gvnc == NULL)
 		return NULL;
 
-	gvnc_set_encodings(priv->gvnc, 5, encodings);
+	gvnc_set_encodings(priv->gvnc, 6, encodings);
 
 	gvnc_set_vnc_ops(priv->gvnc, &ops);
 	gvnc_framebuffer_update_request(priv->gvnc, 0, 0, 0, priv->fb.width, priv->fb.height);
@@ -449,11 +478,17 @@ static void vnc_display_init(GTypeInstance *instance, gpointer klass)
 	display->priv->last_x = -1;
 	display->priv->last_y = -1;
 	display->priv->absolute = 1;
+	display->priv->fb.shm_id = -1;
 }
 
 void vnc_display_set_password(VncDisplay *obj, const gchar *password)
 {
 	obj->priv->password = password;
+}
+
+void vnc_display_set_use_shm(VncDisplay *obj, gboolean enable)
+{
+	obj->priv->use_shm = enable;
 }
 
 GType vnc_display_get_type(void)
