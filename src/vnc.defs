@@ -41,4 +41,13 @@
   )
 )
 
+(define-method set_use_shm
+  (of-object "VncDisplay")
+  (c-name "vnc_display_set_use_shm")
+  (return-type "none")
+  (parameters
+    '("gboolean" "enable")
+  )
+)
+
 

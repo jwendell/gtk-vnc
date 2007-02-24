@@ -75,10 +75,27 @@ _wrap_vnc_display_set_password(PyGObject *self, PyObject *args, PyObject *kwargs
     return Py_None;
 }
 
+static PyObject *
+_wrap_vnc_display_set_use_shm(PyGObject *self, PyObject *args, PyObject *kwargs)
+{
+    static char *kwlist[] = { "enable", NULL };
+    int enable;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs,"i:VncDisplay.set_use_shm", kwlist, &enable))
+        return NULL;
+    
+    vnc_display_set_use_shm(VNC_DISPLAY(self->obj), enable);
+    
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
 static const PyMethodDef _PyVncDisplay_methods[] = {
     { "open", (PyCFunction)_wrap_vnc_display_open, METH_VARARGS|METH_KEYWORDS,
       NULL },
     { "set_password", (PyCFunction)_wrap_vnc_display_set_password, METH_VARARGS|METH_KEYWORDS,
+      NULL },
+    { "set_use_shm", (PyCFunction)_wrap_vnc_display_set_use_shm, METH_VARARGS|METH_KEYWORDS,
       NULL },
     { NULL, NULL, 0, NULL }
 };
@@ -156,7 +173,7 @@ vnc_register_classes(PyObject *d)
     }
 
 
-#line 160 "vnc.c"
+#line 177 "vnc.c"
     pygobject_register_class(d, "VncDisplay", VNC_TYPE_DISPLAY, &PyVncDisplay_Type, Py_BuildValue("(O)", &PyGtkDrawingArea_Type));
     pyg_set_object_has_new_constructor(VNC_TYPE_DISPLAY);
 }

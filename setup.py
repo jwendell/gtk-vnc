@@ -20,5 +20,6 @@ setup(name='vnc',
                                                'src/gvnc.c',
                                                'src/vncdisplay.c',
                                                'src/vncmodule.c',
+                                               'src/vncshmimage.c',
                                                'src/gen-vnc.defs.c'])])
       

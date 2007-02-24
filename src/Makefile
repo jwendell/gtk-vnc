@@ -19,6 +19,7 @@ CFLAGS += -I$(prefix)/include/python$(PYVERSION)
 all: vnc.so
 
 vnc-test: vnc-test.o gvnc.o coroutine.o continuation.o vncdisplay.o d3des.o
+vncshmimage-test: vncshmimage-test.o vncshmimage.o
 
 vnc.defs: vncdisplay.h
 	python $(CODEGENDIR)/h2def.py $< > $@
@@ -29,7 +30,7 @@ gen-vnc.defs.c: vnc.override vnc.defs
 			  --override vnc.override vnc.defs > $@
 
 vnc.so: gvnc.o coroutine.o continuation.o vncdisplay.o vncmodule.o \
-        gen-vnc.defs.o d3des.o
+        gen-vnc.defs.o d3des.o vncshmimage.o
 	$(CC) $(LDFLAGS) $(LDLIBS) -shared $^ -o $@
 
 coroutine.o: coroutine.c coroutine.h continuation.h
@@ -37,6 +38,8 @@ gvnc.o: gvnc.c gvnc.h coroutine.h blt.h blt1.h continuation.h d3des.h
 continuation.o: continuation.c continuation.h
 vncdisplay.o: vncdisplay.c vncdisplay.h
 d3des.o: d3des.c d3des.h
+vncshmimage.o: vncshmimage.c vncshmimage.h
+vncshmimage-test.o: vncshmimage-test.c vncshmimage.h
 
 clean:
 	$(RM) *.o *~ gen-vnc.defs.c vnc.so vnc.defs
