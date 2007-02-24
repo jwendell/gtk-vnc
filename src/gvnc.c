@@ -589,6 +589,7 @@ gboolean gvnc_set_shared_buffer(struct gvnc *gvnc, int line_size, int shmid)
 	gvnc_write_u8(gvnc, 0);
 	gvnc_write_u16(gvnc, line_size);
 	gvnc_write_u32(gvnc, shmid);
+	gvnc_flush(gvnc);
 
 	return gvnc_has_error(gvnc);
 }
