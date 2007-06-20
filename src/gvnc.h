@@ -88,5 +88,7 @@ gboolean gvnc_set_vnc_ops(struct gvnc *gvnc, struct vnc_ops *ops);
 gboolean gvnc_shared_memory_enabled(struct gvnc *gvnc);
 
 const char *gvnc_get_name(struct gvnc *gvnc);
+int gvnc_get_width(struct gvnc *gvnc);
+int gvnc_get_height(struct gvnc *gvnc);
 
 #endif

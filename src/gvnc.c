@@ -1235,7 +1235,7 @@ static gboolean gvnc_perform_auth(struct gvnc *gvnc, const char *password)
 	unsigned int nauth, i;
 	unsigned int auth[10];
 
-	if (gvnc->minor == 3) {
+	if (gvnc->minor <= 6) {
 		nauth = 1;
 		auth[0] = gvnc_read_u32(gvnc);
 	} else {
@@ -1270,7 +1270,7 @@ static gboolean gvnc_perform_auth(struct gvnc *gvnc, const char *password)
 		}
 	}
 
-	if (gvnc->minor != 3) {
+	if (gvnc->minor > 6) {
 		GVNC_DEBUG("Chose auth %d\n", wantAuth);
 		gvnc_write_u8(gvnc, wantAuth);
 		gvnc_flush(gvnc);
@@ -1326,6 +1326,8 @@ struct gvnc *gvnc_connect(GIOChannel *channel, gboolean shared_flag, const char 
 	if (gvnc->major != 3)
 		goto error;
 	if (gvnc->minor != 3 &&
+	    gvnc->minor != 5 &&
+	    gvnc->minor != 6 &&
 	    gvnc->minor != 7 &&
 	    gvnc->minor != 8)
 		goto error;
@@ -1435,6 +1437,16 @@ gboolean gvnc_set_vnc_ops(struct gvnc *gvnc, struct vnc_ops *ops)
 const char *gvnc_get_name(struct gvnc *gvnc)
 {
 	return gvnc->name;
+}
+
+int gvnc_get_width(struct gvnc *gvnc)
+{
+	return gvnc->width;
+}
+
+int gvnc_get_height(struct gvnc *gvnc)
+{
+	return gvnc->height;
 }
 
 /*

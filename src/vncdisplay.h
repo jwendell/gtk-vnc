@@ -44,7 +44,10 @@ struct _VncDisplay
 
 struct _VncDisplayClass
 {
-	GtkDrawingAreaClass parent;
+	GtkDrawingAreaClass parent_class;
+
+	/* Signals */
+	void		(* vnc_initialized)	(VncDisplay *display);
 
 	int enter_grab_event_id;
 	int leave_grab_event_id;
@@ -60,6 +63,10 @@ void		vnc_display_open(VncDisplay *obj, int fd);
 void		vnc_display_set_password(VncDisplay *obj, const gchar *password);
 
 void		vnc_display_set_use_shm(VncDisplay *obj, gboolean enable);
+
+int		vnc_display_get_width(VncDisplay *obj);
+int		vnc_display_get_height(VncDisplay *obj);
+const char *	vnc_display_get_host_name(VncDisplay *obj);
 
 G_END_DECLS
 

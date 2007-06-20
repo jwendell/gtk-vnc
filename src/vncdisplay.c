@@ -45,6 +45,15 @@ struct _VncDisplayPrivate
 	int use_shm;
 };
 
+/* Signals */
+enum
+{
+  VNC_INITIALIZED,
+  LAST_SIGNAL
+};
+
+static guint signals[LAST_SIGNAL] = { 0 };
+
 GtkWidget *vnc_display_new(void)
 {
 	return GTK_WIDGET(g_object_new(VNC_TYPE_DISPLAY, NULL));
@@ -375,6 +384,10 @@ static void *vnc_coroutine(void *opaque)
 	if (priv->gvnc == NULL)
 		return NULL;
 
+	g_signal_emit (G_OBJECT (obj),
+		       signals[VNC_INITIALIZED],
+		       0);
+
 	gvnc_set_encodings(priv->gvnc, 6, encodings);
 
 	gvnc_set_vnc_ops(priv->gvnc, &ops);
@@ -415,7 +428,17 @@ void vnc_display_open(VncDisplay *obj, int fd)
 
 static void vnc_display_class_init(VncDisplayClass *klass)
 {
-	g_type_class_add_private(klass, sizeof(VncDisplayPrivate));
+	GObjectClass *object_class = G_OBJECT_CLASS (klass);
+
+	signals[VNC_INITIALIZED] =
+		g_signal_new ("vnc-initialized",
+			      G_OBJECT_CLASS_TYPE (object_class),
+			      G_SIGNAL_RUN_FIRST,
+			      G_STRUCT_OFFSET (VncDisplayClass, vnc_initialized),
+			      NULL, NULL,
+			      g_cclosure_marshal_VOID__VOID,
+			      G_TYPE_NONE,
+			      0);
 
 	klass->enter_grab_event_id =
 		g_signal_new("enter-grab-event",
@@ -438,6 +461,8 @@ static void vnc_display_class_init(VncDisplayClass *klass)
 			     g_cclosure_marshal_VOID__VOID,
 			     G_TYPE_NONE,
 			     0);
+
+	g_type_class_add_private(klass, sizeof(VncDisplayPrivate));
 }
 
 static void vnc_display_init(GTypeInstance *instance, gpointer klass)
@@ -515,5 +540,26 @@ GType vnc_display_get_type(void)
 	}
 
 	return type;
+}
+
+int vnc_display_get_width(VncDisplay *obj)
+{
+  g_return_val_if_fail (VNC_IS_DISPLAY (obj), -1);
+
+  return gvnc_get_width (obj->priv->gvnc);
+}
+
+int vnc_display_get_height(VncDisplay *obj)
+{
+  g_return_val_if_fail (VNC_IS_DISPLAY (obj), -1);
+
+  return gvnc_get_height (obj->priv->gvnc);
+}
+
+const char * vnc_display_get_host_name(VncDisplay *obj)
+{
+  g_return_val_if_fail (VNC_IS_DISPLAY (obj), NULL);
+
+  return gvnc_get_name (obj->priv->gvnc);
 }
 
