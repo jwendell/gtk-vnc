@@ -71,6 +71,7 @@ rm -fr %{buildroot}
 %files devel
 %defattr(-, root, root)
 %doc AUTHORS ChangeLog NEWS README COPYING.LIB
+%doc examples/gvncviewer.c
 %{_libdir}/lib*.so
 %dir %{_includedir}/%{name}-1.0/
 %{_includedir}/%{name}-1.0/*.h
@@ -79,6 +80,7 @@ rm -fr %{buildroot}
 %files python
 %defattr(-, root, root)
 %doc AUTHORS ChangeLog NEWS README COPYING.LIB
+%doc examples/gvncviewer.py
 %{_libdir}/python*/site-packages/gtkvnc.so
 
 %changelog

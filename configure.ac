@@ -110,6 +110,7 @@ AM_CONDITIONAL(WITH_PYTHON, [test "$WITH_PYTHON" = "yes"])
 AC_CONFIG_FILES(
   Makefile
   src/Makefile
+  examples/Makefile
   gtk-vnc-1.0.pc
   gtk-vnc.spec
   )
