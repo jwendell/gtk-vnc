@@ -92,3 +92,10 @@ int gvnc_get_width(struct gvnc *gvnc);
 int gvnc_get_height(struct gvnc *gvnc);
 
 #endif
+/*
+ * Local variables:
+ *  c-indent-level: 8
+ *  c-basic-offset: 8
+ *  tab-width: 8
+ * End:
+ */

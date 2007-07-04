@@ -48,8 +48,8 @@ struct _VncDisplayPrivate
 /* Signals */
 enum
 {
-  VNC_INITIALIZED,
-  LAST_SIGNAL
+	VNC_INITIALIZED,
+	LAST_SIGNAL
 };
 
 static guint signals[LAST_SIGNAL] = { 0 };
@@ -61,19 +61,19 @@ GtkWidget *vnc_display_new(void)
 
 static GdkCursor *create_null_cursor(void)
 {
-    GdkBitmap *image;
-    gchar data[4] = {0};
-    GdkColor fg = { 0, 0, 0, 0 };
-    GdkCursor *cursor;
+	GdkBitmap *image;
+	gchar data[4] = {0};
+	GdkColor fg = { 0, 0, 0, 0 };
+	GdkCursor *cursor;
 
-    image = gdk_bitmap_create_from_data(NULL, data, 1, 1);
+	image = gdk_bitmap_create_from_data(NULL, data, 1, 1);
 
-    cursor = gdk_cursor_new_from_pixmap(GDK_PIXMAP(image),
-					GDK_PIXMAP(image),
-					&fg, &fg, 0, 0);
-    gdk_bitmap_unref(image);
+	cursor = gdk_cursor_new_from_pixmap(GDK_PIXMAP(image),
+					    GDK_PIXMAP(image),
+					    &fg, &fg, 0, 0);
+	gdk_bitmap_unref(image);
 
-    return cursor;
+	return cursor;
 }
 
 static gboolean expose_event(GtkWidget *widget, GdkEventExpose *expose,
@@ -545,22 +545,29 @@ GType vnc_display_get_type(void)
 
 int vnc_display_get_width(VncDisplay *obj)
 {
-  g_return_val_if_fail (VNC_IS_DISPLAY (obj), -1);
+	g_return_val_if_fail (VNC_IS_DISPLAY (obj), -1);
 
-  return gvnc_get_width (obj->priv->gvnc);
+	return gvnc_get_width (obj->priv->gvnc);
 }
 
 int vnc_display_get_height(VncDisplay *obj)
 {
-  g_return_val_if_fail (VNC_IS_DISPLAY (obj), -1);
+	g_return_val_if_fail (VNC_IS_DISPLAY (obj), -1);
 
-  return gvnc_get_height (obj->priv->gvnc);
+	return gvnc_get_height (obj->priv->gvnc);
 }
 
 const char * vnc_display_get_host_name(VncDisplay *obj)
 {
-  g_return_val_if_fail (VNC_IS_DISPLAY (obj), NULL);
+	g_return_val_if_fail (VNC_IS_DISPLAY (obj), NULL);
 
-  return gvnc_get_name (obj->priv->gvnc);
+	return gvnc_get_name (obj->priv->gvnc);
 }
 
+/*
+ * Local variables:
+ *  c-indent-level: 8
+ *  c-basic-offset: 8
+ *  tab-width: 8
+ * End:
+ */

@@ -39,3 +39,10 @@ int cc_swap(struct continuation *from, struct continuation *to);
         (type *)(((char *)obj) - offset_of(type, member))
 
 #endif
+/*
+ * Local variables:
+ *  c-indent-level: 8
+ *  c-basic-offset: 8
+ *  tab-width: 8
+ * End:
+ */

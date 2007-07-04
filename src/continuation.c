@@ -47,3 +47,10 @@ int cc_swap(struct continuation *from, struct continuation *to)
 
 	return 0;
 }
+/*
+ * Local variables:
+ *  c-indent-level: 8
+ *  c-basic-offset: 8
+ *  tab-width: 8
+ * End:
+ */

@@ -71,3 +71,10 @@ const char *	vnc_display_get_host_name(VncDisplay *obj);
 G_END_DECLS
 
 #endif
+/*
+ * Local variables:
+ *  c-indent-level: 8
+ *  c-basic-offset: 8
+ *  tab-width: 8
+ * End:
+ */

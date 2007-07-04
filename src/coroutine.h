@@ -42,3 +42,10 @@ void *yieldto(struct coroutine *to, void *arg);
 void *yield(void *arg);
 
 #endif
+/*
+ * Local variables:
+ *  c-indent-level: 8
+ *  c-basic-offset: 8
+ *  tab-width: 8
+ * End:
+ */
