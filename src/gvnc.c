@@ -67,6 +67,9 @@ typedef void gvnc_hextile_func(struct gvnc *gvnc, uint8_t flags,
 struct gvnc
 {
 	GIOChannel *channel;
+	int fd;
+	char *host;
+	char *port;
 	struct vnc_pixel_format fmt;
 	gboolean has_error;
 	int width;
@@ -1299,26 +1302,12 @@ static gboolean gvnc_perform_auth(struct gvnc *gvnc, const char *password)
 	return TRUE;
 }
 
-struct gvnc *gvnc_connect(GIOChannel *channel, gboolean shared_flag, const char *password)
+static gboolean gvnc_connect(struct gvnc *gvnc, gboolean shared_flag, const char *password)
 {
-	int s;
 	int ret;
 	char version[13];
 	uint32_t n_name;
-	struct gvnc *gvnc = NULL;
 
-	s = g_io_channel_unix_get_fd(channel);
-
-	if (fcntl(s, F_SETFL, O_NONBLOCK) == -1)
-		goto error;
-
-	gvnc = malloc(sizeof(*gvnc));
-	if (gvnc == NULL)
-		goto error;
-
-	memset(gvnc, 0, sizeof(*gvnc));
-
-	gvnc->channel = channel;
 	gvnc->absolute = 1;
 
 	gvnc_read(gvnc, version, 12);
@@ -1326,16 +1315,16 @@ struct gvnc *gvnc_connect(GIOChannel *channel, gboolean shared_flag, const char 
 
  	ret = sscanf(version, "RFB %03d.%03d\n", &gvnc->major, &gvnc->minor);
 	if (ret != 2)
-		goto error;
+		return FALSE;
 
 	if (gvnc->major != 3)
-		goto error;
+		return FALSE;
 	if (gvnc->minor != 3 &&
 	    gvnc->minor != 5 &&
 	    gvnc->minor != 6 &&
 	    gvnc->minor != 7 &&
 	    gvnc->minor != 8)
-		goto error;
+		return FALSE;
 
 	snprintf(version, 12, "RFB %03d.%03d\n", gvnc->major, gvnc->minor);
 	gvnc_write(gvnc, version, 12);
@@ -1344,7 +1333,7 @@ struct gvnc *gvnc_connect(GIOChannel *channel, gboolean shared_flag, const char 
 
 	if (!gvnc_perform_auth(gvnc, password)) {
 		GVNC_DEBUG("Auth failed\n");
-		goto error;
+		return FALSE;
 	}
 
 	gvnc_write_u8(gvnc, shared_flag); /* shared flag */
@@ -1356,11 +1345,11 @@ struct gvnc *gvnc_connect(GIOChannel *channel, gboolean shared_flag, const char 
 
 	n_name = gvnc_read_u32(gvnc);
 	if (n_name > 4096)
-		goto error;
+		return FALSE;
 
 	gvnc->name = malloc(n_name + 1);
 	if (gvnc->name == NULL)
-		goto error;
+		return FALSE;
 
 	gvnc_read(gvnc, gvnc->name, n_name);
 	gvnc->name[n_name] = 0;
@@ -1368,12 +1357,120 @@ struct gvnc *gvnc_connect(GIOChannel *channel, gboolean shared_flag, const char 
 
 	gvnc_resize(gvnc, gvnc->width, gvnc->height);
 
+	return TRUE;
+}
+
+struct gvnc *gvnc_connect_fd(int fd,  gboolean shared_flag, const char *password)
+{
+	struct gvnc *gvnc = malloc(sizeof(*gvnc));
+	int flags;
+	if (gvnc == NULL)
+		return NULL;
+
+	memset(gvnc, 0, sizeof(*gvnc));
+
+	GVNC_DEBUG("Connecting to FD %d\n", fd);
+	if ((flags = fcntl(fd, F_GETFL)) < 0)
+		goto error;
+	flags |= O_NONBLOCK;
+	if (fcntl(fd, F_SETFL, flags) < 0)
+		goto error;
+
+	if (!(gvnc->channel = g_io_channel_unix_new(fd)))
+		goto error;
+	gvnc->fd = fd;
+
+	if (!gvnc_connect(gvnc, shared_flag, password))
+		goto error;
 	return gvnc;
 
  error:
+	if (gvnc->fd)
+		close(gvnc->fd);
+	if (gvnc->channel)
+		g_io_channel_unref(gvnc->channel);
 	free(gvnc);
 	return NULL;
 }
+
+struct gvnc *gvnc_connect_name(const char *host, const char *port,  gboolean shared_flag, const char *password)
+{
+        struct addrinfo *ai, *runp, hints;
+        int ret;
+	struct gvnc *gvnc = malloc(sizeof(*gvnc));
+	if (gvnc == NULL)
+		return NULL;
+
+	memset(gvnc, 0, sizeof(*gvnc));
+
+        GVNC_DEBUG("Resolving host %s %s\n", host, port);
+        memset (&hints, '\0', sizeof (hints));
+        hints.ai_flags = AI_ADDRCONFIG;
+        hints.ai_socktype = SOCK_STREAM;
+        hints.ai_protocol = IPPROTO_TCP;
+
+        if ((ret = getaddrinfo(host, port, &hints, &ai)) != 0)
+		goto error;
+
+        runp = ai;
+        while (runp != NULL) {
+                int flags, fd;
+                GIOChannel *chan;
+
+                if ((fd = socket(runp->ai_family, runp->ai_socktype,
+                                 runp->ai_protocol)) < 0)
+                        break;
+
+                GVNC_DEBUG("Trying socket %d\n", fd);
+                if ((flags = fcntl(fd, F_GETFL)) < 0) {
+                        close(fd);
+                        break;
+                }
+                flags |= O_NONBLOCK;
+                if (fcntl(fd, F_SETFL, flags) < 0) {
+                        close(fd);
+                        break;
+                }
+
+                if (!(chan = g_io_channel_unix_new(fd))) {
+                        close(fd);
+                        break;
+                }
+
+        reconnect:
+                if (connect(fd, runp->ai_addr, runp->ai_addrlen) == 0) {
+                        gvnc->channel = chan;
+                        gvnc->fd = fd;
+                        freeaddrinfo(ai);
+                        if (!gvnc_connect(gvnc, shared_flag, password))
+				goto error;
+			return gvnc;
+                }
+
+                if (errno == EINPROGRESS) {
+                        g_io_wait(chan, G_IO_OUT|G_IO_ERR|G_IO_HUP);
+                        goto reconnect;
+                } else if (errno != ECONNREFUSED) {
+                        g_io_channel_unref(chan);
+                        close(fd);
+                        break;
+                }
+                close(fd);
+                g_io_channel_unref(chan);
+                runp = runp->ai_next;
+        }
+        freeaddrinfo (ai);
+
+ error:
+	if (gvnc->fd)
+		close(gvnc->fd);
+	if (gvnc->channel)
+		g_io_channel_unref(gvnc->channel);
+	free(gvnc);
+	return NULL;
+}
+
+
 
 gboolean gvnc_set_local(struct gvnc *gvnc, struct framebuffer *fb)
 {

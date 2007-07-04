@@ -58,7 +58,8 @@ G_BEGIN_DECLS
 GType		vnc_display_get_type(void);
 GtkWidget *	vnc_display_new(void);
 
-void		vnc_display_open(VncDisplay *obj, int fd);
+gboolean	vnc_display_open_fd(VncDisplay *obj, int fd);
+gboolean	vnc_display_open_name(VncDisplay *obj, const char *host, const char *port);
 
 void		vnc_display_set_password(VncDisplay *obj, const gchar *password);
 

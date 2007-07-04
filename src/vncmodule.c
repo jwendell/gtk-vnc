@@ -20,8 +20,8 @@
 
 #include <pygobject.h>
  
-void vnc_register_classes (PyObject *d); 
-extern PyMethodDef vnc_functions[];
+void gtkvnc_register_classes (PyObject *d); 
+extern PyMethodDef gtkvnc_functions[];
  
 DL_EXPORT(void) initgtkvnc(void);
 
@@ -31,7 +31,7 @@ DL_EXPORT(void) initgtkvnc(void)
  
     init_pygobject ();
  
-    m = Py_InitModule ("gtkvnc", vnc_functions);
+    m = Py_InitModule ("gtkvnc", gtkvnc_functions);
     if (PyErr_Occurred())
 	Py_FatalError("can't init module");
 
@@ -39,7 +39,7 @@ DL_EXPORT(void) initgtkvnc(void)
     if (PyErr_Occurred())
 	Py_FatalError("can't get dict");
  
-    vnc_register_classes (d);
+    gtkvnc_register_classes (d);
  
     if (PyErr_Occurred ()) {
         Py_FatalError ("can't initialise module vnc");

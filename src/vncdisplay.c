@@ -15,6 +15,7 @@
 
 #include <gtk/gtk.h>
 #include <string.h>
+#include <stdlib.h>
 #include <gdk/gdkkeysyms.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
@@ -24,7 +25,9 @@
 
 struct _VncDisplayPrivate
 {
-	GIOChannel *channel;
+	int fd;
+	char *host;
+	char *port;
 	GdkGC *gc;
 	VncShmImage *shm_image;
 	GdkCursor *null_cursor;
@@ -380,7 +383,10 @@ static void *vnc_coroutine(void *opaque)
 		.user = obj,
 	};
 
-	priv->gvnc = gvnc_connect(priv->channel, FALSE, priv->password);
+	if (priv->fd != -1)
+		priv->gvnc = gvnc_connect_fd(priv->fd, FALSE, priv->password);
+	else
+		priv->gvnc = gvnc_connect_name(priv->host, priv->port, FALSE, priv->password);
 	if (priv->gvnc == NULL)
 		return NULL;
 
@@ -418,12 +424,37 @@ static gboolean do_vnc_display_open(gpointer data)
 	return FALSE;
 }
 
-void vnc_display_open(VncDisplay *obj, int fd)
+gboolean vnc_display_open_fd(VncDisplay *obj, int fd)
 {
-	GIOChannel *channel = g_io_channel_unix_new(fd);
+	if (obj->priv->gvnc)
+		return FALSE;
 
-	obj->priv->channel = channel;
+	obj->priv->fd = fd;
+	obj->priv->host = NULL;
+	obj->priv->port = NULL;
 	g_idle_add(do_vnc_display_open, obj);
+
+	return TRUE;
+}
+
+gboolean vnc_display_open_name(VncDisplay *obj, const char *host, const char *port)
+{
+	if (obj->priv->gvnc)
+		return FALSE;
+
+	obj->priv->host = strdup(host);
+	if (!obj->priv->host) {
+		return FALSE;
+	}
+	obj->priv->port = strdup(port);
+	if (!obj->priv->port) {
+		free(obj->priv->host);
+		obj->priv->host = NULL;
+		return FALSE;
+	}
+
+	g_idle_add(do_vnc_display_open, obj);
+	return TRUE;
 }
 
 static void vnc_display_class_init(VncDisplayClass *klass)
@@ -504,6 +535,7 @@ static void vnc_display_init(GTypeInstance *instance, gpointer klass G_GNUC_UNUS
 	display->priv->last_y = -1;
 	display->priv->absolute = 1;
 	display->priv->fb.shm_id = -1;
+	display->priv->fd = -1;
 }
 
 void vnc_display_set_password(VncDisplay *obj, const gchar *password)

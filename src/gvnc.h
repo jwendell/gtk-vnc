@@ -55,7 +55,8 @@ struct framebuffer
 	int green_shift;
 };
 
-struct gvnc *gvnc_connect(GIOChannel *channel, gboolean shared_flag, const char *password);
+struct gvnc *gvnc_connect_fd(int fd, gboolean shared_flag, const char *password);
+struct gvnc *gvnc_connect_name(const char *host, const char *port, gboolean shared_flag, const char *password);
 
 gboolean gvnc_server_message(struct gvnc *gvnc);
 
