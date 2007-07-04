@@ -23,6 +23,8 @@
 void vnc_register_classes (PyObject *d); 
 extern PyMethodDef vnc_functions[];
  
+DL_EXPORT(void) initgtkvnc(void);
+
 DL_EXPORT(void) initgtkvnc(void)
 {
     PyObject *m, *d;

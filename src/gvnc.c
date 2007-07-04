@@ -38,7 +38,8 @@
 #define KEY_FILE "key.pem"
 #define CERT_FILE "cert.pem"
 
-static gboolean g_io_wait_helper(GIOChannel *channel, GIOCondition cond,
+static gboolean g_io_wait_helper(GIOChannel *channel G_GNUC_UNUSED,
+				 GIOCondition cond,
 				 gpointer data)
 {
 	struct coroutine *to = data;
@@ -46,7 +47,7 @@ static gboolean g_io_wait_helper(GIOChannel *channel, GIOCondition cond,
 	return FALSE;
 }
 
-GIOCondition g_io_wait(GIOChannel *channel, GIOCondition cond)
+static GIOCondition g_io_wait(GIOChannel *channel, GIOCondition cond)
 {
 	GIOCondition *ret;
 
@@ -122,17 +123,19 @@ enum {
 };
 
 
-#if 0
+#define DEBUG 0
+#if DEBUG
 #define GVNC_DEBUG(fmt, ...) do { fprintf(stderr, fmt, ## __VA_ARGS__); } while (0)
+
+static void debug_log(int level, const char* str)
+{
+	GVNC_DEBUG("%d %s", level, str);
+}
+
 #else
 #define GVNC_DEBUG(fmt, ...) do { } while (0)
 #endif
 
-static void debug_log(int level, const char* str) {
-#if 0
-	GVNC_DEBUG("%d %s", level, str);
-#endif
-}
 
 #define nibhi(a) (((a) >> 4) & 0x0F)
 #define niblo(a) ((a) & 0x0F)
@@ -380,8 +383,10 @@ static gboolean gvnc_tls_initialize(void)
 	if (gnutls_dh_params_generate2 (dh_params, DH_BITS) < 0)
 		return FALSE;
 
+#if DEBUG
 	gnutls_global_set_log_level(10);
 	gnutls_global_set_log_function(debug_log);
+#endif
 
 	tlsinitialized = TRUE;
 

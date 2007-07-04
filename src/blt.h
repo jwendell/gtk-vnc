@@ -85,7 +85,6 @@ static void SUBRECT(struct gvnc *gvnc, uint8_t flags, uint16_t x, uint16_t y,
 	if (flags & 0x01) {
 		/* Raw tile */
 		if (gvnc->perfect_match) {
-			int i;
 			uint8_t *dst = gvnc_get_local(gvnc, x, y);
 
 			for (i = 0; i < height; i++) {

@@ -158,7 +158,7 @@ static void vnc_shm_image_class_init(VncShmImageClass *klass)
 	g_type_class_add_private(klass, sizeof(VncShmImagePrivate));
 }
 
-static void vnc_shm_image_init(GTypeInstance *instance, gpointer klass)
+static void vnc_shm_image_init(GTypeInstance *instance, gpointer klass G_GNUC_UNUSED)
 {
 	VncShmImage *obj = VNC_SHM_IMAGE(instance);
 
@@ -206,6 +206,7 @@ GType vnc_shm_image_get_type(void)
 			sizeof(VncShmImage),
 			0,
 			vnc_shm_image_init,
+			NULL
 		};
 
 		type = g_type_register_static(G_TYPE_OBJECT,

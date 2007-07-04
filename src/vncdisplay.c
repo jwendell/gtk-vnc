@@ -63,7 +63,7 @@ static GdkCursor *create_null_cursor(void)
 {
     GdkBitmap *image;
     gchar data[4] = {0};
-    GdkColor fg = { 0 };
+    GdkColor fg = { 0, 0, 0, 0 };
     GdkCursor *cursor;
 
     image = gdk_bitmap_create_from_data(NULL, data, 1, 1);
@@ -77,7 +77,7 @@ static GdkCursor *create_null_cursor(void)
 }
 
 static gboolean expose_event(GtkWidget *widget, GdkEventExpose *expose,
-			     gpointer data)
+			     gpointer data G_GNUC_UNUSED)
 {
 	VncDisplay *obj = VNC_DISPLAY(widget);
 	VncDisplayPrivate *priv = obj->priv;
@@ -137,7 +137,7 @@ static void toggle_grab(VncDisplay *obj)
 }
 
 static gboolean button_event(GtkWidget *widget, GdkEventButton *button,
-			     gpointer data)
+			     gpointer data G_GNUC_UNUSED)
 {
 	VncDisplayPrivate *priv = VNC_DISPLAY(widget)->priv;
 	int n;
@@ -167,7 +167,7 @@ static gboolean button_event(GtkWidget *widget, GdkEventButton *button,
 }
 
 static gboolean scroll_event(GtkWidget *widget, GdkEventScroll *scroll,
-			     gpointer data)
+			     gpointer data G_GNUC_UNUSED)
 {
 	VncDisplayPrivate *priv = VNC_DISPLAY(widget)->priv;
 	int mask;
@@ -202,7 +202,7 @@ static gboolean scroll_event(GtkWidget *widget, GdkEventScroll *scroll,
 }
 
 static gboolean motion_event(GtkWidget *widget, GdkEventMotion *motion,
-			     gpointer data)
+			     gpointer data G_GNUC_UNUSED)
 {
 	VncDisplayPrivate *priv = VNC_DISPLAY(widget)->priv;
 	int dx, dy;
@@ -252,7 +252,7 @@ static gboolean motion_event(GtkWidget *widget, GdkEventMotion *motion,
 }
 
 static gboolean key_event(GtkWidget *widget, GdkEventKey *key,
-			  gpointer data)
+			  gpointer data G_GNUC_UNUSED)
 {
 	VncDisplayPrivate *priv = VNC_DISPLAY(widget)->priv;
 	int down;
@@ -465,7 +465,7 @@ static void vnc_display_class_init(VncDisplayClass *klass)
 	g_type_class_add_private(klass, sizeof(VncDisplayPrivate));
 }
 
-static void vnc_display_init(GTypeInstance *instance, gpointer klass)
+static void vnc_display_init(GTypeInstance *instance, gpointer klass G_GNUC_UNUSED)
 {
 	GtkObject *obj = GTK_OBJECT(instance);
 	GtkWidget *widget = GTK_WIDGET(instance);
@@ -531,6 +531,7 @@ GType vnc_display_get_type(void)
 			sizeof(VncDisplay),
 			0,
 			vnc_display_init,
+			NULL
 		};
 
 		type = g_type_register_static(GTK_TYPE_DRAWING_AREA,
