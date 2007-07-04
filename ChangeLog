@@ -1,0 +1,103 @@
+2007-06-20  Jonh Wendell  <wendell@bani.com.br>
+
+	* src/gvnc.c, src/gvnc.h, src/vncdisplay.c, src/vncdisplay.h:
+	- Created two public get functions: get_width() and get_height()
+	- Created a vnc-initialized signal
+	- Made small changes in order to work with ultravnc, which reports rfb
+	3.6
+	[0a645e462b27] [tip]
+
+2007-02-24  Anthony Liguori  <anthony@codemonkey.ws>
+
+	* src/gvnc.c:
+	Make sure to flush after set_shared_memory
+	[96efd786ce0e]
+
+	* src/gvnc.c:
+	merge
+	[bf58a3b140e9]
+
+2007-02-24  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* src/gvnc.c:
+	Merge heads
+	[40f71f58fe82]
+
+	* src/gvnc.c:
+	Buffer all outgoing writes until gvnc_flush() is called. Fix
+	signed/unsigned comparisons
+	[63a8d28dc00c]
+
+2007-02-23  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* src/gvnc.c:
+	Add in missing diffie-hellman params. Fixed reading of TLS data wrt
+	to internal buffer
+	[e89673aaaa27]
+
+2007-02-24  Anthony Liguori  <anthony@codemonkey.ws>
+
+	* setup.py, src/Makefile, src/gen-vnc.defs.c, src/gvnc.c, src/gvnc.h,
+	src/vnc.defs, src/vncdisplay.c, src/vncdisplay.h, src/vncshmimage.c,
+	src/vncshmimage.h:
+	Add initial support for shared memory transport. It's off by
+	default.
+	[5cc6db03869a]
+
+2007-02-23  Anthony Liguori  <anthony@codemonkey.ws>
+
+	* setup.py, src/gvnc.c:
+	Fix python widget build and add proper support for RFB 3.3
+	[9315b4e9cbac]
+
+2007-02-21  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* src/gvnc.c:
+	Support the plain no X509 certificate auth types. Remove mistaken 1
+	byte write. Allow use of TLS 1.0 for compatability
+	[6d1100a8d5b4]
+
+	* src/Makefile, src/gvnc.c:
+	Initial suppport for protocol 3.7/3.8 and VeNCrypt TLS
+	authentication
+	[079f2f886eef]
+
+	* src/vncdisplay.c:
+	Remove redundant call to resize - gvnc_set_vnc_ops triggers a resize
+	signal
+	[26f19dac4378]
+
+2007-01-05  anthony  <anthony@rhesus>
+
+	* dsextras.py, setup.py, src/Makefile:
+	Some updates
+	[e92830dedd8a]
+
+	* MANIFEST, Makefile, blt.h, blt1.h, continuation.c, continuation.h,
+	coroutine.c, coroutine.h, d3des.c, d3des.h, dsextras.py, gvnc.c,
+	gvnc.h, setup.py, src/Makefile, src/blt.h, src/blt1.h,
+	src/continuation.c, src/continuation.h, src/coroutine.c,
+	src/coroutine.h, src/d3des.c, src/d3des.h, src/gen-vnc.defs.c,
+	src/gvnc.c, src/gvnc.h, src/vnc.defs, src/vnc.override,
+	src/vncdisplay.c, src/vncdisplay.h, src/vncmodule.c, test.py, vnc-
+	test.c, vnc.override, vncdisplay.c, vncdisplay.h, vncmodule.c:
+	Reorganize repo and create a proper setup.py
+	[b883d2248b18]
+
+	* COPYING.lib, blt1.h, continuation.c, continuation.h, coroutine.c,
+	coroutine.h, gvnc.c, vncdisplay.c, vncdisplay.h, vncmodule.c:
+	Add licensing stuff
+	[19632bb439a4]
+
+	* test.py, vncdisplay.c, vncdisplay.h:
+	Add a proper set of signals to notify of grab change
+	[4226ed633da9]
+
+2006-12-20  anthony  <anthony@rhesus>
+
+	* Makefile, blt.h, blt1.h, continuation.c, continuation.h,
+	coroutine.c, coroutine.h, d3des.c, d3des.h, gvnc.c, gvnc.h, test.py,
+	vnc-test.c, vnc.override, vncdisplay.c, vncdisplay.h, vncmodule.c:
+	Put vnc widget into a separate repo
+	[ba8d726d2f0f]
+

@@ -4,7 +4,7 @@ headers
 #include "pygobject.h"
 #include "vncdisplay.h"
 %%
-modulename vnc
+modulename gtkvnc
 %%
 import gtk.DrawingArea as PyGtkDrawingArea_Type
 %%

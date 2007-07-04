@@ -1,0 +1,17 @@
+   GTK VNC  Readme
+   ===============
+
+gtk-vnc is a VNC viewer widget for GTK. It is built using 
+coroutines allowing it to be completely asynchronous while 
+remaining single threaded. It provides a core C library, and
+bindings for Python (PyGTK)
+
+For information about the project visit the webpages at:
+
+  http://gtk-vnc.sourceforge.net/
+
+To contact developers use the project mailing list at:
+
+  https://lists.sourceforge.net/lists/listinfo/gtk-vnc-devel
+
+-- End

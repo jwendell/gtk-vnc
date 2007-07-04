@@ -23,13 +23,13 @@
 void vnc_register_classes (PyObject *d); 
 extern PyMethodDef vnc_functions[];
  
-DL_EXPORT(void) initvnc(void)
+DL_EXPORT(void) initgtkvnc(void)
 {
     PyObject *m, *d;
  
     init_pygobject ();
  
-    m = Py_InitModule ("vnc", vnc_functions);
+    m = Py_InitModule ("gtkvnc", vnc_functions);
     if (PyErr_Occurred())
 	Py_FatalError("can't init module");
 
