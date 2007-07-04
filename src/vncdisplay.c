@@ -373,7 +373,13 @@ static void *vnc_coroutine(void *opaque)
 {
 	VncDisplay *obj = VNC_DISPLAY(opaque);
 	VncDisplayPrivate *priv = obj->priv;
-	int32_t encodings[] = { -223, -258, -257, 5, 1, 0 };
+	int32_t encodings[] = { GVNC_ENCODING_DESKTOP_RESIZE,
+				GVNC_ENCODING_SHARED_MEMORY,
+				GVNC_ENCODING_POINTER_CHANGE,
+				GVNC_ENCODING_HEXTILE,
+				GVNC_ENCODING_COPY_RECT,
+				GVNC_ENCODING_RAW };
+
 	int ret;
 	struct vnc_ops ops = {
 		.update = on_update,

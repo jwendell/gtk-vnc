@@ -55,6 +55,23 @@ struct framebuffer
 	int green_shift;
 };
 
+enum {
+	GVNC_ENCODING_RAW = 0,
+	GVNC_ENCODING_COPY_RECT = 1,
+	GVNC_ENCODING_RRE = 2,
+	GVNC_ENCODING_CORRE = 4,
+	GVNC_ENCODING_HEXTILE = 5,
+	GVNC_ENCODING_ZRLE = 16,
+
+	GVNC_ENCODING_DESKTOP_RESIZE = -223,
+	GVNC_ENCODING_CURSOR_POS = -232,
+	GVNC_ENCODING_RICH_CURSOR = -239,
+	GVNC_ENCODING_XCUSOR = -240,
+
+	GVNC_ENCODING_POINTER_CHANGE = -257,
+	GVNC_ENCODING_SHARED_MEMORY = -258,
+};
+
 struct gvnc *gvnc_connect_fd(int fd, gboolean shared_flag, const char *password);
 struct gvnc *gvnc_connect_name(const char *host, const char *port, gboolean shared_flag, const char *password);
 

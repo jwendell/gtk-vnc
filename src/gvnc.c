@@ -870,22 +870,22 @@ static void gvnc_framebuffer_update(struct gvnc *gvnc, int32_t etype,
 		   etype, x, y, width, height);
 
 	switch (etype) {
-	case 0: /* Raw */
+	case GVNC_ENCODING_RAW:
 		gvnc_raw_update(gvnc, x, y, width, height);
 		break;
-	case 1: /* CopyRect */
+	case GVNC_ENCODING_COPY_RECT:
 		gvnc_copyrect_update(gvnc, x, y, width, height);
 		break;
-	case 5: /* Hextile */
+	case GVNC_ENCODING_HEXTILE:
 		gvnc_hextile_update(gvnc, x, y, width, height);
 		break;
-	case -223: /* DesktopResize */
+	case GVNC_ENCODING_DESKTOP_RESIZE:
 		gvnc_resize(gvnc, width, height);
 		break;
-	case -257: /* PointerChangeType */
+	case GVNC_ENCODING_POINTER_CHANGE:
 		gvnc_pointer_type_change(gvnc, x);
 		break;
-	case -258: /* SharedMemory */
+	case GVNC_ENCODING_SHARED_MEMORY:
 		switch (gvnc_read_u32(gvnc)) {
 		case 0:
 			gvnc->shared_memory_enabled = 1;
@@ -898,7 +898,7 @@ static void gvnc_framebuffer_update(struct gvnc *gvnc, int32_t etype,
 			break;
 		case 3:
 			break;
-		} 
+		}
 		break;
 	default:
 		gvnc->has_error = TRUE;
