@@ -48,6 +48,7 @@ struct _VncDisplayClass
 
 	/* Signals */
 	void		(* vnc_initialized)	(VncDisplay *display);
+	void		(* vnc_disconnected)	(VncDisplay *display);
 
 	int enter_grab_event_id;
 	int leave_grab_event_id;

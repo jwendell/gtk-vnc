@@ -11,7 +11,8 @@ v = gtkvnc.Display()
 w.add(v)
 w.show_all()
 
-v.set_credential(gtkvnc.CREDENTIAL_PASSWORD, "123456")
-v.open_host("localhost", "5901", 0)
+v.set_password("123456")
+v.open_name("localhost", "5901")
+v.connect("vnc-disconnected", gtk.main_quit)
 
 gtk.main()

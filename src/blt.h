@@ -32,7 +32,7 @@ static void FILL(struct gvnc *gvnc, src_pixel_t *sp,
 		 int x, int y, int width, int height)
 {
 	uint8_t *dst = gvnc_get_local(gvnc, x, y);
-	struct vnc_pixel_format *f = &gvnc->fmt;
+	struct gvnc_pixel_format *f = &gvnc->fmt;
 	int i;
 
 	for (i = 0; i < 1; i++) {
@@ -56,7 +56,7 @@ static void FILL(struct gvnc *gvnc, src_pixel_t *sp,
 static void BLIT(struct gvnc *gvnc, uint8_t *src, int pitch, int x, int y, int w, int h)
 {
 	uint8_t *dst = gvnc_get_local(gvnc, x, y);
-	struct vnc_pixel_format *f = &gvnc->fmt;
+	struct gvnc_pixel_format *f = &gvnc->fmt;
 	int i;
 
 	for (i = 0; i < h; i++) {

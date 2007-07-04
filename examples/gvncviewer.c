@@ -34,6 +34,9 @@ int main(int argc, char **argv)
 	gtk_signal_connect(GTK_OBJECT(window), "delete-event",
 			   GTK_SIGNAL_FUNC(gtk_main_quit), NULL);
 
+	gtk_signal_connect(GTK_OBJECT(vnc), "vnc-disconnected",
+			   GTK_SIGNAL_FUNC(gtk_main_quit), NULL);
+
 	gtk_main();
 
 	return 0;

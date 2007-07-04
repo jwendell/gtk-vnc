@@ -32,7 +32,7 @@ struct _VncDisplayPrivate
 	VncShmImage *shm_image;
 	GdkCursor *null_cursor;
 
-	struct framebuffer fb;
+	struct gvnc_framebuffer fb;
 	struct coroutine coroutine;
 	struct gvnc *gvnc;
 
@@ -52,10 +52,11 @@ struct _VncDisplayPrivate
 enum
 {
 	VNC_INITIALIZED,
+	VNC_DISCONNECTED,
 	LAST_SIGNAL
 };
 
-static guint signals[LAST_SIGNAL] = { 0 };
+static guint signals[LAST_SIGNAL] = { 0, 0 };
 
 GtkWidget *vnc_display_new(void)
 {
@@ -369,6 +370,13 @@ static gboolean on_shared_memory_rmid(void *opaque, int shmid)
 	return TRUE;
 }
 
+static const struct gvnc_ops vnc_display_ops = {
+	.update = on_update,
+	.resize = on_resize,
+	.pointer_type_change = on_pointer_type_change,
+	.shared_memory_rmid = on_shared_memory_rmid,
+};
+
 static void *vnc_coroutine(void *opaque)
 {
 	VncDisplay *obj = VNC_DISPLAY(opaque);
@@ -381,35 +389,41 @@ static void *vnc_coroutine(void *opaque)
 				GVNC_ENCODING_RAW };
 
 	int ret;
-	struct vnc_ops ops = {
-		.update = on_update,
-		.resize = on_resize,
-		.pointer_type_change = on_pointer_type_change,
-		.shared_memory_rmid = on_shared_memory_rmid,
-		.user = obj,
-	};
 
-	if (priv->fd != -1)
-		priv->gvnc = gvnc_connect_fd(priv->fd, FALSE, priv->password);
-	else
-		priv->gvnc = gvnc_connect_name(priv->host, priv->port, FALSE, priv->password);
+	priv->gvnc = gvnc_new(&vnc_display_ops, obj);
 	if (priv->gvnc == NULL)
 		return NULL;
+
+	if (priv->fd != -1) {
+		if (gvnc_connect_fd(priv->gvnc, priv->fd, FALSE, priv->password))
+			goto cleanup;
+	} else {
+		if (gvnc_connect_name(priv->gvnc, priv->host, priv->port, FALSE, priv->password))
+			goto cleanup;
+	}
 
 	g_signal_emit (G_OBJECT (obj),
 		       signals[VNC_INITIALIZED],
 		       0);
 
-	gvnc_set_encodings(priv->gvnc, 6, encodings);
+	if (gvnc_set_encodings(priv->gvnc, 6, encodings))
+		goto cleanup;
 
-	gvnc_set_vnc_ops(priv->gvnc, &ops);
-	gvnc_framebuffer_update_request(priv->gvnc, 0, 0, 0, priv->fb.width, priv->fb.height);
+	if (gvnc_framebuffer_update_request(priv->gvnc, 0, 0, 0, priv->fb.width, priv->fb.height))
+		goto cleanup;
 
 	while (!(ret = gvnc_server_message(priv->gvnc))) {
-		gvnc_framebuffer_update_request(priv->gvnc, 1, 0, 0,
-						priv->fb.width, priv->fb.height);
+		if (gvnc_framebuffer_update_request(priv->gvnc, 1, 0, 0,
+						     priv->fb.width, priv->fb.height))
+			goto cleanup;
 	}
 
+ cleanup:
+	gvnc_free(priv->gvnc);
+	priv->gvnc = NULL;
+	g_signal_emit (G_OBJECT (obj),
+		       signals[VNC_DISCONNECTED],
+		       0);
 	return NULL;
 }
 
@@ -472,6 +486,16 @@ static void vnc_display_class_init(VncDisplayClass *klass)
 			      G_OBJECT_CLASS_TYPE (object_class),
 			      G_SIGNAL_RUN_FIRST,
 			      G_STRUCT_OFFSET (VncDisplayClass, vnc_initialized),
+			      NULL, NULL,
+			      g_cclosure_marshal_VOID__VOID,
+			      G_TYPE_NONE,
+			      0);
+
+	signals[VNC_DISCONNECTED] =
+		g_signal_new ("vnc-disconnected",
+			      G_OBJECT_CLASS_TYPE (object_class),
+			      G_SIGNAL_RUN_FIRST,
+			      G_STRUCT_OFFSET (VncDisplayClass, vnc_disconnected),
 			      NULL, NULL,
 			      g_cclosure_marshal_VOID__VOID,
 			      G_TYPE_NONE,
