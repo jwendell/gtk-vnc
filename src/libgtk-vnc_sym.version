@@ -6,6 +6,7 @@
     vnc_display_open_name;
     vnc_display_set_password;
     vnc_display_set_use_shm;
+    vnc_display_set_pointer_local;
     vnc_display_set_pointer_grab;
     vnc_display_set_keyboard_grab;
 

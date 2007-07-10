@@ -45,6 +45,7 @@ int main(int argc, char **argv)
 	vnc_display_open_name(VNC_DISPLAY(vnc), argv[1], argv[2]);
 	vnc_display_set_keyboard_grab(VNC_DISPLAY(vnc), TRUE);
 	vnc_display_set_pointer_grab(VNC_DISPLAY(vnc), TRUE);
+	vnc_display_set_pointer_local(VNC_DISPLAY(vnc), TRUE);
 
 	gtk_signal_connect(GTK_OBJECT(window), "delete-event",
 			   GTK_SIGNAL_FUNC(gtk_main_quit), NULL);

@@ -62,6 +62,7 @@ gboolean	vnc_display_open_name(VncDisplay *obj, const char *host, const char *po
 void		vnc_display_set_password(VncDisplay *obj, const gchar *password);
 
 void		vnc_display_set_use_shm(VncDisplay *obj, gboolean enable);
+void		vnc_display_set_pointer_local(VncDisplay *obj, gboolean enable);
 void		vnc_display_set_pointer_grab(VncDisplay *obj, gboolean enable);
 void		vnc_display_set_keyboard_grab(VncDisplay *obj, gboolean enable);
 

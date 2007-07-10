@@ -49,6 +49,7 @@ struct _VncDisplayPrivate
 	gboolean use_shm;
 	gboolean grab_pointer;
 	gboolean grab_keyboard;
+	gboolean local_pointer;
 };
 
 /* Signals */
@@ -170,6 +171,18 @@ static void do_pointer_ungrab(VncDisplay *obj)
 	g_signal_emit(obj, signals[VNC_POINTER_UNGRAB], 0);
 }
 
+static void do_pointer_hide(VncDisplay *obj)
+{
+	VncDisplayPrivate *priv = obj->priv;
+	gdk_window_set_cursor(GTK_WIDGET(obj)->window,
+			      priv->null_cursor);
+}
+
+static void do_pointer_show(VncDisplay *obj)
+{
+	gdk_window_set_cursor(GTK_WIDGET(obj)->window,
+			      NULL);
+}
 
 
 static gboolean button_event(GtkWidget *widget, GdkEventButton *button,
@@ -375,8 +388,10 @@ static gboolean on_resize(void *opaque, int width, int height)
 
 	if (priv->gc == NULL) {
 		priv->null_cursor = create_null_cursor();
-		gdk_window_set_cursor(GTK_WIDGET(obj)->window,
-				      priv->null_cursor);
+		if (priv->local_pointer)
+			do_pointer_show(obj);
+		else
+			do_pointer_hide(obj);
 		priv->gc = gdk_gc_new(GTK_WIDGET(obj)->window);
 	}
 
@@ -415,12 +430,8 @@ static gboolean on_pointer_type_change(void *opaque, int absolute)
 	VncDisplay *obj = VNC_DISPLAY(opaque);
 	VncDisplayPrivate *priv = obj->priv;
 
-	if (absolute) {
-		if (priv->in_pointer_grab && !priv->grab_pointer)
-			do_pointer_ungrab(obj);
-		gdk_window_set_cursor(GTK_WIDGET(obj)->window, priv->null_cursor);
-	} else
-		gdk_window_set_cursor(GTK_WIDGET(obj)->window, NULL);
+	if (absolute && priv->in_pointer_grab && !priv->grab_pointer)
+		do_pointer_ungrab(obj);
 
 	priv->absolute = absolute;
 	return TRUE;
@@ -674,6 +685,17 @@ void vnc_display_set_password(VncDisplay *obj, const gchar *password)
 void vnc_display_set_use_shm(VncDisplay *obj, gboolean enable)
 {
 	obj->priv->use_shm = enable;
+}
+
+void vnc_display_set_pointer_local(VncDisplay *obj, gboolean enable)
+{
+	if (obj->priv->gc) {
+		if (enable)
+			do_pointer_show(obj);
+		else
+			do_pointer_hide(obj);
+	}
+	obj->priv->local_pointer = enable;
 }
 
 void vnc_display_set_pointer_grab(VncDisplay *obj, gboolean enable)

@@ -23,6 +23,7 @@ w.show_all()
 
 v.set_pointer_grab(True)
 v.set_keyboard_grab(True)
+#v.set_pointer_local(True)
 
 if len(sys.argv) == 4:
     v.set_password(sys.argv[3])
