@@ -305,21 +305,43 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *key,
 			  gpointer data G_GNUC_UNUSED)
 {
 	VncDisplayPrivate *priv = VNC_DISPLAY(widget)->priv;
-	int down;
+	guint keyval;
+	gint group, level;
+	GdkModifierType consumed;
 
 	if (priv->gvnc == NULL || !gvnc_is_connected(priv->gvnc))
 		return TRUE;
-	
-	if (key->type == GDK_KEY_PRESS)
-		down = 1;
-	else
-		down = 0;
 
-	gvnc_key_event(priv->gvnc, down, key->keyval);
+	/*
+	 * Key handling in VNC is screwy. The event.keyval from GTK is
+	 * interpreted relative to modifier state. This really messes
+	 * up with VNC which has no concept of modifiers - it just sees
+	 * key up & down events - the remote end interprets modifiers
+	 * itself. So if we interpret at the client end you can end up
+	 * with 'Alt' key press generating Alt_L, and key release generating
+	 * ISO_Prev_Group. This really really confuses the VNC server
+	 * with 'Alt' getting stuck on.
+	 *
+	 * So we have to redo GTK's  keycode -> keyval translation
+	 * using only the SHIFT modifier which the RFB explicitly
+	 * requires to be interpreted at client end.
+	 *
+	 * Arggggh.
+	 */
+	gdk_keymap_translate_keyboard_state(gdk_keymap_get_default(),
+					    key->hardware_keycode,
+					    key->state & (GDK_SHIFT_MASK | GDK_LOCK_MASK),
+					    key->group,
+					    &keyval,
+					    &group,
+					    &level,
+					    &consumed);
+
+	gvnc_key_event(priv->gvnc, key->type == GDK_KEY_PRESS ? 1 : 0, keyval);
 
 	if (key->type == GDK_KEY_PRESS &&
-	    ((key->keyval == GDK_Control_L && (key->state & GDK_MOD1_MASK)) ||
-	     (key->keyval == GDK_Alt_L && (key->state & GDK_CONTROL_MASK)))) {
+	    ((keyval == GDK_Control_L && (key->state & GDK_MOD1_MASK)) ||
+	     (keyval == GDK_Alt_L && (key->state & GDK_CONTROL_MASK)))) {
 		if (priv->in_pointer_grab)
 			do_pointer_ungrab(VNC_DISPLAY(widget));
 		else
