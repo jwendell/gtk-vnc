@@ -1496,7 +1496,8 @@ gboolean gvnc_connect_name(struct gvnc *gvnc, const char *host, const char *port
                 if (errno == EINPROGRESS) {
                         g_io_wait(chan, G_IO_OUT|G_IO_ERR|G_IO_HUP);
                         goto reconnect;
-                } else if (errno != ECONNREFUSED) {
+                } else if (errno != ECONNREFUSED &&
+                           errno != EHOSTUNREACH) {
                         g_io_channel_unref(chan);
                         close(fd);
                         break;
