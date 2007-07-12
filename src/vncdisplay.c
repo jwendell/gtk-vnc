@@ -32,30 +32,42 @@ struct _VncDisplayPrivate
 	VncShmImage *shm_image;
 	GdkCursor *null_cursor;
 
-	struct framebuffer fb;
+	struct gvnc_framebuffer fb;
 	struct coroutine coroutine;
 	struct gvnc *gvnc;
 
-	int in_grab;
+	gboolean in_pointer_grab;
+	gboolean in_keyboard_grab;
 
 	int button_mask;
 	int last_x;
 	int last_y;
 	const char *password;
 
-	int absolute;
+	gboolean absolute;
 
-	int use_shm;
+	gboolean use_shm;
+	gboolean grab_pointer;
+	gboolean grab_keyboard;
+	gboolean local_pointer;
 };
 
 /* Signals */
 enum
 {
+ 	VNC_POINTER_GRAB,
+ 	VNC_POINTER_UNGRAB,
+ 	VNC_KEYBOARD_GRAB,
+ 	VNC_KEYBOARD_UNGRAB,
+
 	VNC_INITIALIZED,
+	VNC_DISCONNECTED,
+
 	LAST_SIGNAL
 };
 
-static guint signals[LAST_SIGNAL] = { 0 };
+static guint signals[LAST_SIGNAL] = { 0, 0, 0, 0,
+				      0, 0 };
 
 GtkWidget *vnc_display_new(void)
 {
@@ -102,42 +114,76 @@ static gboolean expose_event(GtkWidget *widget, GdkEventExpose *expose,
 	return TRUE;
 }
 
-static void toggle_grab(VncDisplay *obj)
+static void do_keyboard_grab(VncDisplay *obj)
 {
 	VncDisplayPrivate *priv = obj->priv;
-	VncDisplayClass *klass = VNC_DISPLAY_GET_CLASS(obj);
 
-	if (priv->in_grab) {
-		priv->in_grab = 0;
-		gdk_keyboard_ungrab(GDK_CURRENT_TIME);
-		gdk_pointer_ungrab(GDK_CURRENT_TIME);
-		if (priv->absolute)
-			gdk_window_set_cursor(GTK_WIDGET(obj)->window,
-					      priv->null_cursor);
-		else
-			gdk_window_set_cursor(GTK_WIDGET(obj)->window,
-					      NULL);
-		priv->last_x = -1;
-		priv->last_y = -1;
-		g_signal_emit(obj, klass->leave_grab_event_id, 0);
-	} else {
-		priv->in_grab = 1;
-		gdk_keyboard_grab(GTK_WIDGET(obj)->window,
-				  FALSE,
-				  GDK_CURRENT_TIME);
-		gdk_pointer_grab(GTK_WIDGET(obj)->window,
-				 TRUE,
-				 GDK_POINTER_MOTION_MASK |
-				 GDK_BUTTON_PRESS_MASK |
-				 GDK_BUTTON_RELEASE_MASK |
-				 GDK_BUTTON_MOTION_MASK |
-				 GDK_SCROLL_MASK,
-				 NULL,
-				 priv->null_cursor,
-				 GDK_CURRENT_TIME);
-		g_signal_emit(obj, klass->enter_grab_event_id, 0);
-	}
+	gdk_keyboard_grab(GTK_WIDGET(obj)->window,
+			  FALSE,
+			  GDK_CURRENT_TIME);
+	priv->in_keyboard_grab = TRUE;
+	g_signal_emit(obj, signals[VNC_KEYBOARD_GRAB], 0);
 }
+
+
+static void do_keyboard_ungrab(VncDisplay *obj)
+{
+	VncDisplayPrivate *priv = obj->priv;
+
+	gdk_keyboard_ungrab(GDK_CURRENT_TIME);
+	priv->in_keyboard_grab = FALSE;
+	g_signal_emit(obj, signals[VNC_KEYBOARD_UNGRAB], 0);
+}
+
+
+static void do_pointer_grab(VncDisplay *obj)
+{
+	VncDisplayPrivate *priv = obj->priv;
+
+	/* If we're not already grabbing keyboard, grab it now */
+	if (!priv->grab_keyboard)
+		do_keyboard_grab(obj);
+
+	gdk_pointer_grab(GTK_WIDGET(obj)->window,
+			 TRUE,
+			 GDK_POINTER_MOTION_MASK |
+			 GDK_BUTTON_PRESS_MASK |
+			 GDK_BUTTON_RELEASE_MASK |
+			 GDK_BUTTON_MOTION_MASK |
+			 GDK_SCROLL_MASK,
+			 GTK_WIDGET(obj)->window,
+			 priv->null_cursor,
+			 GDK_CURRENT_TIME);
+	priv->in_pointer_grab = TRUE;
+	g_signal_emit(obj, signals[VNC_POINTER_GRAB], 0);
+}
+
+static void do_pointer_ungrab(VncDisplay *obj)
+{
+	VncDisplayPrivate *priv = obj->priv;
+
+	/* If we grabed keyboard upon pointer grab, then ungrab it now */
+	if (!priv->grab_keyboard)
+		do_keyboard_ungrab(obj);
+
+	gdk_pointer_ungrab(GDK_CURRENT_TIME);
+	priv->in_pointer_grab = FALSE;
+	g_signal_emit(obj, signals[VNC_POINTER_UNGRAB], 0);
+}
+
+static void do_pointer_hide(VncDisplay *obj)
+{
+	VncDisplayPrivate *priv = obj->priv;
+	gdk_window_set_cursor(GTK_WIDGET(obj)->window,
+			      priv->null_cursor);
+}
+
+static void do_pointer_show(VncDisplay *obj)
+{
+	gdk_window_set_cursor(GTK_WIDGET(obj)->window,
+			      NULL);
+}
+
 
 static gboolean button_event(GtkWidget *widget, GdkEventButton *button,
 			     gpointer data G_GNUC_UNUSED)
@@ -148,9 +194,10 @@ static gboolean button_event(GtkWidget *widget, GdkEventButton *button,
 	if (priv->gvnc == NULL)
 		return TRUE;
 
-	if (!priv->absolute && !priv->in_grab &&
+	if ((priv->grab_pointer || !priv->absolute) &&
+	    !priv->in_pointer_grab &&
 	    button->button == 1 && button->type == GDK_BUTTON_PRESS)
-		toggle_grab(VNC_DISPLAY(widget));
+		do_pointer_grab(VNC_DISPLAY(widget));
 
 	n = 1 << (button->button - 1);
 	if (button->type == GDK_BUTTON_PRESS)
@@ -164,7 +211,7 @@ static gboolean button_event(GtkWidget *widget, GdkEventButton *button,
 	} else {
 		gvnc_pointer_event(priv->gvnc, priv->button_mask,
 				   0x7FFF, 0x7FFF);
-	}		
+	}
 
 	return TRUE;
 }
@@ -199,7 +246,7 @@ static gboolean scroll_event(GtkWidget *widget, GdkEventScroll *scroll,
 				   0x7FFF, 0x7FFF);
 		gvnc_pointer_event(priv->gvnc, priv->button_mask,
 				   0x7FFF, 0x7FFF);
-	}		
+	}
 
 	return TRUE;
 }
@@ -213,10 +260,10 @@ static gboolean motion_event(GtkWidget *widget, GdkEventMotion *motion,
 	if (priv->gvnc == NULL)
 		return TRUE;
 
-	if (!priv->absolute && !priv->in_grab)
+	if (!priv->absolute && !priv->in_pointer_grab)
 		return TRUE;
 
-	if (priv->in_grab) {
+	if (!priv->absolute && priv->in_pointer_grab) {
 		GdkDrawable *drawable = GDK_DRAWABLE(widget->window);
 		GdkDisplay *display = gdk_drawable_get_display(drawable);
 		GdkScreen *screen = gdk_drawable_get_screen(drawable);
@@ -258,25 +305,86 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *key,
 			  gpointer data G_GNUC_UNUSED)
 {
 	VncDisplayPrivate *priv = VNC_DISPLAY(widget)->priv;
-	int down;
+	guint keyval;
+	gint group, level;
+	GdkModifierType consumed;
 
-	if (priv->gvnc == NULL)
+	if (priv->gvnc == NULL || !gvnc_is_connected(priv->gvnc))
 		return TRUE;
-	
-	if (key->type == GDK_KEY_PRESS)
-		down = 1;
-	else
-		down = 0;
 
-	gvnc_key_event(priv->gvnc, down, key->keyval);
+	/*
+	 * Key handling in VNC is screwy. The event.keyval from GTK is
+	 * interpreted relative to modifier state. This really messes
+	 * up with VNC which has no concept of modifiers - it just sees
+	 * key up & down events - the remote end interprets modifiers
+	 * itself. So if we interpret at the client end you can end up
+	 * with 'Alt' key press generating Alt_L, and key release generating
+	 * ISO_Prev_Group. This really really confuses the VNC server
+	 * with 'Alt' getting stuck on.
+	 *
+	 * So we have to redo GTK's  keycode -> keyval translation
+	 * using only the SHIFT modifier which the RFB explicitly
+	 * requires to be interpreted at client end.
+	 *
+	 * Arggggh.
+	 */
+	gdk_keymap_translate_keyboard_state(gdk_keymap_get_default(),
+					    key->hardware_keycode,
+					    key->state & (GDK_SHIFT_MASK | GDK_LOCK_MASK),
+					    key->group,
+					    &keyval,
+					    &group,
+					    &level,
+					    &consumed);
+
+	gvnc_key_event(priv->gvnc, key->type == GDK_KEY_PRESS ? 1 : 0, keyval);
 
 	if (key->type == GDK_KEY_PRESS &&
-	    ((key->keyval == GDK_Control_L && (key->state & GDK_MOD1_MASK)) ||
-	     (key->keyval == GDK_Alt_L && (key->state & GDK_CONTROL_MASK))))
-		toggle_grab(VNC_DISPLAY(widget));
+	    ((keyval == GDK_Control_L && (key->state & GDK_MOD1_MASK)) ||
+	     (keyval == GDK_Alt_L && (key->state & GDK_CONTROL_MASK)))) {
+		if (priv->in_pointer_grab)
+			do_pointer_ungrab(VNC_DISPLAY(widget));
+		else
+			do_pointer_grab(VNC_DISPLAY(widget));
+	}
 
 	return TRUE;
 }
+
+static gboolean enter_event(GtkWidget *widget, GdkEventCrossing *crossing,
+                            gpointer data G_GNUC_UNUSED)
+{
+        VncDisplayPrivate *priv = VNC_DISPLAY(widget)->priv;
+
+        if (priv->gvnc == NULL || !gvnc_is_connected(priv->gvnc))
+                return TRUE;
+
+        if (crossing->mode != GDK_CROSSING_NORMAL)
+                return TRUE;
+
+        if (priv->grab_keyboard)
+                do_keyboard_grab(VNC_DISPLAY(widget));
+
+        return TRUE;
+}
+
+static gboolean leave_event(GtkWidget *widget, GdkEventCrossing *crossing,
+                            gpointer data G_GNUC_UNUSED)
+{
+        VncDisplayPrivate *priv = VNC_DISPLAY(widget)->priv;
+
+        if (priv->gvnc == NULL || !gvnc_is_connected(priv->gvnc))
+                return TRUE;
+
+        if (crossing->mode != GDK_CROSSING_NORMAL)
+                return TRUE;
+
+        if (priv->grab_keyboard)
+                do_keyboard_ungrab(VNC_DISPLAY(widget));
+
+        return TRUE;
+}
+
 
 static gboolean on_update(void *opaque, int x, int y, int w, int h)
 {
@@ -302,8 +410,10 @@ static gboolean on_resize(void *opaque, int width, int height)
 
 	if (priv->gc == NULL) {
 		priv->null_cursor = create_null_cursor();
-		gdk_window_set_cursor(GTK_WIDGET(obj)->window,
-				      priv->null_cursor);
+		if (priv->local_pointer)
+			do_pointer_show(obj);
+		else
+			do_pointer_hide(obj);
 		priv->gc = gdk_gc_new(GTK_WIDGET(obj)->window);
 	}
 
@@ -333,7 +443,7 @@ static gboolean on_resize(void *opaque, int width, int height)
 	gtk_widget_set_size_request(GTK_WIDGET(obj), width, height);
 
 	gvnc_set_local(priv->gvnc, &priv->fb);
-			
+
 	return TRUE;
 }
 
@@ -342,12 +452,8 @@ static gboolean on_pointer_type_change(void *opaque, int absolute)
 	VncDisplay *obj = VNC_DISPLAY(opaque);
 	VncDisplayPrivate *priv = obj->priv;
 
-	if (absolute) {
-		if (priv->in_grab)
-			toggle_grab(obj);
-		gdk_window_set_cursor(GTK_WIDGET(obj)->window, priv->null_cursor);
-	} else
-		gdk_window_set_cursor(GTK_WIDGET(obj)->window, NULL);
+	if (absolute && priv->in_pointer_grab && !priv->grab_pointer)
+		do_pointer_ungrab(obj);
 
 	priv->absolute = absolute;
 	return TRUE;
@@ -369,6 +475,13 @@ static gboolean on_shared_memory_rmid(void *opaque, int shmid)
 	return TRUE;
 }
 
+static const struct gvnc_ops vnc_display_ops = {
+	.update = on_update,
+	.resize = on_resize,
+	.pointer_type_change = on_pointer_type_change,
+	.shared_memory_rmid = on_shared_memory_rmid,
+};
+
 static void *vnc_coroutine(void *opaque)
 {
 	VncDisplay *obj = VNC_DISPLAY(opaque);
@@ -381,35 +494,41 @@ static void *vnc_coroutine(void *opaque)
 				GVNC_ENCODING_RAW };
 
 	int ret;
-	struct vnc_ops ops = {
-		.update = on_update,
-		.resize = on_resize,
-		.pointer_type_change = on_pointer_type_change,
-		.shared_memory_rmid = on_shared_memory_rmid,
-		.user = obj,
-	};
 
-	if (priv->fd != -1)
-		priv->gvnc = gvnc_connect_fd(priv->fd, FALSE, priv->password);
-	else
-		priv->gvnc = gvnc_connect_name(priv->host, priv->port, FALSE, priv->password);
+	priv->gvnc = gvnc_new(&vnc_display_ops, obj);
 	if (priv->gvnc == NULL)
 		return NULL;
+
+	if (priv->fd != -1) {
+		if (gvnc_connect_fd(priv->gvnc, priv->fd, FALSE, priv->password))
+			goto cleanup;
+	} else {
+		if (gvnc_connect_name(priv->gvnc, priv->host, priv->port, FALSE, priv->password))
+			goto cleanup;
+	}
 
 	g_signal_emit (G_OBJECT (obj),
 		       signals[VNC_INITIALIZED],
 		       0);
 
-	gvnc_set_encodings(priv->gvnc, 6, encodings);
+	if (gvnc_set_encodings(priv->gvnc, 6, encodings))
+		goto cleanup;
 
-	gvnc_set_vnc_ops(priv->gvnc, &ops);
-	gvnc_framebuffer_update_request(priv->gvnc, 0, 0, 0, priv->fb.width, priv->fb.height);
+	if (gvnc_framebuffer_update_request(priv->gvnc, 0, 0, 0, priv->fb.width, priv->fb.height))
+		goto cleanup;
 
 	while (!(ret = gvnc_server_message(priv->gvnc))) {
-		gvnc_framebuffer_update_request(priv->gvnc, 1, 0, 0,
-						priv->fb.width, priv->fb.height);
+		if (gvnc_framebuffer_update_request(priv->gvnc, 1, 0, 0,
+						     priv->fb.width, priv->fb.height))
+			goto cleanup;
 	}
 
+ cleanup:
+	gvnc_free(priv->gvnc);
+	priv->gvnc = NULL;
+	g_signal_emit (G_OBJECT (obj),
+		       signals[VNC_DISCONNECTED],
+		       0);
 	return NULL;
 }
 
@@ -477,8 +596,18 @@ static void vnc_display_class_init(VncDisplayClass *klass)
 			      G_TYPE_NONE,
 			      0);
 
-	klass->enter_grab_event_id =
-		g_signal_new("enter-grab-event",
+	signals[VNC_DISCONNECTED] =
+		g_signal_new ("vnc-disconnected",
+			      G_OBJECT_CLASS_TYPE (object_class),
+			      G_SIGNAL_RUN_FIRST,
+			      G_STRUCT_OFFSET (VncDisplayClass, vnc_disconnected),
+			      NULL, NULL,
+			      g_cclosure_marshal_VOID__VOID,
+			      G_TYPE_NONE,
+			      0);
+
+	signals[VNC_POINTER_GRAB] =
+		g_signal_new("vnc-pointer-grab",
 			     G_TYPE_FROM_CLASS(klass),
 			     G_SIGNAL_RUN_LAST | G_SIGNAL_NO_HOOKS,
 			     0,
@@ -488,8 +617,30 @@ static void vnc_display_class_init(VncDisplayClass *klass)
 			     G_TYPE_NONE,
 			     0);
 
-	klass->leave_grab_event_id =
-		g_signal_new("leave-grab-event",
+	signals[VNC_POINTER_UNGRAB] =
+		g_signal_new("vnc-pointer-ungrab",
+			     G_TYPE_FROM_CLASS(klass),
+			     G_SIGNAL_RUN_LAST | G_SIGNAL_NO_HOOKS,
+			     0,
+			     NULL,
+			     NULL,
+			     g_cclosure_marshal_VOID__VOID,
+			     G_TYPE_NONE,
+			     0);
+
+	signals[VNC_KEYBOARD_GRAB] =
+		g_signal_new("vnc-keyboard-grab",
+			     G_TYPE_FROM_CLASS(klass),
+			     G_SIGNAL_RUN_LAST | G_SIGNAL_NO_HOOKS,
+			     0,
+			     NULL,
+			     NULL,
+			     g_cclosure_marshal_VOID__VOID,
+			     G_TYPE_NONE,
+			     0);
+
+	signals[VNC_KEYBOARD_UNGRAB] =
+		g_signal_new("vnc-keyboard-ungrab",
 			     G_TYPE_FROM_CLASS(klass),
 			     G_SIGNAL_RUN_LAST | G_SIGNAL_NO_HOOKS,
 			     0,
@@ -522,6 +673,10 @@ static void vnc_display_init(GTypeInstance *instance, gpointer klass G_GNUC_UNUS
 			   GTK_SIGNAL_FUNC(key_event), NULL);
 	gtk_signal_connect(obj, "key-release-event",
 			   GTK_SIGNAL_FUNC(key_event), NULL);
+	gtk_signal_connect(obj, "enter-notify-event",
+			   GTK_SIGNAL_FUNC(enter_event), NULL);
+	gtk_signal_connect(obj, "leave-notify-event",
+			   GTK_SIGNAL_FUNC(leave_event), NULL);
 
 	GTK_WIDGET_SET_FLAGS(obj, GTK_CAN_FOCUS);
 
@@ -553,6 +708,36 @@ void vnc_display_set_use_shm(VncDisplay *obj, gboolean enable)
 {
 	obj->priv->use_shm = enable;
 }
+
+void vnc_display_set_pointer_local(VncDisplay *obj, gboolean enable)
+{
+	if (obj->priv->gc) {
+		if (enable)
+			do_pointer_show(obj);
+		else
+			do_pointer_hide(obj);
+	}
+	obj->priv->local_pointer = enable;
+}
+
+void vnc_display_set_pointer_grab(VncDisplay *obj, gboolean enable)
+{
+	VncDisplayPrivate *priv = obj->priv;
+
+	priv->grab_pointer = enable;
+	if (!enable && priv->absolute && priv->in_pointer_grab)
+		do_pointer_ungrab(obj);
+}
+
+void vnc_display_set_keyboard_grab(VncDisplay *obj, gboolean enable)
+{
+	VncDisplayPrivate *priv = obj->priv;
+
+	priv->grab_keyboard = enable;
+	if (!enable && priv->in_keyboard_grab && !priv->in_pointer_grab)
+		do_keyboard_ungrab(obj);
+}
+
 
 GType vnc_display_get_type(void)
 {

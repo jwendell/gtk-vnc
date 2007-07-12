@@ -6,7 +6,7 @@
 
 struct gvnc;
 
-struct vnc_ops
+struct gvnc_ops
 {
 	gboolean (*update)(void *, int, int, int, int);
 	gboolean (*set_color_map_entry)(void *, int, int, int, int);
@@ -15,10 +15,9 @@ struct vnc_ops
 	gboolean (*resize)(void *, int, int);
 	gboolean (*pointer_type_change)(void *, int);
 	gboolean (*shared_memory_rmid)(void *, int);
-	void *user;
 };
 
-struct vnc_pixel_format
+struct gvnc_pixel_format
 {
 	uint8_t bits_per_pixel;
 	uint8_t depth;
@@ -32,7 +31,7 @@ struct vnc_pixel_format
 	uint8_t blue_shift;
 };
 
-struct framebuffer
+struct gvnc_framebuffer
 {
 	uint8_t *data;
 
@@ -72,8 +71,13 @@ enum {
 	GVNC_ENCODING_SHARED_MEMORY = -258,
 };
 
-struct gvnc *gvnc_connect_fd(int fd, gboolean shared_flag, const char *password);
-struct gvnc *gvnc_connect_name(const char *host, const char *port, gboolean shared_flag, const char *password);
+struct gvnc *gvnc_new(const struct gvnc_ops *ops, gpointer ops_data);
+void gvnc_free(struct gvnc *gvnc);
+void gvnc_close(struct gvnc *gvnc);
+
+gboolean gvnc_is_connected(struct gvnc *gvnc);
+gboolean gvnc_connect_fd(struct gvnc *gvnc, int fd, gboolean shared_flag, const char *password);
+gboolean gvnc_connect_name(struct gvnc *gvnc, const char *host, const char *port, gboolean shared_flag, const char *password);
 
 gboolean gvnc_server_message(struct gvnc *gvnc);
 
@@ -93,15 +97,13 @@ gboolean gvnc_framebuffer_update_request(struct gvnc *gvnc,
 gboolean gvnc_set_encodings(struct gvnc *gvnc, int n_encoding, int32_t *encoding);
 
 gboolean gvnc_set_pixel_format(struct gvnc *gvnc,
-			       const struct vnc_pixel_format *fmt);
+			       const struct gvnc_pixel_format *fmt);
 
 gboolean gvnc_set_shared_buffer(struct gvnc *gvnc, int line_size, int shmid);
 
 gboolean gvnc_has_error(struct gvnc *gvnc);
 
-gboolean gvnc_set_local(struct gvnc *gvnc, struct framebuffer *fb);
-
-gboolean gvnc_set_vnc_ops(struct gvnc *gvnc, struct vnc_ops *ops);
+gboolean gvnc_set_local(struct gvnc *gvnc, struct gvnc_framebuffer *fb);
 
 gboolean gvnc_shared_memory_enabled(struct gvnc *gvnc);
 

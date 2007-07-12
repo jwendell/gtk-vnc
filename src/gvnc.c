@@ -70,7 +70,7 @@ struct gvnc
 	int fd;
 	char *host;
 	char *port;
-	struct vnc_pixel_format fmt;
+	struct gvnc_pixel_format fmt;
 	gboolean has_error;
 	int width;
 	int height;
@@ -88,7 +88,7 @@ struct gvnc
 	size_t write_offset;
 
 	gboolean perfect_match;
-	struct framebuffer local;
+	struct gvnc_framebuffer local;
 
 	int rp, gp, bp;
 	int rm, gm, bm;
@@ -98,7 +98,8 @@ struct gvnc
 
 	int shared_memory_enabled;
 
-	struct vnc_ops ops;
+	struct gvnc_ops ops;
+	gpointer ops_data;
 
 	int absolute;
 };
@@ -533,7 +534,7 @@ static int gvnc_validate_certificate(struct gvnc *vnc)
 }
 
 
-static void gvnc_read_pixel_format(struct gvnc *gvnc, struct vnc_pixel_format *fmt)
+static void gvnc_read_pixel_format(struct gvnc *gvnc, struct gvnc_pixel_format *fmt)
 {
 	uint8_t pad[3];
 
@@ -564,7 +565,7 @@ gboolean gvnc_has_error(struct gvnc *gvnc)
 }
 
 gboolean gvnc_set_pixel_format(struct gvnc *gvnc,
-			       const struct vnc_pixel_format *fmt)
+			       const struct gvnc_pixel_format *fmt)
 {
 	uint8_t pad[3] = {0};
 
@@ -813,7 +814,7 @@ static void gvnc_update(struct gvnc *gvnc, int x, int y, int width, int height)
 {
 	if (gvnc->has_error || !gvnc->ops.update)
 		return;
-	gvnc->has_error = !gvnc->ops.update(gvnc->ops.user, x, y, width, height);
+	gvnc->has_error = !gvnc->ops.update(gvnc->ops_data, x, y, width, height);
 }
 
 static void gvnc_set_color_map_entry(struct gvnc *gvnc, uint16_t color,
@@ -822,7 +823,7 @@ static void gvnc_set_color_map_entry(struct gvnc *gvnc, uint16_t color,
 {
 	if (gvnc->has_error || !gvnc->ops.set_color_map_entry)
 		return;
-	gvnc->has_error = !gvnc->ops.set_color_map_entry(gvnc->ops.user, color,
+	gvnc->has_error = !gvnc->ops.set_color_map_entry(gvnc->ops_data, color,
 							 red, green, blue);
 }
 
@@ -830,7 +831,7 @@ static void gvnc_bell(struct gvnc *gvnc)
 {
 	if (gvnc->has_error || !gvnc->ops.bell)
 		return;
-	gvnc->has_error = !gvnc->ops.bell(gvnc->ops.user);
+	gvnc->has_error = !gvnc->ops.bell(gvnc->ops_data);
 }
 
 static void gvnc_server_cut_text(struct gvnc *gvnc, const void *data,
@@ -838,28 +839,28 @@ static void gvnc_server_cut_text(struct gvnc *gvnc, const void *data,
 {
 	if (gvnc->has_error || !gvnc->ops.server_cut_text)
 		return;
-	gvnc->has_error = !gvnc->ops.server_cut_text(gvnc->ops.user, data, len);
+	gvnc->has_error = !gvnc->ops.server_cut_text(gvnc->ops_data, data, len);
 }
 
 static void gvnc_resize(struct gvnc *gvnc, int width, int height)
 {
 	if (gvnc->has_error || !gvnc->ops.resize)
 		return;
-	gvnc->has_error = !gvnc->ops.resize(gvnc->ops.user, width, height);
+	gvnc->has_error = !gvnc->ops.resize(gvnc->ops_data, width, height);
 }
 
 static void gvnc_pointer_type_change(struct gvnc *gvnc, int absolute)
 {
 	if (gvnc->has_error || !gvnc->ops.pointer_type_change)
 		return;
-	gvnc->has_error = !gvnc->ops.pointer_type_change(gvnc->ops.user, absolute);
+	gvnc->has_error = !gvnc->ops.pointer_type_change(gvnc->ops_data, absolute);
 }
 
 static void gvnc_shared_memory_rmid(struct gvnc *gvnc, int shmid)
 {
 	if (gvnc->has_error || !gvnc->ops.shared_memory_rmid)
 		return;
-	gvnc->has_error = !gvnc->ops.shared_memory_rmid(gvnc->ops.user, shmid);
+	gvnc->has_error = !gvnc->ops.shared_memory_rmid(gvnc->ops_data, shmid);
 }
 
 static void gvnc_framebuffer_update(struct gvnc *gvnc, int32_t etype,
@@ -1302,6 +1303,66 @@ static gboolean gvnc_perform_auth(struct gvnc *gvnc, const char *password)
 	return TRUE;
 }
 
+struct gvnc *gvnc_new(const struct gvnc_ops *ops, gpointer ops_data)
+{
+	struct gvnc *gvnc = malloc(sizeof(*gvnc));
+	if (gvnc == NULL)
+		return NULL;
+
+	memset(gvnc, 0, sizeof(*gvnc));
+	gvnc->fd = -1;
+
+	memcpy(&gvnc->ops, ops, sizeof(*ops));
+	gvnc->ops_data = ops_data;
+
+	return gvnc;
+}
+
+void gvnc_free(struct gvnc *gvnc)
+{
+	if (gvnc_is_connected(gvnc))
+		gvnc_close(gvnc);
+
+	free(gvnc);
+}
+
+void gvnc_close(struct gvnc *gvnc)
+{
+	if (gvnc->tls_session) {
+		gnutls_bye(gvnc->tls_session, GNUTLS_SHUT_RDWR);
+		gvnc->tls_session = NULL;
+	}
+	if (gvnc->channel) {
+		g_io_channel_unref(gvnc->channel);
+		gvnc->channel = NULL;
+	}
+	if (gvnc->fd != -1) {
+		close(gvnc->fd);
+		gvnc->fd = -1;
+	}
+
+	free(gvnc->host);
+	gvnc->host = NULL;
+
+	free(gvnc->port);
+	gvnc->port = NULL;
+
+	free(gvnc->name);
+	gvnc->name = NULL;
+
+	gvnc->has_error = 0;
+}
+
+gboolean gvnc_is_connected(struct gvnc *gvnc)
+{
+	if (gvnc->fd != -1)
+		return TRUE;
+	if (gvnc->host)
+		return TRUE;
+	return FALSE;
+}
+
+
 static gboolean gvnc_connect(struct gvnc *gvnc, gboolean shared_flag, const char *password)
 {
 	int ret;
@@ -1315,16 +1376,16 @@ static gboolean gvnc_connect(struct gvnc *gvnc, gboolean shared_flag, const char
 
  	ret = sscanf(version, "RFB %03d.%03d\n", &gvnc->major, &gvnc->minor);
 	if (ret != 2)
-		return FALSE;
+		goto fail;
 
 	if (gvnc->major != 3)
-		return FALSE;
+		goto fail;
 	if (gvnc->minor != 3 &&
 	    gvnc->minor != 5 &&
 	    gvnc->minor != 6 &&
 	    gvnc->minor != 7 &&
 	    gvnc->minor != 8)
-		return FALSE;
+		goto fail;
 
 	snprintf(version, 12, "RFB %03d.%03d\n", gvnc->major, gvnc->minor);
 	gvnc_write(gvnc, version, 12);
@@ -1333,7 +1394,7 @@ static gboolean gvnc_connect(struct gvnc *gvnc, gboolean shared_flag, const char
 
 	if (!gvnc_perform_auth(gvnc, password)) {
 		GVNC_DEBUG("Auth failed\n");
-		return FALSE;
+		goto fail;
 	}
 
 	gvnc_write_u8(gvnc, shared_flag); /* shared flag */
@@ -1345,63 +1406,50 @@ static gboolean gvnc_connect(struct gvnc *gvnc, gboolean shared_flag, const char
 
 	n_name = gvnc_read_u32(gvnc);
 	if (n_name > 4096)
-		return FALSE;
+		goto fail;
 
 	gvnc->name = malloc(n_name + 1);
 	if (gvnc->name == NULL)
-		return FALSE;
+		goto fail;
 
 	gvnc_read(gvnc, gvnc->name, n_name);
 	gvnc->name[n_name] = 0;
 	GVNC_DEBUG("Display name '%s'\n", gvnc->name);
 
 	gvnc_resize(gvnc, gvnc->width, gvnc->height);
+	return gvnc_has_error(gvnc);
 
-	return TRUE;
+ fail:
+	gvnc->has_error = 1;
+	return gvnc_has_error(gvnc);
 }
 
-struct gvnc *gvnc_connect_fd(int fd,  gboolean shared_flag, const char *password)
+gboolean gvnc_connect_fd(struct gvnc *gvnc, int fd,  gboolean shared_flag, const char *password)
 {
-	struct gvnc *gvnc = malloc(sizeof(*gvnc));
 	int flags;
-	if (gvnc == NULL)
-		return NULL;
-
-	memset(gvnc, 0, sizeof(*gvnc));
+	if (gvnc_is_connected(gvnc))
+		return TRUE;
 
 	GVNC_DEBUG("Connecting to FD %d\n", fd);
 	if ((flags = fcntl(fd, F_GETFL)) < 0)
-		goto error;
+		return TRUE;
 	flags |= O_NONBLOCK;
 	if (fcntl(fd, F_SETFL, flags) < 0)
-		goto error;
+		return TRUE;
 
 	if (!(gvnc->channel = g_io_channel_unix_new(fd)))
-		goto error;
+		return TRUE;
 	gvnc->fd = fd;
 
-	if (!gvnc_connect(gvnc, shared_flag, password))
-		goto error;
-	return gvnc;
-
- error:
-	if (gvnc->fd)
-		close(gvnc->fd);
-	if (gvnc->channel)
-		g_io_channel_unref(gvnc->channel);
-	free(gvnc);
-	return NULL;
+	return gvnc_connect(gvnc, shared_flag, password);
 }
 
-struct gvnc *gvnc_connect_name(const char *host, const char *port,  gboolean shared_flag, const char *password)
+gboolean gvnc_connect_name(struct gvnc *gvnc, const char *host, const char *port,  gboolean shared_flag, const char *password)
 {
         struct addrinfo *ai, *runp, hints;
         int ret;
-	struct gvnc *gvnc = malloc(sizeof(*gvnc));
-	if (gvnc == NULL)
-		return NULL;
-
-	memset(gvnc, 0, sizeof(*gvnc));
+	if (gvnc_is_connected(gvnc))
+		return TRUE;
 
         GVNC_DEBUG("Resolving host %s %s\n", host, port);
         memset (&hints, '\0', sizeof (hints));
@@ -1410,7 +1458,7 @@ struct gvnc *gvnc_connect_name(const char *host, const char *port,  gboolean sha
         hints.ai_protocol = IPPROTO_TCP;
 
         if ((ret = getaddrinfo(host, port, &hints, &ai)) != 0)
-		goto error;
+		return TRUE;
 
         runp = ai;
         while (runp != NULL) {
@@ -1442,15 +1490,14 @@ struct gvnc *gvnc_connect_name(const char *host, const char *port,  gboolean sha
                         gvnc->channel = chan;
                         gvnc->fd = fd;
                         freeaddrinfo(ai);
-                        if (!gvnc_connect(gvnc, shared_flag, password))
-				goto error;
-			return gvnc;
+                        return gvnc_connect(gvnc, shared_flag, password);
                 }
 
                 if (errno == EINPROGRESS) {
                         g_io_wait(chan, G_IO_OUT|G_IO_ERR|G_IO_HUP);
                         goto reconnect;
-                } else if (errno != ECONNREFUSED) {
+                } else if (errno != ECONNREFUSED &&
+                           errno != EHOSTUNREACH) {
                         g_io_channel_unref(chan);
                         close(fd);
                         break;
@@ -1460,19 +1507,12 @@ struct gvnc *gvnc_connect_name(const char *host, const char *port,  gboolean sha
                 runp = runp->ai_next;
         }
         freeaddrinfo (ai);
-
- error:
-	if (gvnc->fd)
-		close(gvnc->fd);
-	if (gvnc->channel)
-		g_io_channel_unref(gvnc->channel);
-	free(gvnc);
-	return NULL;
+	return TRUE;
 }
 
 
 
-gboolean gvnc_set_local(struct gvnc *gvnc, struct framebuffer *fb)
+gboolean gvnc_set_local(struct gvnc *gvnc, struct gvnc_framebuffer *fb)
 {
 	int i, j;
 	int depth;
@@ -1529,12 +1569,6 @@ gboolean gvnc_shared_memory_enabled(struct gvnc *gvnc)
 	return gvnc->shared_memory_enabled;
 }
 
-gboolean gvnc_set_vnc_ops(struct gvnc *gvnc, struct vnc_ops *ops)
-{
-	memcpy(&gvnc->ops, ops, sizeof(*ops));
-	gvnc_resize(gvnc, gvnc->width, gvnc->height);
-	return gvnc_has_error(gvnc);
-}
 
 const char *gvnc_get_name(struct gvnc *gvnc)
 {

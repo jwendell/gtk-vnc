@@ -48,9 +48,7 @@ struct _VncDisplayClass
 
 	/* Signals */
 	void		(* vnc_initialized)	(VncDisplay *display);
-
-	int enter_grab_event_id;
-	int leave_grab_event_id;
+	void		(* vnc_disconnected)	(VncDisplay *display);
 };
 
 G_BEGIN_DECLS
@@ -64,6 +62,9 @@ gboolean	vnc_display_open_name(VncDisplay *obj, const char *host, const char *po
 void		vnc_display_set_password(VncDisplay *obj, const gchar *password);
 
 void		vnc_display_set_use_shm(VncDisplay *obj, gboolean enable);
+void		vnc_display_set_pointer_local(VncDisplay *obj, gboolean enable);
+void		vnc_display_set_pointer_grab(VncDisplay *obj, gboolean enable);
+void		vnc_display_set_keyboard_grab(VncDisplay *obj, gboolean enable);
 
 int		vnc_display_get_width(VncDisplay *obj);
 int		vnc_display_get_height(VncDisplay *obj);

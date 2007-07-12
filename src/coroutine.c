@@ -10,7 +10,7 @@
 
 #include <sys/types.h>
 #include <sys/mman.h>
-
+#include <stdio.h>
 #include "coroutine.h"
 
 int coroutine_release(struct coroutine *co)
@@ -66,7 +66,7 @@ static struct coroutine *current;
 
 struct coroutine *coroutine_self(void)
 {
-	if (current == 0)
+	if (current == NULL)
 		current = &system;
 	return current;
 }
@@ -82,11 +82,13 @@ void *coroutine_swap(struct coroutine *from, struct coroutine *to, void *arg)
 	if (ret == 0)
 		return from->data;
 	else if (ret == 1) {
+		coroutine_release(to);
+		current = &system;
 		to->exited = 1;
 		return to->data;
 	}
 
-	return 0;
+	return NULL;
 }
 
 void *yieldto(struct coroutine *to, void *arg)

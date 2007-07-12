@@ -43,9 +43,7 @@ int cc_swap(struct continuation *from, struct continuation *to)
 	else if (to->exited == 1)
 		return 1;
 
-	swapcontext(&from->uc, &to->uc);
-
-	return 0;
+	return swapcontext(&from->uc, &to->uc);
 }
 /*
  * Local variables:
