@@ -9,7 +9,7 @@ libgtk_vnc_1_0_la_LDFLAGS = -Wl,--version-script=$(srcdir)/libgtk-vnc_sym.versio
                             -version-info 0:1:0
 
 gtk_vnc_includedir = $(includedir)/gtk-vnc-1.0/
-gtk_vnc_include_HEADERS = vncdisplay.h
+gtk_vnc_include_HEADERS = vncdisplay.h gvnc.h coroutine.h continuation.h
 
 libgtk_vnc_1_0_la_SOURCES = blt.h blt1.h \
 	continuation.h continuation.c \
