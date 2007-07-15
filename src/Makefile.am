@@ -23,7 +23,9 @@ if WITH_PYTHON
 python_LTLIBRARIES = gtkvnc.la
 
 gtkvnc_la_LIBADD = libgtk-vnc-1.0.la @PYGTK_LIBS@
-gtkvnc_la_CFLAGS = @GTK_CFLAGS@ @WARNING_CFLAGS@ @PYTHON_INCLUDES@ @PYGTK_CFLAGS@
+# Auto-generated C code for Python binding is full of compiler warnings :-(
+#gtkvnc_la_CFLAGS = @GTK_CFLAGS@ @WARNING_CFLAGS@ @PYTHON_INCLUDES@ @PYGTK_CFLAGS@
+gtkvnc_la_CFLAGS = @GTK_CFLAGS@ @PYTHON_INCLUDES@ @PYGTK_CFLAGS@
 gtkvnc_la_LDFLAGS = -module -avoid-version -fPIC
 gtkvnc_la_SOURCES = vncmodule.c vncmodule.defs.c
 
