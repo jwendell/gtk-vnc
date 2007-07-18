@@ -57,6 +57,39 @@ static GIOCondition g_io_wait(GIOChannel *channel, GIOCondition cond)
 	return *ret;
 }
 
+struct wait_queue
+{
+	gboolean waiting;
+	struct coroutine *context;
+};
+
+static GIOCondition g_io_wait_interruptable(struct wait_queue *wait,
+					    GIOChannel *channel,
+					    GIOCondition cond)
+{
+	GIOCondition *ret;
+	gint id;
+
+	wait->context = coroutine_self();
+	id = g_io_add_watch(channel, cond, g_io_wait_helper, wait->context);
+
+	wait->waiting = TRUE;
+	ret = yield(NULL);
+	wait->waiting = FALSE;
+
+	if (ret == NULL) {
+		g_source_remove(id);
+		return 0;
+	} else
+		return *ret;
+}
+
+static void g_io_wakeup(struct wait_queue *wait)
+{
+	if (wait->waiting)
+		yieldto(wait->context, NULL);
+}
+
 typedef void gvnc_blt_func(struct gvnc *, uint8_t *, int, int, int, int, int);
 
 typedef void gvnc_hextile_func(struct gvnc *gvnc, uint8_t flags,
@@ -102,6 +135,13 @@ struct gvnc
 	gpointer ops_data;
 
 	int absolute;
+
+	int wait_interruptable;
+	struct wait_queue wait;
+
+	char *xmit_buffer;
+	int xmit_buffer_capacity;
+	int xmit_buffer_size;
 };
 
 enum {
@@ -147,13 +187,13 @@ static void debug_log(int level, const char* str)
 
 /* IO functions */
 
-static void gvnc_read(struct gvnc *gvnc, void *data, size_t len)
+static int gvnc_read(struct gvnc *gvnc, void *data, size_t len)
 {
 	int fd = g_io_channel_unix_get_fd(gvnc->channel);
 	char *ptr = data;
 	size_t offset = 0;
 
-	if (gvnc->has_error) return;
+	if (gvnc->has_error) return -EINVAL;
 	
 	while (offset < len) {
 		size_t tmp;
@@ -165,25 +205,30 @@ static void gvnc_read(struct gvnc *gvnc, void *data, size_t len)
 				ret = gnutls_read(gvnc->tls_session, gvnc->read_buffer, 4096);
 				if (ret < 0) {
 					gvnc->has_error = TRUE;
-					return;
+					return ret;
 				}
 			} else {
 				ret = read(fd, gvnc->read_buffer, 4096);
 				if (ret == -1) {
 					switch (errno) {
 					case EAGAIN:
-						g_io_wait(gvnc->channel, G_IO_IN);
+						if (gvnc->wait_interruptable) {
+							if (!g_io_wait_interruptable(&gvnc->wait,
+										     gvnc->channel, G_IO_IN))
+								return -EAGAIN;
+						} else
+							g_io_wait(gvnc->channel, G_IO_IN);
 					case EINTR:
 						continue;
 					default:
 						gvnc->has_error = TRUE;
-						return;
+						return -errno;
 					}
 				}
 			}
 			if (ret == 0) {
 				gvnc->has_error = TRUE;
-				return;
+				return -EPIPE;
 			}
 
 			gvnc->read_offset = 0;
@@ -197,6 +242,8 @@ static void gvnc_read(struct gvnc *gvnc, void *data, size_t len)
 		gvnc->read_offset += tmp;
 		offset += tmp;
 	}
+
+	return 0;
 }
 
 static void gvnc_flush(struct gvnc *gvnc)
@@ -323,6 +370,17 @@ static uint8_t gvnc_read_u8(struct gvnc *gvnc)
 	uint8_t value = 0;
 	gvnc_read(gvnc, &value, sizeof(value));
 	return value;
+}
+
+static int gvnc_read_u8_interruptable(struct gvnc *gvnc, uint8_t *value)
+{
+	int ret;
+
+	gvnc->wait_interruptable = 1;
+	ret = gvnc_read(gvnc, value, sizeof(*value));
+	gvnc->wait_interruptable = 0;
+
+	return ret;
 }
 
 static uint16_t gvnc_read_u16(struct gvnc *gvnc)
@@ -632,26 +690,66 @@ gboolean gvnc_framebuffer_update_request(struct gvnc *gvnc,
 	return gvnc_has_error(gvnc);
 }
 
+static void gvnc_buffered_write(struct gvnc *gvnc, const void *data, size_t size)
+{
+	size_t left;
+
+	left = gvnc->xmit_buffer_capacity - gvnc->xmit_buffer_size;
+	if (left < size) {
+		gvnc->xmit_buffer_capacity += size + 4095;
+		gvnc->xmit_buffer_capacity &= ~4095;
+
+		gvnc->xmit_buffer = g_realloc(gvnc->xmit_buffer, gvnc->xmit_buffer_capacity);
+	}
+
+	memcpy(&gvnc->xmit_buffer[gvnc->xmit_buffer_size],
+	       data, size);
+
+	gvnc->xmit_buffer_size += size;
+}
+
+static void gvnc_buffered_write_u8(struct gvnc *gvnc, uint8_t value)
+{
+	gvnc_buffered_write(gvnc, &value, 1);
+}
+
+static void gvnc_buffered_write_u16(struct gvnc *gvnc, uint16_t value)
+{
+	value = htons(value);
+	gvnc_buffered_write(gvnc, &value, 2);
+}
+
+static void gvnc_buffered_write_u32(struct gvnc *gvnc, uint32_t value)
+{
+	value = htonl(value);
+	gvnc_buffered_write(gvnc, &value, 4);
+}
+
+static void gvnc_buffered_flush(struct gvnc *gvnc)
+{
+	g_io_wakeup(&gvnc->wait);
+}
+
 gboolean gvnc_key_event(struct gvnc *gvnc, uint8_t down_flag, uint32_t key)
 {
 	uint8_t pad[2] = {0};
 
-	gvnc_write_u8(gvnc, 4);
-	gvnc_write_u8(gvnc, down_flag);
-	gvnc_write(gvnc, pad, 2);
-	gvnc_write_u32(gvnc, key);
-	gvnc_flush(gvnc);
+	gvnc_buffered_write_u8(gvnc, 4);
+	gvnc_buffered_write_u8(gvnc, down_flag);
+	gvnc_buffered_write(gvnc, pad, 2);
+	gvnc_buffered_write_u32(gvnc, key);
+	gvnc_buffered_flush(gvnc);
 	return gvnc_has_error(gvnc);
 }
 
 gboolean gvnc_pointer_event(struct gvnc *gvnc, uint8_t button_mask,
 			    uint16_t x, uint16_t y)
 {
-	gvnc_write_u8(gvnc, 5);
-	gvnc_write_u8(gvnc, button_mask);
-	gvnc_write_u16(gvnc, x);
-	gvnc_write_u16(gvnc, y);
-	gvnc_flush(gvnc);
+	gvnc_buffered_write_u8(gvnc, 5);
+	gvnc_buffered_write_u8(gvnc, button_mask);
+	gvnc_buffered_write_u16(gvnc, x);
+	gvnc_buffered_write_u16(gvnc, y);
+	gvnc_buffered_flush(gvnc);
 	return gvnc_has_error(gvnc);	
 }
 
@@ -916,7 +1014,14 @@ gboolean gvnc_server_message(struct gvnc *gvnc)
 	/* NB: make sure that all server message functions
 	   handle has_error appropriately */
 
-	msg = gvnc_read_u8(gvnc);
+	do {
+		if (gvnc->xmit_buffer_size) {
+			gvnc_write(gvnc, gvnc->xmit_buffer, gvnc->xmit_buffer_size);
+			gvnc_flush(gvnc);
+			gvnc->xmit_buffer_size = 0;
+		}
+	} while (gvnc_read_u8_interruptable(gvnc, &msg) == -EAGAIN);
+
 	switch (msg) {
 	case 0: { /* FramebufferUpdate */
 		uint8_t pad[1];
