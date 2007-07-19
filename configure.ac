@@ -69,6 +69,14 @@ if test "${enableval}" = yes; then
   COMPILER_FLAGS=
 fi
 
+AC_ARG_WITH(examples,
+[  --with-examples         install example programs],
+[case "${withval}" in
+   yes|no) ;;
+   *)      AC_MSG_ERROR([bad value ${withval} for examples option]) ;;
+ esac],[withval=no])
+WITH_EXAMPLES=$withval
+
 PKG_CHECK_MODULES(GTK, gtk+-2.0 >= $GTK_REQUIRED)
 AC_SUBST(GTK_CFLAGS)
 AC_SUBST(GTK_LIBS)
@@ -106,6 +114,8 @@ if test "$WITH_PYTHON" = "yes"; then
 fi
 
 AM_CONDITIONAL(WITH_PYTHON, [test "$WITH_PYTHON" = "yes"])
+
+AM_CONDITIONAL(WITH_EXAMPLES, [test "$WITH_EXAMPLES" = "yes"])
 
 AC_CONFIG_FILES(
   Makefile
