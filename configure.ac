@@ -22,7 +22,7 @@ AC_PROG_CC_STDC
 AC_PROG_LIBTOOL
 
 AC_ARG_WITH(python,
-[  --with-python       build python bindings],
+[  --with-python           build python bindings],
 [case "${withval}" in
    yes|no) ;;
    *)      AC_MSG_ERROR([bad value ${withval} for python option]) ;;
@@ -31,7 +31,7 @@ AC_ARG_WITH(python,
 WITH_PYTHON=$withval
 
 AC_ARG_ENABLE(fatal-warnings,
-[  --enable-warnings   make all compiler warnings fatal (not recommended)],
+[  --enable-fatal-warnings make all compiler warnings fatal (not recommended)],
 [case "${enableval}" in
    yes|no) ;;
    *)      AC_MSG_ERROR([bad value ${enableval} for fatal-warnings option]) ;;
@@ -44,7 +44,7 @@ if test "${enableval}" = yes; then
 fi
 
 AC_ARG_ENABLE(warnings,
-[  --enable-warnings   turn on lots of compiler warnings (recommended)],
+[  --enable-warnings       turn on lots of compiler warnings (recommended)],
 [case "${enableval}" in
    yes|no) ;;
    *)      AC_MSG_ERROR([bad value ${enableval} for warnings option]) ;;
