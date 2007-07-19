@@ -582,6 +582,16 @@ gboolean vnc_display_open_name(VncDisplay *obj, const char *host, const char *po
 	return TRUE;
 }
 
+void vnc_display_send_keys(VncDisplay *obj, const guint *keyvals, int nkeyvals)
+{
+	int i;
+	for (i = 0 ; i < nkeyvals ; i++)
+		gvnc_key_event(obj->priv->gvnc, 1, keyvals[i]);
+
+	for (i = (nkeyvals-1) ; i >= 0 ; i--)
+		gvnc_key_event(obj->priv->gvnc, 0, keyvals[i]);
+}
+
 static void vnc_display_class_init(VncDisplayClass *klass)
 {
 	GObjectClass *object_class = G_OBJECT_CLASS (klass);

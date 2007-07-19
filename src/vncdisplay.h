@@ -59,6 +59,8 @@ GtkWidget *	vnc_display_new(void);
 gboolean	vnc_display_open_fd(VncDisplay *obj, int fd);
 gboolean	vnc_display_open_name(VncDisplay *obj, const char *host, const char *port);
 
+void            vnc_display_send_keys(VncDisplay *obj, const guint *keyvals, int nkeyvals);
+
 void		vnc_display_set_password(VncDisplay *obj, const gchar *password);
 
 void		vnc_display_set_use_shm(VncDisplay *obj, gboolean enable);
