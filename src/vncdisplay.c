@@ -681,7 +681,7 @@ void vnc_display_close(VncDisplay *obj)
 void vnc_display_send_keys(VncDisplay *obj, const guint *keyvals, int nkeyvals)
 {
 	int i;
-	if (obj->priv->gvnc == NULL || gvnc_is_open(obj->priv->gvnc))
+	if (obj->priv->gvnc == NULL || !gvnc_is_open(obj->priv->gvnc))
 		return;
 
 	for (i = 0 ; i < nkeyvals ; i++)
