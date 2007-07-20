@@ -80,6 +80,8 @@ void		vnc_display_set_pointer_local(VncDisplay *obj, gboolean enable);
 void		vnc_display_set_pointer_grab(VncDisplay *obj, gboolean enable);
 void		vnc_display_set_keyboard_grab(VncDisplay *obj, gboolean enable);
 
+GdkPixbuf *	vnc_display_get_pixbuf(VncDisplay *obj);
+
 int		vnc_display_get_width(VncDisplay *obj);
 int		vnc_display_get_height(VncDisplay *obj);
 const char *	vnc_display_get_name(VncDisplay *obj);

@@ -66,6 +66,7 @@ void		vnc_shm_image_draw(VncShmImage *obj,
 				   gint xsrc, gint ysrc,
 				   gint xdest, gint ydest,
 				   gint width, gint height);
+GdkPixbuf *	vnc_shm_image_get_pixbuf(VncShmImage *obj);
 
 G_END_DECLS
 

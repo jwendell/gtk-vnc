@@ -27,6 +27,17 @@ static void set_title(VncDisplay *vnc, GtkWidget *window, gboolean grabbed)
 	gtk_window_set_title(GTK_WINDOW(window), title);
 }
 
+static gboolean vnc_screenshot(GtkWidget *window G_GNUC_UNUSED, GdkEvent *ev, GtkWidget *vnc)
+{
+	if (ev->key.keyval == GDK_F11) {
+		GdkPixbuf *pix = vnc_display_get_pixbuf(VNC_DISPLAY(vnc));
+		gdk_pixbuf_save(pix, "gvncviewer.png", "png", NULL, "tEXt::Generator App", "gvncviewer", NULL);
+		gdk_pixbuf_unref(pix);
+		printf("Screenshot saved to gvncviewer.png\n");
+	}
+	return FALSE;
+}
+
 static void vnc_grab(GtkWidget *vnc, GtkWidget *window)
 {
 	set_title(VNC_DISPLAY(vnc), window, TRUE);
@@ -230,6 +241,8 @@ int main(int argc, char **argv)
 	gtk_signal_connect(GTK_OBJECT(vnc), "vnc-pointer-ungrab",
 			   GTK_SIGNAL_FUNC(vnc_ungrab), window);
 
+	gtk_signal_connect(GTK_OBJECT(window), "key-press-event",
+			   GTK_SIGNAL_FUNC(vnc_screenshot), vnc);
 
 	gtk_signal_connect(GTK_OBJECT(caf1), "activate",
 			   GTK_SIGNAL_FUNC(send_caf1), vnc);

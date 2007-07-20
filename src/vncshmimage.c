@@ -191,6 +191,40 @@ void vnc_shm_image_draw(VncShmImage *obj,
 			     width, height, False);
 }
 
+GdkPixbuf *vnc_shm_image_get_pixbuf(VncShmImage *obj)
+{
+	VncShmImagePrivate *priv = obj->priv;
+	if (priv->image) {
+		GdkPixbuf *pixbuf = gdk_pixbuf_new(GDK_COLORSPACE_RGB,
+						   FALSE,
+						   8,
+						   obj->width,
+						   obj->height);
+
+		if (!gdk_pixbuf_get_from_image(pixbuf,
+					       priv->image,
+					       gdk_colormap_get_system(),
+					       0,0,0,0,
+					       obj->width,
+					       obj->height)) {
+			gdk_pixbuf_unref(pixbuf);
+			return NULL;
+		}
+		return pixbuf;
+	} else {
+		return gdk_pixbuf_new_from_data((guchar *)priv->ximage,
+						GDK_COLORSPACE_RGB,
+						FALSE,
+						obj->bpp * 8,
+						obj->width,
+						obj->height,
+						obj->bytes_per_line,
+						NULL,
+						NULL);
+	}
+}
+
+
 GType vnc_shm_image_get_type(void)
 {
 	static GType type;
@@ -218,3 +252,10 @@ GType vnc_shm_image_get_type(void)
 	return type;
 }
 
+/*
+ * Local variables:
+ *  c-indent-level: 8
+ *  c-basic-offset: 8
+ *  tab-width: 8
+ * End:
+ */

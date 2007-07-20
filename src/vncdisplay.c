@@ -934,6 +934,15 @@ GType vnc_display_credential_get_type(void)
 	return etype;
 }
 
+GdkPixbuf *vnc_display_get_pixbuf(VncDisplay *obj)
+{
+	if (!obj->priv->gvnc ||
+	    !gvnc_is_initialized(obj->priv->gvnc))
+		return NULL;
+
+	return vnc_shm_image_get_pixbuf(obj->priv->shm_image);
+}
+
 
 int vnc_display_get_width(VncDisplay *obj)
 {

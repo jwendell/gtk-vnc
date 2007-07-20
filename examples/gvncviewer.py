@@ -17,6 +17,14 @@ def set_title(vnc, window, grabbed):
 
     window.set_title("%s%s - GVncViewer" % (subtitle, name))
 
+def vnc_screenshot(src, ev, vnc):
+    if ev.keyval == gtk.gdk.keyval_from_name("F11"):
+        pix = vnc.get_pixbuf()
+        pix.save("gvncviewer.png", "png", { "tEXt::Generator App": "gvncviewer.py" })
+        print "Screenshot saved to gvncviewer.png"
+
+    return False
+
 def vnc_grab(src, window):
     set_title(src, window, True)
 
@@ -140,5 +148,7 @@ vnc.connect("vnc-connected", vnc_connected)
 vnc.connect("vnc-initialized", vnc_initialized, window)
 vnc.connect("vnc-disconnected", vnc_disconnected)
 vnc.connect("vnc-auth-credential", vnc_auth_cred)
+
+window.connect("key-press-event", vnc_screenshot, vnc)
 
 gtk.main()
