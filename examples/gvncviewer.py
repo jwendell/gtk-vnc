@@ -51,6 +51,38 @@ def send_cab(src, vnc):
     print "Send Ctrl+Alt+BackSpace"
     vnc.send_keys(["Control_L", "Alt_L", "BackSpace"])
 
+def vnc_auth_cred(src, credList):
+    dialog = gtk.Dialog("Authentication required", None, 0, (gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL, gtk.STOCK_OK, gtk.RESPONSE_OK))
+    label = []
+    entry = []
+
+    box = gtk.Table(2, len(credList))
+
+    for i in range(len(credList)):
+        if credList[i] == gtkvnc.CREDENTIAL_USERNAME:
+            label.append(gtk.Label("Username:"))
+        else:
+            label.append(gtk.Label("Password:"))
+        entry.append(gtk.Entry())
+
+        box.attach(label[i], 0, 1, i, i+1, 0, 0, 3, 3)
+        box.attach(entry[i], 1, 2, i, i+1, 0, 0, 3, 3)
+
+    vbox = dialog.get_child()
+    vbox.add(box)
+
+    dialog.show_all()
+    res = dialog.run()
+    dialog.hide()
+
+    if res == gtk.RESPONSE_OK:
+        for i in range(len(credList)):
+            data = entry[i].get_text()
+            src.set_credential(credList[i], data)
+    else:
+        src.close()
+    dialog.destroy()
+
 window = gtk.Window()
 vnc = gtkvnc.Display()
 
@@ -89,7 +121,7 @@ vnc.set_keyboard_grab(True)
 #v.set_pointer_local(True)
 
 if len(sys.argv) == 3:
-    vnc.set_password(sys.argv[2])
+    vnc.set_credential(gtkvnc.CREDENTIAL_PASSWORD, sys.argv[3])
 
 disp = sys.argv[1].find(":")
 if disp != -1:
@@ -107,5 +139,6 @@ vnc.connect("vnc-pointer-ungrab", vnc_ungrab, window)
 vnc.connect("vnc-connected", vnc_connected)
 vnc.connect("vnc-initialized", vnc_initialized, window)
 vnc.connect("vnc-disconnected", vnc_disconnected)
+vnc.connect("vnc-auth-credential", vnc_auth_cred)
 
 gtk.main()

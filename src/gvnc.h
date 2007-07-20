@@ -8,6 +8,9 @@ struct gvnc;
 
 struct gvnc_ops
 {
+	gboolean (*auth_cred)(void *);
+	gboolean (*auth_type)(void *, unsigned int, unsigned int *);
+	gboolean (*auth_subtype)(void *, unsigned int, unsigned int *);
 	gboolean (*update)(void *, int, int, int, int);
 	gboolean (*set_color_map_entry)(void *, int, int, int, int);
 	gboolean (*bell)(void *);
@@ -71,6 +74,29 @@ enum {
 	GVNC_ENCODING_SHARED_MEMORY = -258,
 };
 
+enum {
+	GVNC_AUTH_INVALID = 0,
+	GVNC_AUTH_NONE = 1,
+	GVNC_AUTH_VNC = 2,
+	GVNC_AUTH_RA2 = 5,
+	GVNC_AUTH_RA2NE = 6,
+	GVNC_AUTH_TIGHT = 16,
+	GVNC_AUTH_ULTRA = 17,
+	GVNC_AUTH_TLS = 18,
+	GVNC_AUTH_VENCRYPT = 19
+};
+
+enum {
+	GVNC_AUTH_VENCRYPT_PLAIN = 256,
+	GVNC_AUTH_VENCRYPT_TLSNONE = 257,
+	GVNC_AUTH_VENCRYPT_TLSVNC = 258,
+	GVNC_AUTH_VENCRYPT_TLSPLAIN = 259,
+	GVNC_AUTH_VENCRYPT_X509NONE = 260,
+	GVNC_AUTH_VENCRYPT_X509VNC = 261,
+	GVNC_AUTH_VENCRYPT_X509PLAIN = 262,
+};
+
+
 struct gvnc *gvnc_new(const struct gvnc_ops *ops, gpointer ops_data);
 void gvnc_free(struct gvnc *gvnc);
 
@@ -81,7 +107,15 @@ gboolean gvnc_open_fd(struct gvnc *gvnc, int fd);
 gboolean gvnc_open_host(struct gvnc *gvnc, const char *host, const char *port);
 gboolean gvnc_is_open(struct gvnc *gvnc);
 
-gboolean gvnc_initialize(struct gvnc *gvnc, gboolean shared_flag, const char *password);
+gboolean gvnc_set_auth_type(struct gvnc *gvnc, unsigned int type);
+gboolean gvnc_set_auth_subtype(struct gvnc *gvnc, unsigned int type);
+
+gboolean gvnc_set_credential_password(struct gvnc *gvnc, const char *password);
+gboolean gvnc_set_credential_username(struct gvnc *gvnc, const char *username);
+gboolean gvnc_wants_credential_password(struct gvnc *gvnc);
+gboolean gvnc_wants_credential_username(struct gvnc *gvnc);
+
+gboolean gvnc_initialize(struct gvnc *gvnc, gboolean shared_flag);
 gboolean gvnc_is_initialized(struct gvnc *gvnc);
 
 gboolean gvnc_server_message(struct gvnc *gvnc);

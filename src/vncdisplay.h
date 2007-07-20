@@ -19,6 +19,7 @@ typedef struct _VncDisplayPrivate VncDisplayPrivate;
 #include <glib.h>
 
 #define VNC_TYPE_DISPLAY (vnc_display_get_type())
+#define VNC_TYPE_DISPLAY_CREDENTIAL (vnc_display_credential_get_type())
 
 #define VNC_DISPLAY(obj) \
         (G_TYPE_CHECK_INSTANCE_CAST((obj), VNC_TYPE_DISPLAY, VncDisplay))
@@ -50,11 +51,19 @@ struct _VncDisplayClass
 	void		(* vnc_connected)	(VncDisplay *display);
 	void		(* vnc_initialized)	(VncDisplay *display);
 	void		(* vnc_disconnected)	(VncDisplay *display);
+	void		(* vnc_auth_credential)	(VncDisplay *display, GValueArray *credList);
 };
+
+typedef enum
+{
+	VNC_DISPLAY_CREDENTIAL_PASSWORD,
+	VNC_DISPLAY_CREDENTIAL_USERNAME,
+} VncDisplayCredential;
 
 G_BEGIN_DECLS
 
 GType		vnc_display_get_type(void);
+GType		vnc_display_credential_get_type(void);
 GtkWidget *	vnc_display_new(void);
 
 gboolean	vnc_display_open_fd(VncDisplay *obj, int fd);
@@ -64,7 +73,7 @@ void		vnc_display_close(VncDisplay *obj);
 
 void            vnc_display_send_keys(VncDisplay *obj, const guint *keyvals, int nkeyvals);
 
-void		vnc_display_set_password(VncDisplay *obj, const gchar *password);
+gboolean	vnc_display_set_credential(VncDisplay *obj, int type, const gchar *data);
 
 void		vnc_display_set_use_shm(VncDisplay *obj, gboolean enable);
 void		vnc_display_set_pointer_local(VncDisplay *obj, gboolean enable);

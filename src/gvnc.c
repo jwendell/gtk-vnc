@@ -38,57 +38,12 @@
 #define KEY_FILE "key.pem"
 #define CERT_FILE "cert.pem"
 
-static gboolean g_io_wait_helper(GIOChannel *channel G_GNUC_UNUSED,
-				 GIOCondition cond,
-				 gpointer data)
-{
-	struct coroutine *to = data;
-	yieldto(to, &cond);
-	return FALSE;
-}
-
-static GIOCondition g_io_wait(GIOChannel *channel, GIOCondition cond)
-{
-	GIOCondition *ret;
-
-	g_io_add_watch(channel, cond, g_io_wait_helper, coroutine_self());
-	ret = yield(NULL);
-
-	return *ret;
-}
-
 struct wait_queue
 {
 	gboolean waiting;
 	struct coroutine *context;
 };
 
-static GIOCondition g_io_wait_interruptable(struct wait_queue *wait,
-					    GIOChannel *channel,
-					    GIOCondition cond)
-{
-	GIOCondition *ret;
-	gint id;
-
-	wait->context = coroutine_self();
-	id = g_io_add_watch(channel, cond, g_io_wait_helper, wait->context);
-
-	wait->waiting = TRUE;
-	ret = yield(NULL);
-	wait->waiting = FALSE;
-
-	if (ret == NULL) {
-		g_source_remove(id);
-		return 0;
-	} else
-		return *ret;
-}
-
-static void g_io_wakeup(struct wait_queue *wait)
-{
-	if (wait->waiting)
-		yieldto(wait->context, NULL);
-}
 
 typedef void gvnc_blt_func(struct gvnc *, uint8_t *, int, int, int, int, int);
 
@@ -96,6 +51,25 @@ typedef void gvnc_hextile_func(struct gvnc *gvnc, uint8_t flags,
 			       uint16_t x, uint16_t y,
 			       uint16_t width, uint16_t height,
 			       uint8_t *fg, uint8_t *bg);
+
+/*
+ * A special GSource impl which allows us to wait on a certain
+ * condition to be satisified. This is effectively a boolean test
+ * run on each iteration of the main loop. So whenever a file has
+ * new I/O, or a timer occurrs, etc we'll do the check. This is
+ * pretty efficient compared to a normal GLib Idle func which has
+ * to busy wait on a timeout, since our condition is only checked
+ * when some other source's state changes
+ */
+typedef gboolean (*g_condition_wait_func)(gpointer);
+
+struct g_condition_wait_source
+{
+        GSource src;
+        struct coroutine *co;
+	g_condition_wait_func func;
+	gpointer data;
+};
 
 struct gvnc
 {
@@ -112,6 +86,12 @@ struct gvnc
 	int major;
 	int minor;
 	gnutls_session_t tls_session;
+
+	/* Auth related params */
+	unsigned int auth_type;
+	unsigned int auth_subtype;
+	char *cred_username;
+	char *cred_password;
 
 	char read_buffer[4096];
 	size_t read_offset;
@@ -144,28 +124,6 @@ struct gvnc
 	int xmit_buffer_size;
 };
 
-enum {
-  GVNC_AUTH_INVALID = 0,
-  GVNC_AUTH_NONE = 1,
-  GVNC_AUTH_VNC = 2,
-  GVNC_AUTH_RA2 = 5,
-  GVNC_AUTH_RA2NE = 6,
-  GVNC_AUTH_TIGHT = 16,
-  GVNC_AUTH_ULTRA = 17,
-  GVNC_AUTH_TLS = 18,
-  GVNC_AUTH_VENCRYPT = 19
-};
-
-enum {
-  GVNC_AUTH_VENCRYPT_PLAIN = 256,
-  GVNC_AUTH_VENCRYPT_TLSNONE = 257,
-  GVNC_AUTH_VENCRYPT_TLSVNC = 258,
-  GVNC_AUTH_VENCRYPT_TLSPLAIN = 259,
-  GVNC_AUTH_VENCRYPT_X509NONE = 260,
-  GVNC_AUTH_VENCRYPT_X509VNC = 261,
-  GVNC_AUTH_VENCRYPT_X509PLAIN = 262,
-};
-
 
 #define DEBUG 0
 #if DEBUG
@@ -183,6 +141,122 @@ static void debug_log(int level, const char* str)
 
 #define nibhi(a) (((a) >> 4) & 0x0F)
 #define niblo(a) ((a) & 0x0F)
+
+/* Main loop helper functions */
+static gboolean g_io_wait_helper(GIOChannel *channel G_GNUC_UNUSED,
+				 GIOCondition cond,
+				 gpointer data)
+{
+	struct coroutine *to = data;
+	yieldto(to, &cond);
+	return FALSE;
+}
+
+static GIOCondition g_io_wait(GIOChannel *channel, GIOCondition cond)
+{
+	GIOCondition *ret;
+
+	g_io_add_watch(channel, cond, g_io_wait_helper, coroutine_self());
+	ret = yield(NULL);
+
+	return *ret;
+}
+
+
+static GIOCondition g_io_wait_interruptable(struct wait_queue *wait,
+					    GIOChannel *channel,
+					    GIOCondition cond)
+{
+	GIOCondition *ret;
+	gint id;
+
+	wait->context = coroutine_self();
+	id = g_io_add_watch(channel, cond, g_io_wait_helper, wait->context);
+
+	wait->waiting = TRUE;
+	ret = yield(NULL);
+	wait->waiting = FALSE;
+
+	if (ret == NULL) {
+		g_source_remove(id);
+		return 0;
+	} else
+		return *ret;
+}
+
+static void g_io_wakeup(struct wait_queue *wait)
+{
+	if (wait->waiting)
+		yieldto(wait->context, NULL);
+}
+
+
+/*
+ * Call immediately before the main loop does an iteration. Returns
+ * true if the condition we're checking is ready for dispatch
+ */
+static gboolean g_condition_wait_prepare(GSource *src,
+					 int *timeout) {
+        struct g_condition_wait_source *vsrc = (struct g_condition_wait_source *)src;
+        *timeout = -1;
+        return vsrc->func(vsrc->data);
+}
+
+/*
+ * Call immediately after the main loop does an iteration. Returns
+ * true if the condition we're checking is ready for dispatch
+ */
+static gboolean g_condition_wait_check(GSource *src) {
+        struct g_condition_wait_source *vsrc = (struct g_condition_wait_source *)src;
+        return vsrc->func(vsrc->data);
+}
+
+static gboolean g_condition_wait_dispatch(GSource *src G_GNUC_UNUSED,
+					  GSourceFunc cb,
+					  gpointer data) {
+        return cb(data);
+}
+
+GSourceFuncs waitFuncs = {
+        .prepare = g_condition_wait_prepare,
+        .check = g_condition_wait_check,
+        .dispatch = g_condition_wait_dispatch,
+  };
+
+static gboolean g_condition_wait_helper(gpointer data)
+{
+        struct coroutine *co = (struct coroutine *)data;
+        yieldto(co, NULL);
+        return FALSE;
+}
+
+static gboolean g_condition_wait(g_condition_wait_func func, gpointer data)
+{
+	GSource *src;
+	struct g_condition_wait_source *vsrc;
+
+	/* Short-circuit check in case we've got it ahead of time */
+	if (func(data)) {
+		return TRUE;
+	}
+
+	/*
+	 * Don't have it, so yield to the main loop, checking the condition
+	 * on each iteration of the main loop
+	 */
+	src = g_source_new(&waitFuncs, sizeof(struct g_condition_wait_source));
+	vsrc = (struct g_condition_wait_source *)src;
+
+	vsrc->func = func;
+	vsrc->data = data;
+	vsrc->co = coroutine_self();
+
+	g_source_attach(src, NULL);
+	g_source_set_callback(src, g_condition_wait_helper, coroutine_self(), NULL);
+	yield(NULL);
+	return TRUE;
+}
+
 
 
 /* IO functions */
@@ -912,7 +986,8 @@ static void gvnc_update(struct gvnc *gvnc, int x, int y, int width, int height)
 {
 	if (gvnc->has_error || !gvnc->ops.update)
 		return;
-	gvnc->has_error = !gvnc->ops.update(gvnc->ops_data, x, y, width, height);
+	if (!gvnc->ops.update(gvnc->ops_data, x, y, width, height))
+		gvnc->has_error = TRUE;
 }
 
 static void gvnc_set_color_map_entry(struct gvnc *gvnc, uint16_t color,
@@ -921,15 +996,17 @@ static void gvnc_set_color_map_entry(struct gvnc *gvnc, uint16_t color,
 {
 	if (gvnc->has_error || !gvnc->ops.set_color_map_entry)
 		return;
-	gvnc->has_error = !gvnc->ops.set_color_map_entry(gvnc->ops_data, color,
-							 red, green, blue);
+	if (!gvnc->ops.set_color_map_entry(gvnc->ops_data, color,
+					    red, green, blue))
+		gvnc->has_error = TRUE;
 }
 
 static void gvnc_bell(struct gvnc *gvnc)
 {
 	if (gvnc->has_error || !gvnc->ops.bell)
 		return;
-	gvnc->has_error = !gvnc->ops.bell(gvnc->ops_data);
+	if (!gvnc->ops.bell(gvnc->ops_data))
+		gvnc->has_error = TRUE;
 }
 
 static void gvnc_server_cut_text(struct gvnc *gvnc, const void *data,
@@ -937,28 +1014,32 @@ static void gvnc_server_cut_text(struct gvnc *gvnc, const void *data,
 {
 	if (gvnc->has_error || !gvnc->ops.server_cut_text)
 		return;
-	gvnc->has_error = !gvnc->ops.server_cut_text(gvnc->ops_data, data, len);
+	if (!gvnc->ops.server_cut_text(gvnc->ops_data, data, len))
+		gvnc->has_error = TRUE;
 }
 
 static void gvnc_resize(struct gvnc *gvnc, int width, int height)
 {
 	if (gvnc->has_error || !gvnc->ops.resize)
 		return;
-	gvnc->has_error = !gvnc->ops.resize(gvnc->ops_data, width, height);
+	if (!gvnc->ops.resize(gvnc->ops_data, width, height))
+		gvnc->has_error = TRUE;
 }
 
 static void gvnc_pointer_type_change(struct gvnc *gvnc, int absolute)
 {
 	if (gvnc->has_error || !gvnc->ops.pointer_type_change)
 		return;
-	gvnc->has_error = !gvnc->ops.pointer_type_change(gvnc->ops_data, absolute);
+	if (!gvnc->ops.pointer_type_change(gvnc->ops_data, absolute))
+		gvnc->has_error = TRUE;
 }
 
 static void gvnc_shared_memory_rmid(struct gvnc *gvnc, int shmid)
 {
 	if (gvnc->has_error || !gvnc->ops.shared_memory_rmid)
 		return;
-	gvnc->has_error = !gvnc->ops.shared_memory_rmid(gvnc->ops_data, shmid);
+	if (!gvnc->ops.shared_memory_rmid(gvnc->ops_data, shmid))
+		gvnc->has_error = TRUE;
 }
 
 static void gvnc_framebuffer_update(struct gvnc *gvnc, int32_t etype,
@@ -1125,19 +1206,19 @@ static gboolean gvnc_check_auth_result(struct gvnc *gvnc)
 	return FALSE;
 }
 
-static gboolean gvnc_perform_auth_vnc(struct gvnc *gvnc, const char *password)
+static gboolean gvnc_perform_auth_vnc(struct gvnc *gvnc)
 {
 	uint8_t challenge[16];
 	uint8_t key[8];
 
 	GVNC_DEBUG("Do Challenge\n");
-	if (!password)
+	if (!gvnc->cred_password)
 		return FALSE;
 
 	gvnc_read(gvnc, challenge, 16);
 
 	memset(key, 0, 8);
-	strncpy((char*)key, (char*)password, 8);
+	strncpy((char*)key, (char*)gvnc->cred_password, 8);
 
 	deskey(key, EN0);
 	des(challenge, challenge);
@@ -1245,9 +1326,82 @@ static gboolean gvnc_start_tls(struct gvnc *gvnc, int anonTLS) {
 	}
 }
 
-static gboolean gvnc_perform_auth_vencrypt(struct gvnc *gvnc, const char *password)
+gboolean gvnc_wants_credential_password(struct gvnc *gvnc)
 {
-	int major, minor, status, wantAuth = GVNC_AUTH_INVALID, anonTLS;
+        if (gvnc->auth_type == GVNC_AUTH_VNC)
+                return TRUE;
+
+        if (gvnc->auth_type == GVNC_AUTH_VENCRYPT) {
+                if (gvnc->auth_subtype == GVNC_AUTH_VENCRYPT_PLAIN ||
+                    gvnc->auth_subtype == GVNC_AUTH_VENCRYPT_TLSVNC ||
+                    gvnc->auth_subtype == GVNC_AUTH_VENCRYPT_TLSPLAIN ||
+                    gvnc->auth_subtype == GVNC_AUTH_VENCRYPT_X509VNC ||
+                    gvnc->auth_subtype == GVNC_AUTH_VENCRYPT_X509PLAIN)
+                        return TRUE;
+        }
+
+        return FALSE;
+}
+
+gboolean gvnc_wants_credential_username(struct gvnc *gvnc)
+{
+        if (gvnc->auth_type == GVNC_AUTH_VENCRYPT) {
+                if (gvnc->auth_subtype == GVNC_AUTH_VENCRYPT_PLAIN ||
+                    gvnc->auth_subtype == GVNC_AUTH_VENCRYPT_TLSPLAIN ||
+                    gvnc->auth_subtype == GVNC_AUTH_VENCRYPT_X509PLAIN)
+                        return TRUE;
+        }
+
+        return FALSE;
+}
+
+static gboolean gvnc_has_credentials(gpointer data)
+{
+	struct gvnc *gvnc = (struct gvnc *)data;
+
+	if (gvnc->has_error)
+		return TRUE;
+	if (gvnc_wants_credential_username(gvnc) && !gvnc->cred_username)
+		return FALSE;
+	if (gvnc_wants_credential_password(gvnc) && !gvnc->cred_password)
+		return FALSE;
+	return TRUE;
+}
+
+static gboolean gvnc_gather_credentials(struct gvnc *gvnc)
+{
+	if (!gvnc_has_credentials(gvnc)) {
+		GVNC_DEBUG("Requesting missing credentials\n");
+		if (gvnc->has_error || !gvnc->ops.auth_cred) {
+			gvnc->has_error = TRUE;
+			return TRUE;
+		}
+		if (!gvnc->ops.auth_cred(gvnc->ops_data))
+		    gvnc->has_error = TRUE;
+		if (gvnc->has_error)
+			return TRUE;
+		GVNC_DEBUG("Waiting for missing credentials\n");
+		g_condition_wait(gvnc_has_credentials, gvnc);
+		GVNC_DEBUG("Got all credentials\n");
+	}
+	return gvnc_has_error(gvnc);
+}
+
+static gboolean gvnc_has_auth_subtype(gpointer data)
+{
+	struct gvnc *gvnc = (struct gvnc *)data;
+
+	if (gvnc->has_error)
+		return TRUE;
+	if (gvnc->auth_subtype == GVNC_AUTH_INVALID)
+		return FALSE;
+	return TRUE;
+}
+
+
+static gboolean gvnc_perform_auth_vencrypt(struct gvnc *gvnc)
+{
+	int major, minor, status, anonTLS;
 	unsigned int nauth, i;
 	unsigned int auth[20];
 
@@ -1283,41 +1437,48 @@ static gboolean gvnc_perform_auth_vencrypt(struct gvnc *gvnc, const char *passwo
 		GVNC_DEBUG("Possible auth %d\n", auth[i]);
 	}
 
+	if (gvnc->has_error || !gvnc->ops.auth_subtype)
+		return FALSE;
+
+	if (!gvnc->ops.auth_subtype(gvnc->ops_data, nauth, auth))
+		gvnc->has_error = TRUE;
 	if (gvnc->has_error)
 		return FALSE;
 
-	for (i = 0 ; i < nauth ; i++) {
-		if (auth[i] == GVNC_AUTH_VENCRYPT_TLSNONE ||
-		    auth[i] == GVNC_AUTH_VENCRYPT_TLSPLAIN ||
-		    auth[i] == GVNC_AUTH_VENCRYPT_TLSVNC ||
-		    auth[i] == GVNC_AUTH_VENCRYPT_X509NONE ||
-		    auth[i] == GVNC_AUTH_VENCRYPT_X509PLAIN ||
-		    auth[i] == GVNC_AUTH_VENCRYPT_X509VNC) {
-			wantAuth = auth[i];
-			break;
-		}
-	}
+	GVNC_DEBUG("Waiting for auth subtype\n");
+	g_condition_wait(gvnc_has_auth_subtype, gvnc);
+	if (gvnc->has_error)
+		return FALSE;
 
-	if (wantAuth == GVNC_AUTH_VENCRYPT_PLAIN) {
+	GVNC_DEBUG("Choose auth %d\n", gvnc->auth_subtype);
+
+	if (gvnc_gather_credentials(gvnc))
+		return FALSE;
+
+#if !DEBUG
+	if (gvnc->auth_subtype == GVNC_AUTH_VENCRYPT_PLAIN) {
 		GVNC_DEBUG("Cowardly refusing to transmit plain text password\n");
 		return FALSE;
 	}
+#endif
 
-	GVNC_DEBUG("Choose auth %d\n", wantAuth);
-	gvnc_write_u32(gvnc, wantAuth);
+	gvnc_write_u32(gvnc, gvnc->auth_subtype);
 	gvnc_flush(gvnc);
 	status = gvnc_read_u8(gvnc);
 	if (status != 1) {
-		GVNC_DEBUG("Server refused VeNCrypt auth %d %d\n", wantAuth, status);
+		GVNC_DEBUG("Server refused VeNCrypt auth %d %d\n", gvnc->auth_subtype, status);
 		return FALSE;
 	}
 
-	if (wantAuth == GVNC_AUTH_VENCRYPT_TLSNONE ||
-	    wantAuth ==  GVNC_AUTH_VENCRYPT_TLSPLAIN ||
-	    wantAuth ==  GVNC_AUTH_VENCRYPT_TLSVNC)
+	switch (gvnc->auth_subtype) {
+	case GVNC_AUTH_VENCRYPT_TLSNONE:
+	case GVNC_AUTH_VENCRYPT_TLSPLAIN:
+	case GVNC_AUTH_VENCRYPT_TLSVNC:
 		anonTLS = 1;
-	else
+		break;
+	default:
 		anonTLS = 0;
+	}
 
 	if (!gvnc_start_tls(gvnc, anonTLS)) {
 		GVNC_DEBUG("Could not start TLS\n");
@@ -1325,7 +1486,7 @@ static gboolean gvnc_perform_auth_vencrypt(struct gvnc *gvnc, const char *passwo
 	}
 	GVNC_DEBUG("Completed TLS setup\n");
 
-	switch (wantAuth) {
+	switch (gvnc->auth_subtype) {
 		/* Plain certificate based auth */
 	case GVNC_AUTH_VENCRYPT_TLSNONE:
 	case GVNC_AUTH_VENCRYPT_X509NONE:
@@ -1336,16 +1497,26 @@ static gboolean gvnc_perform_auth_vencrypt(struct gvnc *gvnc, const char *passwo
 	case GVNC_AUTH_VENCRYPT_TLSVNC:
 	case GVNC_AUTH_VENCRYPT_X509VNC:
 		GVNC_DEBUG("Handing off to VNC auth\n");
-		return gvnc_perform_auth_vnc(gvnc, password);
+		return gvnc_perform_auth_vnc(gvnc);
 
 	default:
 		return FALSE;
 	}
 }
 
-static gboolean gvnc_perform_auth(struct gvnc *gvnc, const char *password)
+static gboolean gvnc_has_auth_type(gpointer data)
 {
-	int wantAuth = GVNC_AUTH_INVALID;
+	struct gvnc *gvnc = (struct gvnc *)data;
+
+	if (gvnc->has_error)
+		return TRUE;
+	if (gvnc->auth_type == GVNC_AUTH_INVALID)
+		return FALSE;
+	return TRUE;
+}
+
+static gboolean gvnc_perform_auth(struct gvnc *gvnc)
+{
 	unsigned int nauth, i;
 	unsigned int auth[10];
 
@@ -1372,34 +1543,38 @@ static gboolean gvnc_perform_auth(struct gvnc *gvnc, const char *password)
 		GVNC_DEBUG("Possible auth %d\n", auth[i]);
 	}
 
+	if (gvnc->has_error || !gvnc->ops.auth_type)
+		return FALSE;
+
+	if (!gvnc->ops.auth_type(gvnc->ops_data, nauth, auth))
+		gvnc->has_error = TRUE;
 	if (gvnc->has_error)
 		return FALSE;
 
-	for (i = 0 ; i < nauth ; i++) {
-		if (auth[i] == GVNC_AUTH_NONE ||
-		    auth[i] == GVNC_AUTH_VNC ||
-		    auth[i] == GVNC_AUTH_VENCRYPT) {
-			wantAuth = auth[i];
-			break;
-		}
-	}
+	GVNC_DEBUG("Waiting for auth type\n");
+	g_condition_wait(gvnc_has_auth_type, gvnc);
+	if (gvnc->has_error)
+		return FALSE;
+
+	GVNC_DEBUG("Choose auth %d\n", gvnc->auth_type);
+	if (gvnc_gather_credentials(gvnc))
+		return FALSE;
 
 	if (gvnc->minor > 6) {
-		GVNC_DEBUG("Chose auth %d\n", wantAuth);
-		gvnc_write_u8(gvnc, wantAuth);
+		gvnc_write_u8(gvnc, gvnc->auth_type);
 		gvnc_flush(gvnc);
 	}
 
-	switch (wantAuth) {
+	switch (gvnc->auth_type) {
 	case GVNC_AUTH_NONE:
 		if (gvnc->minor == 8)
 			return gvnc_check_auth_result(gvnc);
 		return TRUE;
 	case GVNC_AUTH_VNC:
-		return gvnc_perform_auth_vnc(gvnc, password);
+		return gvnc_perform_auth_vnc(gvnc);
 
 	case GVNC_AUTH_VENCRYPT:
-		return gvnc_perform_auth_vencrypt(gvnc, password);
+		return gvnc_perform_auth_vencrypt(gvnc);
 
 	default:
 		return FALSE;
@@ -1419,6 +1594,8 @@ struct gvnc *gvnc_new(const struct gvnc_ops *ops, gpointer ops_data)
 
 	memcpy(&gvnc->ops, ops, sizeof(*ops));
 	gvnc->ops_data = ops_data;
+	gvnc->auth_type = GVNC_AUTH_INVALID;
+	gvnc->auth_subtype = GVNC_AUTH_INVALID;
 
 	return gvnc;
 }
@@ -1455,6 +1632,14 @@ void gvnc_close(struct gvnc *gvnc)
 	free(gvnc->name);
 	gvnc->name = NULL;
 
+	free(gvnc->cred_username);
+	gvnc->cred_username = NULL;
+	free(gvnc->cred_password);
+	gvnc->cred_password = NULL;
+
+	gvnc->auth_type = GVNC_AUTH_INVALID;
+	gvnc->auth_subtype = GVNC_AUTH_INVALID;
+
 	gvnc->has_error = 0;
 }
 
@@ -1483,7 +1668,7 @@ gboolean gvnc_is_initialized(struct gvnc *gvnc)
 }
 
 
-gboolean gvnc_initialize(struct gvnc *gvnc, gboolean shared_flag, const char *password)
+gboolean gvnc_initialize(struct gvnc *gvnc, gboolean shared_flag)
 {
 	int ret;
 	char version[13];
@@ -1512,7 +1697,7 @@ gboolean gvnc_initialize(struct gvnc *gvnc, gboolean shared_flag, const char *pa
 	gvnc_flush(gvnc);
 	GVNC_DEBUG("Negotiated protocol %d %d\n", gvnc->major, gvnc->minor);
 
-	if (!gvnc_perform_auth(gvnc, password)) {
+	if (!gvnc_perform_auth(gvnc)) {
 		GVNC_DEBUG("Auth failed\n");
 		goto fail;
 	}
@@ -1571,6 +1756,9 @@ gboolean gvnc_open_host(struct gvnc *gvnc, const char *host, const char *port)
 	if (gvnc_is_open(gvnc))
 		return TRUE;
 
+	gvnc->host = g_strdup(host);
+	gvnc->port = g_strdup(port);
+
         GVNC_DEBUG("Resolving host %s %s\n", host, port);
         memset (&hints, '\0', sizeof (hints));
         hints.ai_flags = AI_ADDRCONFIG;
@@ -1628,6 +1816,66 @@ gboolean gvnc_open_host(struct gvnc *gvnc, const char *host, const char *port)
         }
         freeaddrinfo (ai);
 	return TRUE;
+}
+
+
+gboolean gvnc_set_auth_type(struct gvnc *gvnc, unsigned int type)
+{
+        GVNC_DEBUG("Requested auth type %d\n", type);
+        if (gvnc->auth_type != GVNC_AUTH_INVALID) {
+                gvnc->has_error = TRUE;
+                return gvnc_has_error(gvnc);
+        }
+        if (type != GVNC_AUTH_NONE &&
+            type != GVNC_AUTH_VNC &&
+            type != GVNC_AUTH_VENCRYPT) {
+                gvnc->has_error = TRUE;
+                return gvnc_has_error(gvnc);
+        }
+        gvnc->auth_type = type;
+        gvnc->auth_subtype = GVNC_AUTH_INVALID;
+
+	return gvnc_has_error(gvnc);
+}
+
+gboolean gvnc_set_auth_subtype(struct gvnc *gvnc, unsigned int type)
+{
+        GVNC_DEBUG("Requested auth subtype %d\n", type);
+        if (gvnc->auth_type != GVNC_AUTH_VENCRYPT) {
+                gvnc->has_error = TRUE;
+		return gvnc_has_error(gvnc);
+        }
+        if (gvnc->auth_subtype != GVNC_AUTH_INVALID) {
+                gvnc->has_error = TRUE;
+		return gvnc_has_error(gvnc);
+        }
+        gvnc->auth_subtype = type;
+
+	return gvnc_has_error(gvnc);
+}
+
+gboolean gvnc_set_credential_password(struct gvnc *gvnc, const char *password)
+{
+        GVNC_DEBUG("Set password credential\n");
+        if (gvnc->cred_password)
+                free(gvnc->cred_password);
+        if (!(gvnc->cred_password = strdup(password))) {
+                gvnc->has_error = TRUE;
+                return FALSE;
+        }
+        return TRUE;
+}
+
+gboolean gvnc_set_credential_username(struct gvnc *gvnc, const char *username)
+{
+        GVNC_DEBUG("Set username credential %s\n", username);
+        if (gvnc->cred_username)
+                free(gvnc->cred_username);
+        if (!(gvnc->cred_username = strdup(username))) {
+                gvnc->has_error = TRUE;
+                return FALSE;
+        }
+        return TRUE;
 }
 
 

@@ -42,7 +42,6 @@ struct _VncDisplayPrivate
 	int button_mask;
 	int last_x;
 	int last_y;
-	const char *password;
 
 	gboolean absolute;
 
@@ -63,12 +62,14 @@ enum
 	VNC_CONNECTED,
 	VNC_INITIALIZED,
 	VNC_DISCONNECTED,
+ 	VNC_AUTH_CREDENTIAL,
 
 	LAST_SIGNAL
 };
 
 static guint signals[LAST_SIGNAL] = { 0, 0, 0, 0,
-				      0, 0, 0 };
+				      0, 0, 0, 0 };
+static GParamSpec *signalCredParam;
 
 GtkWidget *vnc_display_new(void)
 {
@@ -479,7 +480,73 @@ static gboolean on_shared_memory_rmid(void *opaque, int shmid)
 	return TRUE;
 }
 
+
+static gboolean on_auth_cred(void *opaque)
+{
+	VncDisplay *obj = VNC_DISPLAY(opaque);
+	GValueArray *credList;
+	GValue username, password;
+
+	memset(&username, 0, sizeof(username));
+	memset(&password, 0, sizeof(password));
+
+	credList = g_value_array_new(2);
+	if (gvnc_wants_credential_username(obj->priv->gvnc)) {
+		g_value_init(&username, G_PARAM_SPEC_VALUE_TYPE(signalCredParam));
+		g_value_set_enum(&username, VNC_DISPLAY_CREDENTIAL_USERNAME);
+		g_value_array_append(credList, &username);
+	}
+	if (gvnc_wants_credential_password(obj->priv->gvnc)) {
+		g_value_init(&password, G_PARAM_SPEC_VALUE_TYPE(signalCredParam));
+		g_value_set_enum(&password, VNC_DISPLAY_CREDENTIAL_PASSWORD);
+		g_value_array_append(credList, &password);
+	}
+
+	g_signal_emit (G_OBJECT (obj),
+		       signals[VNC_AUTH_CREDENTIAL],
+		       0,
+		       credList);
+
+	g_value_array_free(credList);
+
+	return TRUE;
+}
+
+static gboolean on_auth_type(void *opaque, unsigned int ntype, unsigned int *types)
+{
+	VncDisplay *obj = VNC_DISPLAY(opaque);
+	VncDisplayPrivate *priv = obj->priv;
+
+	/*
+	 * XXX lame - we should have some prioritization. That
+	 * said most servers only support 1 auth type at any time
+	 */
+	if (ntype)
+		gvnc_set_auth_type(priv->gvnc, types[0]);
+
+	return TRUE;
+}
+
+static gboolean on_auth_subtype(void *opaque, unsigned int ntype, unsigned int *types)
+{
+	VncDisplay *obj = VNC_DISPLAY(opaque);
+	VncDisplayPrivate *priv = obj->priv;
+
+	/*
+	 * XXX lame - we should have some prioritization. That
+	 * said most servers only support 1 auth type at any time
+	 */
+	if (ntype)
+		gvnc_set_auth_subtype(priv->gvnc, types[0]);
+
+	return TRUE;
+}
+
+
 static const struct gvnc_ops vnc_display_ops = {
+	.auth_cred = on_auth_cred,
+	.auth_type = on_auth_type,
+	.auth_subtype = on_auth_subtype,
 	.update = on_update,
 	.resize = on_resize,
 	.pointer_type_change = on_pointer_type_change,
@@ -514,7 +581,7 @@ static void *vnc_coroutine(void *opaque)
 		       signals[VNC_CONNECTED],
 		       0);
 
-	if (gvnc_initialize(priv->gvnc, FALSE, priv->password))
+	if (gvnc_initialize(priv->gvnc, FALSE))
 		goto cleanup;
 
 	g_signal_emit (G_OBJECT (obj),
@@ -628,6 +695,13 @@ static void vnc_display_class_init(VncDisplayClass *klass)
 {
 	GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
+	signalCredParam = g_param_spec_enum("credential",
+					    "credential",
+					    "credential",
+					    vnc_display_credential_get_type(),
+					    0,
+					    G_PARAM_READABLE);
+
 	signals[VNC_CONNECTED] =
 		g_signal_new ("vnc-connected",
 			      G_OBJECT_CLASS_TYPE (object_class),
@@ -657,6 +731,18 @@ static void vnc_display_class_init(VncDisplayClass *klass)
 			      g_cclosure_marshal_VOID__VOID,
 			      G_TYPE_NONE,
 			      0);
+
+	signals[VNC_AUTH_CREDENTIAL] =
+		g_signal_new ("vnc-auth-credential",
+			      G_OBJECT_CLASS_TYPE (object_class),
+			      G_SIGNAL_RUN_FIRST,
+			      G_STRUCT_OFFSET (VncDisplayClass, vnc_auth_credential),
+			      NULL, NULL,
+			      g_cclosure_marshal_VOID__PARAM,
+			      G_TYPE_NONE,
+			      1,
+			      G_TYPE_VALUE_ARRAY);
+
 
 	signals[VNC_POINTER_GRAB] =
 		g_signal_new("vnc-pointer-grab",
@@ -753,9 +839,21 @@ static void vnc_display_init(GTypeInstance *instance, gpointer klass G_GNUC_UNUS
 	display->priv->gvnc = gvnc_new(&vnc_display_ops, obj);
 }
 
-void vnc_display_set_password(VncDisplay *obj, const gchar *password)
+gboolean vnc_display_set_credential(VncDisplay *obj, int type, const gchar *data)
 {
-	obj->priv->password = password;
+	switch (type) {
+	case VNC_DISPLAY_CREDENTIAL_PASSWORD:
+		if (gvnc_set_credential_password(obj->priv->gvnc, data))
+			return FALSE;
+		return TRUE;
+
+	case VNC_DISPLAY_CREDENTIAL_USERNAME:
+		if (gvnc_set_credential_username(obj->priv->gvnc, data))
+			return FALSE;
+		return TRUE;
+	}
+
+	return FALSE;
 }
 
 void vnc_display_set_use_shm(VncDisplay *obj, gboolean enable)
@@ -819,6 +917,23 @@ GType vnc_display_get_type(void)
 
 	return type;
 }
+
+GType vnc_display_credential_get_type(void)
+{
+	static GType etype = 0;
+
+	if (etype == 0) {
+		static const GEnumValue values[] = {
+			{ VNC_DISPLAY_CREDENTIAL_PASSWORD, "VNC_DISPLAY_CREDENTIAL_PASSWORD", "password" },
+			{ VNC_DISPLAY_CREDENTIAL_USERNAME, "VNC_DISPLAY_CREDENTIAL_USERNAME", "username" },
+			{ 0, NULL, NULL }
+		};
+		etype = g_enum_register_static ("VncDisplayCredentialType", values );
+	}
+
+	return etype;
+}
+
 
 int vnc_display_get_width(VncDisplay *obj)
 {
