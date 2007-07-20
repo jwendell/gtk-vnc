@@ -9,67 +9,76 @@
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 
-static GtkWidget *window;
-static GtkWidget *vnc;
-
-static void set_title(VncDisplay *vnc, gboolean grabbed)
+static void set_title(VncDisplay *vnc, GtkWidget *window, gboolean grabbed)
 {
 	const char *name;
 	char title[1024];
 	const char *subtitle;
 
 	if (grabbed)
-		subtitle = "(Press Ctrl+Alt to release pointer)";
+		subtitle = "(Press Ctrl+Alt to release pointer) ";
 	else
 		subtitle = "";
 
-	name = vnc_display_get_host_name(VNC_DISPLAY(vnc));
-	snprintf(title, sizeof(title), "GVncViewer - %s %s",
-		 name, subtitle);
+	name = vnc_display_get_name(VNC_DISPLAY(vnc));
+	snprintf(title, sizeof(title), "%s%s - GVncViewer",
+		 subtitle, name);
 
 	gtk_window_set_title(GTK_WINDOW(window), title);
 }
 
-static void vnc_grab(GtkWidget *vnc)
+static void vnc_grab(GtkWidget *vnc, GtkWidget *window)
 {
-	set_title(VNC_DISPLAY(vnc), TRUE);
+	set_title(VNC_DISPLAY(vnc), window, TRUE);
 }
 
-
-static void vnc_ungrab(GtkWidget *vnc)
+static void vnc_ungrab(GtkWidget *vnc, GtkWidget *window)
 {
-	set_title(VNC_DISPLAY(vnc), FALSE);
+	set_title(VNC_DISPLAY(vnc), window, FALSE);
 }
 
-static void vnc_initialized(GtkWidget *vnc)
+static void vnc_connected(GtkWidget *vnc G_GNUC_UNUSED)
 {
-	set_title(VNC_DISPLAY(vnc), FALSE);
+	printf("Connected to server\n");
 }
 
-static void send_caf1(GtkWidget *menu)
+static void vnc_initialized(GtkWidget *vnc, GtkWidget *window)
 {
-	gint keys[] = { GDK_Control_L, GDK_Alt_L, GDK_F1 };
+	printf("Connection initialized\n");
+	set_title(VNC_DISPLAY(vnc), window, FALSE);
+	gtk_widget_show_all(window);
+}
+
+static void vnc_disconnected(GtkWidget *vnc G_GNUC_UNUSED)
+{
+	printf("Disconnected from server\n");
+	gtk_main_quit();
+}
+
+static void send_caf1(GtkWidget *menu G_GNUC_UNUSED, GtkWidget *vnc)
+{
+	guint keys[] = { GDK_Control_L, GDK_Alt_L, GDK_F1 };
 	printf("Sending Ctrl+Alt+F1\n");
 	vnc_display_send_keys(VNC_DISPLAY(vnc), keys, sizeof(keys)/sizeof(keys[0]));
 }
 
-static void send_caf7(GtkWidget *menu)
+static void send_caf7(GtkWidget *menu G_GNUC_UNUSED, GtkWidget *vnc)
 {
-	gint keys[] = { GDK_Control_L, GDK_Alt_L, GDK_F7 };
+	guint keys[] = { GDK_Control_L, GDK_Alt_L, GDK_F7 };
 	printf("Sending Ctrl+Alt+F7\n");
 	vnc_display_send_keys(VNC_DISPLAY(vnc), keys, sizeof(keys)/sizeof(keys[0]));
 }
 
-static void send_cad(GtkWidget *menu)
+static void send_cad(GtkWidget *menu G_GNUC_UNUSED, GtkWidget *vnc)
 {
-	gint keys[] = { GDK_Control_L, GDK_Alt_L, GDK_Delete };
+	guint keys[] = { GDK_Control_L, GDK_Alt_L, GDK_Delete };
 	printf("Sending Ctrl+Alt+Delete\n");
 	vnc_display_send_keys(VNC_DISPLAY(vnc), keys, sizeof(keys)/sizeof(keys[0]));
 }
 
-static void send_cab(GtkWidget *menu)
+static void send_cab(GtkWidget *menu G_GNUC_UNUSED, GtkWidget *vnc)
 {
-	gint keys[] = { GDK_Control_L, GDK_Alt_L, GDK_BackSpace };
+	guint keys[] = { GDK_Control_L, GDK_Alt_L, GDK_BackSpace };
 	printf("Sending Ctrl+Alt+Backspace\n");
 	vnc_display_send_keys(VNC_DISPLAY(vnc), keys, sizeof(keys)/sizeof(keys[0]));
 }
@@ -78,7 +87,8 @@ int main(int argc, char **argv)
 {
 	char port[1024], hostname[1024];
 	char *display;
-	char *ret = NULL;
+	GtkWidget *window;
+	GtkWidget *vnc;
 	GtkWidget *layout;
 	GtkWidget *menubar;
 	GtkWidget *sendkey;
@@ -122,7 +132,7 @@ int main(int argc, char **argv)
 	gtk_container_add(GTK_CONTAINER(layout), menubar);
 	gtk_container_add(GTK_CONTAINER(layout), vnc);
 	gtk_window_set_resizable(GTK_WINDOW(window), FALSE);
-	gtk_widget_show_all(window);
+	gtk_widget_realize(vnc);
 
 	if (argc == 3)
 		vnc_display_set_password(VNC_DISPLAY(vnc), argv[2]);
@@ -136,32 +146,35 @@ int main(int argc, char **argv)
 	} else
 		snprintf(port, sizeof(port), "%d", 5900);
 
-	vnc_display_open_name(VNC_DISPLAY(vnc), hostname, port);
+	vnc_display_open_host(VNC_DISPLAY(vnc), hostname, port);
 	vnc_display_set_keyboard_grab(VNC_DISPLAY(vnc), TRUE);
 	vnc_display_set_pointer_grab(VNC_DISPLAY(vnc), TRUE);
 	//vnc_display_set_pointer_local(VNC_DISPLAY(vnc), TRUE);
 
 	gtk_signal_connect(GTK_OBJECT(window), "delete-event",
 			   GTK_SIGNAL_FUNC(gtk_main_quit), NULL);
+	gtk_signal_connect(GTK_OBJECT(vnc), "vnc-connected",
+			   GTK_SIGNAL_FUNC(vnc_connected), NULL);
 	gtk_signal_connect(GTK_OBJECT(vnc), "vnc-initialized",
-			   GTK_SIGNAL_FUNC(vnc_initialized), NULL);
+			   GTK_SIGNAL_FUNC(vnc_initialized), window);
+	gtk_signal_connect(GTK_OBJECT(vnc), "vnc-disconnected",
+			   GTK_SIGNAL_FUNC(vnc_disconnected), NULL);
+
+
 	gtk_signal_connect(GTK_OBJECT(vnc), "vnc-pointer-grab",
-			   GTK_SIGNAL_FUNC(vnc_grab), NULL);
+			   GTK_SIGNAL_FUNC(vnc_grab), window);
 	gtk_signal_connect(GTK_OBJECT(vnc), "vnc-pointer-ungrab",
-			   GTK_SIGNAL_FUNC(vnc_ungrab), NULL);
+			   GTK_SIGNAL_FUNC(vnc_ungrab), window);
 
 
 	gtk_signal_connect(GTK_OBJECT(caf1), "activate",
-			   GTK_SIGNAL_FUNC(send_caf1), NULL);
+			   GTK_SIGNAL_FUNC(send_caf1), vnc);
 	gtk_signal_connect(GTK_OBJECT(caf7), "activate",
-			   GTK_SIGNAL_FUNC(send_caf7), NULL);
+			   GTK_SIGNAL_FUNC(send_caf7), vnc);
 	gtk_signal_connect(GTK_OBJECT(cad), "activate",
-			   GTK_SIGNAL_FUNC(send_cad), NULL);
+			   GTK_SIGNAL_FUNC(send_cad), vnc);
 	gtk_signal_connect(GTK_OBJECT(cab), "activate",
-			   GTK_SIGNAL_FUNC(send_cab), NULL);
-
-	gtk_signal_connect(GTK_OBJECT(vnc), "vnc-disconnected",
-			   GTK_SIGNAL_FUNC(gtk_main_quit), NULL);
+			   GTK_SIGNAL_FUNC(send_cab), vnc);
 
 	gtk_main();
 

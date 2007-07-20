@@ -3,7 +3,9 @@
     vnc_display_get_type;
     vnc_display_new;
     vnc_display_open_fd;
-    vnc_display_open_name;
+    vnc_display_open_host;
+    vnc_display_is_open;
+    vnc_display_close;
 
     vnc_display_send_keys;
 
@@ -15,10 +17,20 @@
 
     vnc_display_get_width;
     vnc_display_get_height;
-    vnc_display_get_host_name;
+    vnc_display_get_name;
 
-    gvnc_connect_fd;
-    gvnc_connect_name;
+    gvnc_new;
+    gvnc_free;
+    gvnc_close;
+    gvnc_shutdown;
+
+    gvnc_open_fd;
+    gvnc_open_host;
+    gvnc_is_open;
+
+    gvnc_initialize;
+    gvnc_is_initialized;
+
     gvnc_server_message;
     gvnc_client_cut_text;
     gvnc_pointer_event;

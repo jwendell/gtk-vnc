@@ -60,6 +60,7 @@ enum
  	VNC_KEYBOARD_GRAB,
  	VNC_KEYBOARD_UNGRAB,
 
+	VNC_CONNECTED,
 	VNC_INITIALIZED,
 	VNC_DISCONNECTED,
 
@@ -67,7 +68,7 @@ enum
 };
 
 static guint signals[LAST_SIGNAL] = { 0, 0, 0, 0,
-				      0, 0 };
+				      0, 0, 0 };
 
 GtkWidget *vnc_display_new(void)
 {
@@ -191,7 +192,7 @@ static gboolean button_event(GtkWidget *widget, GdkEventButton *button,
 	VncDisplayPrivate *priv = VNC_DISPLAY(widget)->priv;
 	int n;
 
-	if (priv->gvnc == NULL)
+	if (priv->gvnc == NULL || !gvnc_is_initialized(priv->gvnc))
 		return TRUE;
 
 	if ((priv->grab_pointer || !priv->absolute) &&
@@ -222,7 +223,7 @@ static gboolean scroll_event(GtkWidget *widget, GdkEventScroll *scroll,
 	VncDisplayPrivate *priv = VNC_DISPLAY(widget)->priv;
 	int mask;
 
-	if (priv->gvnc == NULL)
+	if (priv->gvnc == NULL || !gvnc_is_initialized(priv->gvnc))
 		return TRUE;
 
 	if (scroll->direction == GDK_SCROLL_UP)
@@ -257,7 +258,7 @@ static gboolean motion_event(GtkWidget *widget, GdkEventMotion *motion,
 	VncDisplayPrivate *priv = VNC_DISPLAY(widget)->priv;
 	int dx, dy;
 
-	if (priv->gvnc == NULL)
+	if (priv->gvnc == NULL || !gvnc_is_initialized(priv->gvnc))
 		return TRUE;
 
 	if (!priv->absolute && !priv->in_pointer_grab)
@@ -309,7 +310,7 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *key,
 	gint group, level;
 	GdkModifierType consumed;
 
-	if (priv->gvnc == NULL || !gvnc_is_connected(priv->gvnc))
+	if (priv->gvnc == NULL || !gvnc_is_initialized(priv->gvnc))
 		return TRUE;
 
 	/*
@@ -356,7 +357,7 @@ static gboolean enter_event(GtkWidget *widget, GdkEventCrossing *crossing,
 {
         VncDisplayPrivate *priv = VNC_DISPLAY(widget)->priv;
 
-        if (priv->gvnc == NULL || !gvnc_is_connected(priv->gvnc))
+        if (priv->gvnc == NULL || !gvnc_is_initialized(priv->gvnc))
                 return TRUE;
 
         if (crossing->mode != GDK_CROSSING_NORMAL)
@@ -373,7 +374,7 @@ static gboolean leave_event(GtkWidget *widget, GdkEventCrossing *crossing,
 {
         VncDisplayPrivate *priv = VNC_DISPLAY(widget)->priv;
 
-        if (priv->gvnc == NULL || !gvnc_is_connected(priv->gvnc))
+        if (priv->gvnc == NULL || !gvnc_is_initialized(priv->gvnc))
                 return TRUE;
 
         if (crossing->mode != GDK_CROSSING_NORMAL)
@@ -401,6 +402,9 @@ static gboolean on_resize(void *opaque, int width, int height)
 	VncDisplayPrivate *priv = obj->priv;
 	GdkVisual *visual;
 	int depth;
+
+	if (priv->gvnc == NULL || !gvnc_is_initialized(priv->gvnc))
+		return TRUE;
 
 	if (priv->shm_image)
 		g_object_unref(priv->shm_image);
@@ -495,17 +499,23 @@ static void *vnc_coroutine(void *opaque)
 
 	int ret;
 
-	priv->gvnc = gvnc_new(&vnc_display_ops, obj);
-	if (priv->gvnc == NULL)
+	if (priv->gvnc == NULL || gvnc_is_open(priv->gvnc))
 		return NULL;
 
 	if (priv->fd != -1) {
-		if (gvnc_connect_fd(priv->gvnc, priv->fd, FALSE, priv->password))
+		if (gvnc_open_fd(priv->gvnc, priv->fd))
 			goto cleanup;
 	} else {
-		if (gvnc_connect_name(priv->gvnc, priv->host, priv->port, FALSE, priv->password))
+		if (gvnc_open_host(priv->gvnc, priv->host, priv->port))
 			goto cleanup;
 	}
+
+	g_signal_emit (G_OBJECT (obj),
+		       signals[VNC_CONNECTED],
+		       0);
+
+	if (gvnc_initialize(priv->gvnc, FALSE, priv->password))
+		goto cleanup;
 
 	g_signal_emit (G_OBJECT (obj),
 		       signals[VNC_INITIALIZED],
@@ -524,8 +534,7 @@ static void *vnc_coroutine(void *opaque)
 	}
 
  cleanup:
-	gvnc_free(priv->gvnc);
-	priv->gvnc = NULL;
+	gvnc_close(priv->gvnc);
 	g_signal_emit (G_OBJECT (obj),
 		       signals[VNC_DISCONNECTED],
 		       0);
@@ -536,6 +545,9 @@ static gboolean do_vnc_display_open(gpointer data)
 {
 	VncDisplay *obj = VNC_DISPLAY(data);
 	struct coroutine *co;
+
+	if (obj->priv->gvnc == NULL || gvnc_is_open(obj->priv->gvnc))
+		return FALSE;
 
 	co = &obj->priv->coroutine;
 
@@ -551,7 +563,7 @@ static gboolean do_vnc_display_open(gpointer data)
 
 gboolean vnc_display_open_fd(VncDisplay *obj, int fd)
 {
-	if (obj->priv->gvnc)
+	if (obj->priv->gvnc == NULL || gvnc_is_open(obj->priv->gvnc))
 		return FALSE;
 
 	obj->priv->fd = fd;
@@ -562,9 +574,9 @@ gboolean vnc_display_open_fd(VncDisplay *obj, int fd)
 	return TRUE;
 }
 
-gboolean vnc_display_open_name(VncDisplay *obj, const char *host, const char *port)
+gboolean vnc_display_open_host(VncDisplay *obj, const char *host, const char *port)
 {
-	if (obj->priv->gvnc)
+	if (obj->priv->gvnc == NULL || gvnc_is_open(obj->priv->gvnc))
 		return FALSE;
 
 	obj->priv->host = strdup(host);
@@ -582,9 +594,29 @@ gboolean vnc_display_open_name(VncDisplay *obj, const char *host, const char *po
 	return TRUE;
 }
 
+gboolean vnc_display_is_open(VncDisplay *obj)
+{
+	if (obj->priv->gvnc == NULL)
+		return FALSE;
+	return gvnc_is_open(obj->priv->gvnc);
+}
+
+void vnc_display_close(VncDisplay *obj)
+{
+	if (obj->priv->gvnc == NULL)
+		return;
+
+	if (gvnc_is_open(obj->priv->gvnc))
+		gvnc_shutdown(obj->priv->gvnc);
+}
+
+
 void vnc_display_send_keys(VncDisplay *obj, const guint *keyvals, int nkeyvals)
 {
 	int i;
+	if (obj->priv->gvnc == NULL || gvnc_is_open(obj->priv->gvnc))
+		return;
+
 	for (i = 0 ; i < nkeyvals ; i++)
 		gvnc_key_event(obj->priv->gvnc, 1, keyvals[i]);
 
@@ -595,6 +627,16 @@ void vnc_display_send_keys(VncDisplay *obj, const guint *keyvals, int nkeyvals)
 static void vnc_display_class_init(VncDisplayClass *klass)
 {
 	GObjectClass *object_class = G_OBJECT_CLASS (klass);
+
+	signals[VNC_CONNECTED] =
+		g_signal_new ("vnc-connected",
+			      G_OBJECT_CLASS_TYPE (object_class),
+			      G_SIGNAL_RUN_FIRST,
+			      G_STRUCT_OFFSET (VncDisplayClass, vnc_connected),
+			      NULL, NULL,
+			      g_cclosure_marshal_VOID__VOID,
+			      G_TYPE_NONE,
+			      0);
 
 	signals[VNC_INITIALIZED] =
 		g_signal_new ("vnc-initialized",
@@ -707,6 +749,8 @@ static void vnc_display_init(GTypeInstance *instance, gpointer klass G_GNUC_UNUS
 	display->priv->absolute = 1;
 	display->priv->fb.shm_id = -1;
 	display->priv->fd = -1;
+
+	display->priv->gvnc = gvnc_new(&vnc_display_ops, obj);
 }
 
 void vnc_display_set_password(VncDisplay *obj, const gchar *password)
@@ -790,7 +834,7 @@ int vnc_display_get_height(VncDisplay *obj)
 	return gvnc_get_height (obj->priv->gvnc);
 }
 
-const char * vnc_display_get_host_name(VncDisplay *obj)
+const char * vnc_display_get_name(VncDisplay *obj)
 {
 	g_return_val_if_fail (VNC_IS_DISPLAY (obj), NULL);
 

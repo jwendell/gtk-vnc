@@ -73,11 +73,16 @@ enum {
 
 struct gvnc *gvnc_new(const struct gvnc_ops *ops, gpointer ops_data);
 void gvnc_free(struct gvnc *gvnc);
-void gvnc_close(struct gvnc *gvnc);
 
-gboolean gvnc_is_connected(struct gvnc *gvnc);
-gboolean gvnc_connect_fd(struct gvnc *gvnc, int fd, gboolean shared_flag, const char *password);
-gboolean gvnc_connect_name(struct gvnc *gvnc, const char *host, const char *port, gboolean shared_flag, const char *password);
+void gvnc_close(struct gvnc *gvnc);
+void gvnc_shutdown(struct gvnc *gvnc);
+
+gboolean gvnc_open_fd(struct gvnc *gvnc, int fd);
+gboolean gvnc_open_host(struct gvnc *gvnc, const char *host, const char *port);
+gboolean gvnc_is_open(struct gvnc *gvnc);
+
+gboolean gvnc_initialize(struct gvnc *gvnc, gboolean shared_flag, const char *password);
+gboolean gvnc_is_initialized(struct gvnc *gvnc);
 
 gboolean gvnc_server_message(struct gvnc *gvnc);
 

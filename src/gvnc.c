@@ -1425,7 +1425,7 @@ struct gvnc *gvnc_new(const struct gvnc_ops *ops, gpointer ops_data)
 
 void gvnc_free(struct gvnc *gvnc)
 {
-	if (gvnc_is_connected(gvnc))
+	if (gvnc_is_open(gvnc))
 		gvnc_close(gvnc);
 
 	free(gvnc);
@@ -1458,7 +1458,12 @@ void gvnc_close(struct gvnc *gvnc)
 	gvnc->has_error = 0;
 }
 
-gboolean gvnc_is_connected(struct gvnc *gvnc)
+void gvnc_shutdown(struct gvnc *gvnc)
+{
+	gvnc->has_error = 1;
+}
+
+gboolean gvnc_is_open(struct gvnc *gvnc)
 {
 	if (gvnc->fd != -1)
 		return TRUE;
@@ -1468,7 +1473,17 @@ gboolean gvnc_is_connected(struct gvnc *gvnc)
 }
 
 
-static gboolean gvnc_connect(struct gvnc *gvnc, gboolean shared_flag, const char *password)
+gboolean gvnc_is_initialized(struct gvnc *gvnc)
+{
+	if (!gvnc_is_open(gvnc))
+		return FALSE;
+	if (gvnc->name)
+		return TRUE;
+	return FALSE;
+}
+
+
+gboolean gvnc_initialize(struct gvnc *gvnc, gboolean shared_flag, const char *password)
 {
 	int ret;
 	char version[13];
@@ -1529,10 +1544,10 @@ static gboolean gvnc_connect(struct gvnc *gvnc, gboolean shared_flag, const char
 	return gvnc_has_error(gvnc);
 }
 
-gboolean gvnc_connect_fd(struct gvnc *gvnc, int fd,  gboolean shared_flag, const char *password)
+gboolean gvnc_open_fd(struct gvnc *gvnc, int fd)
 {
 	int flags;
-	if (gvnc_is_connected(gvnc))
+	if (gvnc_is_open(gvnc))
 		return TRUE;
 
 	GVNC_DEBUG("Connecting to FD %d\n", fd);
@@ -1546,14 +1561,14 @@ gboolean gvnc_connect_fd(struct gvnc *gvnc, int fd,  gboolean shared_flag, const
 		return TRUE;
 	gvnc->fd = fd;
 
-	return gvnc_connect(gvnc, shared_flag, password);
+	return gvnc_has_error(gvnc);
 }
 
-gboolean gvnc_connect_name(struct gvnc *gvnc, const char *host, const char *port,  gboolean shared_flag, const char *password)
+gboolean gvnc_open_host(struct gvnc *gvnc, const char *host, const char *port)
 {
         struct addrinfo *ai, *runp, hints;
         int ret;
-	if (gvnc_is_connected(gvnc))
+	if (gvnc_is_open(gvnc))
 		return TRUE;
 
         GVNC_DEBUG("Resolving host %s %s\n", host, port);
@@ -1595,7 +1610,7 @@ gboolean gvnc_connect_name(struct gvnc *gvnc, const char *host, const char *port
                         gvnc->channel = chan;
                         gvnc->fd = fd;
                         freeaddrinfo(ai);
-                        return gvnc_connect(gvnc, shared_flag, password);
+                        return gvnc_has_error(gvnc);
                 }
 
                 if (errno == EINPROGRESS) {
