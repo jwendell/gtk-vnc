@@ -280,26 +280,29 @@ static int gvnc_read(struct gvnc *gvnc, void *data, size_t len)
 			if (gvnc->tls_session) {
 				ret = gnutls_read(gvnc->tls_session, gvnc->read_buffer, 4096);
 				if (ret < 0) {
-					gvnc->has_error = TRUE;
-					return ret;
+					if (ret == GNUTLS_E_AGAIN)
+						errno = EAGAIN;
+					else
+						errno = EIO;
+					ret = -1;
 				}
-			} else {
+			} else
 				ret = read(fd, gvnc->read_buffer, 4096);
-				if (ret == -1) {
-					switch (errno) {
-					case EAGAIN:
-						if (gvnc->wait_interruptable) {
-							if (!g_io_wait_interruptable(&gvnc->wait,
-										     gvnc->channel, G_IO_IN))
-								return -EAGAIN;
-						} else
-							g_io_wait(gvnc->channel, G_IO_IN);
-					case EINTR:
-						continue;
-					default:
-						gvnc->has_error = TRUE;
-						return -errno;
-					}
+
+			if (ret == -1) {
+				switch (errno) {
+				case EAGAIN:
+					if (gvnc->wait_interruptable) {
+						if (!g_io_wait_interruptable(&gvnc->wait,
+									     gvnc->channel, G_IO_IN))
+							return -EAGAIN;
+					} else
+						g_io_wait(gvnc->channel, G_IO_IN);
+				case EINTR:
+					continue;
+				default:
+					gvnc->has_error = TRUE;
+					return -errno;
 				}
 			}
 			if (ret == 0) {
@@ -334,23 +337,25 @@ static void gvnc_flush(struct gvnc *gvnc)
 					   gvnc->write_buffer+offset,
 					   gvnc->write_offset-offset);
 			if (ret < 0) {
-				gvnc->has_error = TRUE;
-				return;
+				if (ret == GNUTLS_E_AGAIN)
+					errno = EAGAIN;
+				else
+					errno = EIO;
+				ret = -1;
 			}
-		} else {
+		} else
 			ret = write(fd,
 				    gvnc->write_buffer+offset,
 				    gvnc->write_offset-offset);
-			if (ret == -1) {
-				switch (errno) {
-				case EAGAIN:
-					g_io_wait(gvnc->channel, G_IO_OUT);
-				case EINTR:
-					continue;
-				default:
-					gvnc->has_error = TRUE;
-					return;
-				}
+		if (ret == -1) {
+			switch (errno) {
+			case EAGAIN:
+				g_io_wait(gvnc->channel, G_IO_OUT);
+			case EINTR:
+				continue;
+			default:
+				gvnc->has_error = TRUE;
+				return;
 			}
 		}
 		if (ret == 0) {
@@ -390,25 +395,15 @@ static ssize_t gvnc_tls_push(gnutls_transport_ptr_t transport,
 	struct gvnc *gvnc = (struct gvnc *)transport;
 	int fd = g_io_channel_unix_get_fd(gvnc->channel);
 	int ret;
-	size_t sent = 0;
 
-	while (sent < len) {
-		ret = write(fd, data+sent, len-sent);
-		if (ret == -1 && errno == EINTR)
-			continue;
-		if (ret == -1 && errno == EAGAIN) {
-			g_io_wait(gvnc->channel, G_IO_OUT);
-			continue;
-		}
-		if (ret <= 0) {
-			gvnc->has_error = TRUE;
-			return -1;
-		} else {
-			sent += ret;
-		}
+ retry:
+	ret = write(fd, data, len);
+	if (ret < 0) {
+		if (errno == EINTR)
+			goto retry;
+		return -1;
 	}
-
-	return len;
+	return ret;
 }
 
 
@@ -418,25 +413,15 @@ static ssize_t gvnc_tls_pull(gnutls_transport_ptr_t transport,
 	struct gvnc *gvnc = (struct gvnc *)transport;
 	int fd = g_io_channel_unix_get_fd(gvnc->channel);
 	int ret;
-	size_t got = 0;
 
-	while (got < len) {
-		ret = read(fd, data+got, len-got);
-		if (ret == -1 && errno == EINTR)
-			continue;
-		if (ret == -1 && errno == EAGAIN) {
-			g_io_wait(gvnc->channel, G_IO_IN);
-			continue;
-		}
-		if (ret <= 0) {
-			gvnc->has_error = TRUE;
-			return -1;
-		} else {
-			got += ret;
-		}
+ retry:
+	ret = read(fd, data, len);
+	if (ret < 0) {
+		if (errno == EINTR)
+			goto retry;
+		return -1;
 	}
-
-	return len;
+	return ret;
 }
 
 
@@ -1309,7 +1294,16 @@ static gboolean gvnc_start_tls(struct gvnc *gvnc, int anonTLS) {
 		gnutls_transport_set_pull_function(gvnc->tls_session, gvnc_tls_pull);
 	}
 
+ retry:
 	if ((ret = gnutls_handshake(gvnc->tls_session)) < 0) {
+		if (!gnutls_error_is_fatal(ret)) {
+			GVNC_DEBUG("Handshake was blocking\n");
+			if (!gnutls_record_get_direction(gvnc->tls_session))
+				g_io_wait(gvnc->channel, G_IO_IN);
+			else
+				g_io_wait(gvnc->channel, G_IO_OUT);
+			goto retry;
+		}
 		GVNC_DEBUG("Handshake failed %s\n", gnutls_strerror(ret));
 		gnutls_deinit(gvnc->tls_session);
 		gvnc->tls_session = NULL;
