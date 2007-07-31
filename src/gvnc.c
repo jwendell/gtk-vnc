@@ -651,11 +651,14 @@ static int gvnc_validate_certificate(struct gvnc *vnc)
 		}
 
 		if (i == 0) {
-			/* XXX Fixme */
-			const char *hostname = "foo";
-			if (!gnutls_x509_crt_check_hostname (cert, hostname)) {
+			if (!vnc->host) {
+				GVNC_DEBUG ("No hostname provided for certificate verification\n");
+				gnutls_x509_crt_deinit (cert);
+				return FALSE;
+			}
+			if (!gnutls_x509_crt_check_hostname (cert, vnc->host)) {
 				GVNC_DEBUG ("The certificate's owner does not match hostname '%s'\n",
-					    hostname);
+					    vnc->host);
 				gnutls_x509_crt_deinit (cert);
 				return FALSE;
 			}
