@@ -570,10 +570,10 @@ static void *vnc_coroutine(void *opaque)
 		return NULL;
 
 	if (priv->fd != -1) {
-		if (gvnc_open_fd(priv->gvnc, priv->fd))
+		if (!gvnc_open_fd(priv->gvnc, priv->fd))
 			goto cleanup;
 	} else {
-		if (gvnc_open_host(priv->gvnc, priv->host, priv->port))
+		if (!gvnc_open_host(priv->gvnc, priv->host, priv->port))
 			goto cleanup;
 	}
 
@@ -581,21 +581,21 @@ static void *vnc_coroutine(void *opaque)
 		       signals[VNC_CONNECTED],
 		       0);
 
-	if (gvnc_initialize(priv->gvnc, FALSE))
+	if (!gvnc_initialize(priv->gvnc, FALSE))
 		goto cleanup;
 
 	g_signal_emit (G_OBJECT (obj),
 		       signals[VNC_INITIALIZED],
 		       0);
 
-	if (gvnc_set_encodings(priv->gvnc, 6, encodings))
+	if (!gvnc_set_encodings(priv->gvnc, 6, encodings))
 		goto cleanup;
 
-	if (gvnc_framebuffer_update_request(priv->gvnc, 0, 0, 0, priv->fb.width, priv->fb.height))
+	if (!gvnc_framebuffer_update_request(priv->gvnc, 0, 0, 0, priv->fb.width, priv->fb.height))
 		goto cleanup;
 
-	while (!(ret = gvnc_server_message(priv->gvnc))) {
-		if (gvnc_framebuffer_update_request(priv->gvnc, 1, 0, 0,
+	while ((ret = gvnc_server_message(priv->gvnc))) {
+		if (!gvnc_framebuffer_update_request(priv->gvnc, 1, 0, 0,
 						     priv->fb.width, priv->fb.height))
 			goto cleanup;
 	}
