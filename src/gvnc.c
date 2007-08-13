@@ -722,7 +722,7 @@ gboolean gvnc_set_pixel_format(struct gvnc *gvnc,
 	gvnc_flush(gvnc);
 	memcpy(&gvnc->fmt, fmt, sizeof(*fmt));
 
-	return gvnc_has_error(gvnc);
+	return !gvnc_has_error(gvnc);
 }
 
 gboolean gvnc_set_shared_buffer(struct gvnc *gvnc, int line_size, int shmid)
@@ -733,7 +733,7 @@ gboolean gvnc_set_shared_buffer(struct gvnc *gvnc, int line_size, int shmid)
 	gvnc_write_u32(gvnc, shmid);
 	gvnc_flush(gvnc);
 
-	return gvnc_has_error(gvnc);
+	return !gvnc_has_error(gvnc);
 }
 
 gboolean gvnc_set_encodings(struct gvnc *gvnc, int n_encoding, int32_t *encoding)
@@ -747,7 +747,7 @@ gboolean gvnc_set_encodings(struct gvnc *gvnc, int n_encoding, int32_t *encoding
 	for (i = 0; i < n_encoding; i++)
 		gvnc_write_s32(gvnc, encoding[i]);
 	gvnc_flush(gvnc);
-	return gvnc_has_error(gvnc);
+	return !gvnc_has_error(gvnc);
 }
 
 gboolean gvnc_framebuffer_update_request(struct gvnc *gvnc,
@@ -762,7 +762,7 @@ gboolean gvnc_framebuffer_update_request(struct gvnc *gvnc,
 	gvnc_write_u16(gvnc, width);
 	gvnc_write_u16(gvnc, height);
 	gvnc_flush(gvnc);
-	return gvnc_has_error(gvnc);
+	return !gvnc_has_error(gvnc);
 }
 
 static void gvnc_buffered_write(struct gvnc *gvnc, const void *data, size_t size)
@@ -814,7 +814,7 @@ gboolean gvnc_key_event(struct gvnc *gvnc, uint8_t down_flag, uint32_t key)
 	gvnc_buffered_write(gvnc, pad, 2);
 	gvnc_buffered_write_u32(gvnc, key);
 	gvnc_buffered_flush(gvnc);
-	return gvnc_has_error(gvnc);
+	return !gvnc_has_error(gvnc);
 }
 
 gboolean gvnc_pointer_event(struct gvnc *gvnc, uint8_t button_mask,
@@ -825,7 +825,7 @@ gboolean gvnc_pointer_event(struct gvnc *gvnc, uint8_t button_mask,
 	gvnc_buffered_write_u16(gvnc, x);
 	gvnc_buffered_write_u16(gvnc, y);
 	gvnc_buffered_flush(gvnc);
-	return gvnc_has_error(gvnc);	
+	return !gvnc_has_error(gvnc);	
 }
 
 gboolean gvnc_client_cut_text(struct gvnc *gvnc,
@@ -838,7 +838,7 @@ gboolean gvnc_client_cut_text(struct gvnc *gvnc,
 	gvnc_write_u32(gvnc, length);
 	gvnc_write(gvnc, data, length);
 	gvnc_flush(gvnc);
-	return gvnc_has_error(gvnc);
+	return !gvnc_has_error(gvnc);
 }
 
 static inline uint8_t *gvnc_get_local(struct gvnc *gvnc, int x, int y)
@@ -1179,7 +1179,7 @@ gboolean gvnc_server_message(struct gvnc *gvnc)
 		break;
 	}
 
-	return gvnc_has_error(gvnc);
+	return !gvnc_has_error(gvnc);
 }
 
 static gboolean gvnc_check_auth_result(struct gvnc *gvnc)
@@ -1416,7 +1416,7 @@ static gboolean gvnc_gather_credentials(struct gvnc *gvnc)
 		g_condition_wait(gvnc_has_credentials, gvnc);
 		GVNC_DEBUG("Got all credentials\n");
 	}
-	return gvnc_has_error(gvnc);
+	return !gvnc_has_error(gvnc);
 }
 
 static gboolean gvnc_has_auth_subtype(gpointer data)
@@ -1484,7 +1484,7 @@ static gboolean gvnc_perform_auth_vencrypt(struct gvnc *gvnc)
 
 	GVNC_DEBUG("Choose auth %d\n", gvnc->auth_subtype);
 
-	if (gvnc_gather_credentials(gvnc))
+	if (!gvnc_gather_credentials(gvnc))
 		return FALSE;
 
 #if !DEBUG
@@ -1589,7 +1589,7 @@ static gboolean gvnc_perform_auth(struct gvnc *gvnc)
 		return FALSE;
 
 	GVNC_DEBUG("Choose auth %d\n", gvnc->auth_type);
-	if (gvnc_gather_credentials(gvnc))
+	if (!gvnc_gather_credentials(gvnc))
 		return FALSE;
 
 	if (gvnc->minor > 6) {
@@ -1763,31 +1763,31 @@ gboolean gvnc_initialize(struct gvnc *gvnc, gboolean shared_flag)
 	GVNC_DEBUG("Display name '%s'\n", gvnc->name);
 
 	gvnc_resize(gvnc, gvnc->width, gvnc->height);
-	return gvnc_has_error(gvnc);
+	return !gvnc_has_error(gvnc);
 
  fail:
 	gvnc->has_error = 1;
-	return gvnc_has_error(gvnc);
+	return !gvnc_has_error(gvnc);
 }
 
 gboolean gvnc_open_fd(struct gvnc *gvnc, int fd)
 {
 	int flags;
 	if (gvnc_is_open(gvnc))
-		return TRUE;
+		return FALSE;
 
 	GVNC_DEBUG("Connecting to FD %d\n", fd);
 	if ((flags = fcntl(fd, F_GETFL)) < 0)
-		return TRUE;
+		return FALSE;
 	flags |= O_NONBLOCK;
 	if (fcntl(fd, F_SETFL, flags) < 0)
-		return TRUE;
+		return FALSE;
 
 	if (!(gvnc->channel = g_io_channel_unix_new(fd)))
-		return TRUE;
+		return FALSE;
 	gvnc->fd = fd;
 
-	return gvnc_has_error(gvnc);
+	return !gvnc_has_error(gvnc);
 }
 
 gboolean gvnc_open_host(struct gvnc *gvnc, const char *host, const char *port)
@@ -1795,7 +1795,7 @@ gboolean gvnc_open_host(struct gvnc *gvnc, const char *host, const char *port)
         struct addrinfo *ai, *runp, hints;
         int ret;
 	if (gvnc_is_open(gvnc))
-		return TRUE;
+		return FALSE;
 
 	gvnc->host = g_strdup(host);
 	gvnc->port = g_strdup(port);
@@ -1807,7 +1807,7 @@ gboolean gvnc_open_host(struct gvnc *gvnc, const char *host, const char *port)
         hints.ai_protocol = IPPROTO_TCP;
 
         if ((ret = getaddrinfo(host, port, &hints, &ai)) != 0)
-		return TRUE;
+		return FALSE;
 
         runp = ai;
         while (runp != NULL) {
@@ -1839,7 +1839,7 @@ gboolean gvnc_open_host(struct gvnc *gvnc, const char *host, const char *port)
                         gvnc->channel = chan;
                         gvnc->fd = fd;
                         freeaddrinfo(ai);
-                        return gvnc_has_error(gvnc);
+                        return !gvnc_has_error(gvnc);
                 }
 
                 if (errno == EINPROGRESS) {
@@ -1856,7 +1856,7 @@ gboolean gvnc_open_host(struct gvnc *gvnc, const char *host, const char *port)
                 runp = runp->ai_next;
         }
         freeaddrinfo (ai);
-	return TRUE;
+	return FALSE;
 }
 
 
@@ -1865,18 +1865,18 @@ gboolean gvnc_set_auth_type(struct gvnc *gvnc, unsigned int type)
         GVNC_DEBUG("Requested auth type %d\n", type);
         if (gvnc->auth_type != GVNC_AUTH_INVALID) {
                 gvnc->has_error = TRUE;
-                return gvnc_has_error(gvnc);
+                return !gvnc_has_error(gvnc);
         }
         if (type != GVNC_AUTH_NONE &&
             type != GVNC_AUTH_VNC &&
             type != GVNC_AUTH_VENCRYPT) {
                 gvnc->has_error = TRUE;
-                return gvnc_has_error(gvnc);
+                return !gvnc_has_error(gvnc);
         }
         gvnc->auth_type = type;
         gvnc->auth_subtype = GVNC_AUTH_INVALID;
 
-	return gvnc_has_error(gvnc);
+	return !gvnc_has_error(gvnc);
 }
 
 gboolean gvnc_set_auth_subtype(struct gvnc *gvnc, unsigned int type)
@@ -1884,15 +1884,15 @@ gboolean gvnc_set_auth_subtype(struct gvnc *gvnc, unsigned int type)
         GVNC_DEBUG("Requested auth subtype %d\n", type);
         if (gvnc->auth_type != GVNC_AUTH_VENCRYPT) {
                 gvnc->has_error = TRUE;
-		return gvnc_has_error(gvnc);
+		return !gvnc_has_error(gvnc);
         }
         if (gvnc->auth_subtype != GVNC_AUTH_INVALID) {
                 gvnc->has_error = TRUE;
-		return gvnc_has_error(gvnc);
+		return !gvnc_has_error(gvnc);
         }
         gvnc->auth_subtype = type;
 
-	return gvnc_has_error(gvnc);
+	return !gvnc_has_error(gvnc);
 }
 
 gboolean gvnc_set_credential_password(struct gvnc *gvnc, const char *password)
@@ -2017,7 +2017,7 @@ gboolean gvnc_set_local(struct gvnc *gvnc, struct gvnc_framebuffer *fb)
 	if (gvnc->perfect_match)
 		gvnc->blt = gvnc_blt_fast;
 
-	return gvnc_has_error(gvnc);
+	return !gvnc_has_error(gvnc);
 }
 
 gboolean gvnc_shared_memory_enabled(struct gvnc *gvnc)
