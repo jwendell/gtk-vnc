@@ -19,6 +19,10 @@
 #include <gdk/gdkkeysyms.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <pwd.h>
 
 #define VNC_DISPLAY_GET_PRIVATE(obj) \
       (G_TYPE_INSTANCE_GET_PRIVATE((obj), VNC_TYPE_DISPLAY, VncDisplayPrivate))
@@ -485,10 +489,11 @@ static gboolean on_auth_cred(void *opaque)
 {
 	VncDisplay *obj = VNC_DISPLAY(opaque);
 	GValueArray *credList;
-	GValue username, password;
+	GValue username, password, clientname;
 
 	memset(&username, 0, sizeof(username));
 	memset(&password, 0, sizeof(password));
+	memset(&clientname, 0, sizeof(clientname));
 
 	credList = g_value_array_new(2);
 	if (gvnc_wants_credential_username(obj->priv->gvnc)) {
@@ -500,6 +505,11 @@ static gboolean on_auth_cred(void *opaque)
 		g_value_init(&password, G_PARAM_SPEC_VALUE_TYPE(signalCredParam));
 		g_value_set_enum(&password, VNC_DISPLAY_CREDENTIAL_PASSWORD);
 		g_value_array_append(credList, &password);
+	}
+	if (gvnc_wants_credential_x509(obj->priv->gvnc)) {
+		g_value_init(&clientname, G_PARAM_SPEC_VALUE_TYPE(signalCredParam));
+		g_value_set_enum(&clientname, VNC_DISPLAY_CREDENTIAL_CLIENTNAME);
+		g_value_array_append(credList, &clientname);
 	}
 
 	g_signal_emit (G_OBJECT (obj),
@@ -839,6 +849,61 @@ static void vnc_display_init(GTypeInstance *instance, gpointer klass G_GNUC_UNUS
 	display->priv->gvnc = gvnc_new(&vnc_display_ops, obj);
 }
 
+static int vnc_display_best_path(char *buf,
+				 int buflen,
+				 const char *basedir,
+				 const char *basefile,
+				 char **dirs,
+				 unsigned int ndirs)
+{
+	unsigned int i;
+	for (i = 0 ; i < ndirs ; i++) {
+		struct stat sb;
+		snprintf(buf, buflen-1, "%s/%s/%s", dirs[i], basedir, basefile);
+		buf[buflen-1] = '\0';
+		if (stat(buf, &sb) == 0)
+			return 0;
+	}
+	return -1;
+}
+
+
+static int vnc_display_set_x509_credential(VncDisplay *obj, const char *name)
+{
+	char sysdir[PATH_MAX], userdir[PATH_MAX];
+	struct passwd *pw;
+	char file[PATH_MAX];
+	char *dirs[] = { sysdir, userdir };
+
+	strncpy(sysdir, SYSCONFDIR "/pki", PATH_MAX-1);
+	sysdir[PATH_MAX-1] = '\0';
+
+	if (!(pw = getpwuid(getuid())))
+		return TRUE;
+
+	snprintf(userdir, PATH_MAX-1, "%s/.pki", pw->pw_dir);
+	userdir[PATH_MAX-1] = '\0';
+
+	if (vnc_display_best_path(file, PATH_MAX, "CA", "cacert.pem", dirs, 2) < 0)
+		return TRUE;
+	gvnc_set_credential_x509_cacert(obj->priv->gvnc, file);
+
+	/* Don't mind failures of CRL */
+	if (vnc_display_best_path(file, PATH_MAX, "CA", "cacrl.pem", dirs, 2) == 0)
+		gvnc_set_credential_x509_cacert(obj->priv->gvnc, file);
+
+	/* Set client key & cert if we have them. Server will reject auth
+	 * if it decides it requires them*/
+	if (vnc_display_best_path(file, PATH_MAX, name, "private/clientkey.pem", dirs, 2) == 0)
+		gvnc_set_credential_x509_key(obj->priv->gvnc, file);
+	if (vnc_display_best_path(file, PATH_MAX, name, "clientcert.pem", dirs, 2) == 0)
+		gvnc_set_credential_x509_cert(obj->priv->gvnc, file);
+
+	return FALSE;
+}
+
+
+
 gboolean vnc_display_set_credential(VncDisplay *obj, int type, const gchar *data)
 {
 	switch (type) {
@@ -851,6 +916,9 @@ gboolean vnc_display_set_credential(VncDisplay *obj, int type, const gchar *data
 		if (gvnc_set_credential_username(obj->priv->gvnc, data))
 			return FALSE;
 		return TRUE;
+
+	case VNC_DISPLAY_CREDENTIAL_CLIENTNAME:
+		return vnc_display_set_x509_credential(obj, data);
 	}
 
 	return FALSE;
@@ -926,6 +994,7 @@ GType vnc_display_credential_get_type(void)
 		static const GEnumValue values[] = {
 			{ VNC_DISPLAY_CREDENTIAL_PASSWORD, "VNC_DISPLAY_CREDENTIAL_PASSWORD", "password" },
 			{ VNC_DISPLAY_CREDENTIAL_USERNAME, "VNC_DISPLAY_CREDENTIAL_USERNAME", "username" },
+			{ VNC_DISPLAY_CREDENTIAL_CLIENTNAME, "VNC_DISPLAY_CREDENTIAL_CLIENTNAME", "clientname" },
 			{ 0, NULL, NULL }
 		};
 		etype = g_enum_register_static ("VncDisplayCredentialType", values );

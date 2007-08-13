@@ -4,7 +4,8 @@ EXTRA_DIST = libgtk-vnc_sym.version
 lib_LTLIBRARIES = libgtk-vnc-1.0.la
 
 libgtk_vnc_1_0_la_LIBADD = @GTK_LIBS@ @GNUTLS_LIBS@
-libgtk_vnc_1_0_la_CFLAGS = @GTK_CFLAGS@ @GNUTLS_CFLAGS@ @WARNING_CFLAGS@
+libgtk_vnc_1_0_la_CFLAGS = @GTK_CFLAGS@ @GNUTLS_CFLAGS@ @WARNING_CFLAGS@ \
+                           -DSYSCONFDIR=\""$(sysconfdir)"\"
 libgtk_vnc_1_0_la_LDFLAGS = -Wl,--version-script=$(srcdir)/libgtk-vnc_sym.version \
                             -version-info 0:1:0
 

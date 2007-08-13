@@ -33,11 +33,6 @@
 #include <gnutls/gnutls.h>
 #include <gnutls/x509.h>
 
-#define CA_FILE "ca-cert.pem"
-#define CRL_FILE "ca-crl.pem"
-#define KEY_FILE "key.pem"
-#define CERT_FILE "cert.pem"
-
 struct wait_queue
 {
 	gboolean waiting;
@@ -92,6 +87,10 @@ struct gvnc
 	unsigned int auth_subtype;
 	char *cred_username;
 	char *cred_password;
+	char *cred_x509_cacert;
+	char *cred_x509_cacrl;
+	char *cred_x509_cert;
+	char *cred_x509_key;
 
 	char read_buffer[4096];
 	size_t read_offset;
@@ -529,36 +528,48 @@ static gnutls_anon_client_credentials gvnc_tls_initialize_anon_cred(void)
 	return anon_cred;
 }
 
-static gnutls_certificate_credentials_t gvnc_tls_initialize_cert_cred(void)
+static gnutls_certificate_credentials_t gvnc_tls_initialize_cert_cred(struct gvnc *vnc)
 {
 	gnutls_certificate_credentials_t x509_cred;
 	int ret;
-	struct stat st;
 
 	if ((ret = gnutls_certificate_allocate_credentials(&x509_cred)) < 0) {
 		GVNC_DEBUG("Cannot allocate credentials %s\n", gnutls_strerror(ret));
 		return NULL;
 	}
-	if ((ret = gnutls_certificate_set_x509_trust_file(x509_cred, CA_FILE, GNUTLS_X509_FMT_PEM)) < 0) {
-		GVNC_DEBUG("Cannot load CA certificate %s\n", gnutls_strerror(ret));
-		return NULL;
-	}
-
-	if ((ret = gnutls_certificate_set_x509_key_file (x509_cred, CERT_FILE, KEY_FILE,
-							 GNUTLS_X509_FMT_PEM)) < 0) {
-		GVNC_DEBUG("Cannot load certificate & key %s\n", gnutls_strerror(ret));
-		return NULL;
-	}
-
-	if (stat(CRL_FILE, &st) < 0) {
-		if (errno != ENOENT) {
+	if (vnc->cred_x509_cacert) {
+		if ((ret = gnutls_certificate_set_x509_trust_file(x509_cred,
+								  vnc->cred_x509_cacert,
+								  GNUTLS_X509_FMT_PEM)) < 0) {
+			GVNC_DEBUG("Cannot load CA certificate %s\n", gnutls_strerror(ret));
 			return NULL;
 		}
 	} else {
-		if ((ret = gnutls_certificate_set_x509_crl_file(x509_cred, CRL_FILE, GNUTLS_X509_FMT_PEM)) < 0) {
+		GVNC_DEBUG("No CA certificate provided\n");
+		return NULL;
+	}
+
+	if (vnc->cred_x509_cert && vnc->cred_x509_key) {
+		if ((ret = gnutls_certificate_set_x509_key_file (x509_cred,
+								 vnc->cred_x509_cert,
+								 vnc->cred_x509_key,
+								 GNUTLS_X509_FMT_PEM)) < 0) {
+			GVNC_DEBUG("Cannot load certificate & key %s\n", gnutls_strerror(ret));
+			return NULL;
+		}
+	} else {
+		GVNC_DEBUG("No client cert or key provided\n");
+	}
+
+	if (vnc->cred_x509_cacrl) {
+		if ((ret = gnutls_certificate_set_x509_crl_file(x509_cred,
+								vnc->cred_x509_cacrl,
+								GNUTLS_X509_FMT_PEM)) < 0) {
 			GVNC_DEBUG("Cannot load CRL %s\n", gnutls_strerror(ret));
 			return NULL;
 		}
+	} else {
+		GVNC_DEBUG("No CA revocation list provided\n");
 	}
 
 	gnutls_certificate_set_dh_params (x509_cred, dh_params);
@@ -1276,7 +1287,7 @@ static gboolean gvnc_start_tls(struct gvnc *gvnc, int anonTLS) {
 				return FALSE;
 			}
 		} else {
-			gnutls_certificate_credentials_t x509_cred = gvnc_tls_initialize_cert_cred();
+			gnutls_certificate_credentials_t x509_cred = gvnc_tls_initialize_cert_cred(gvnc);
 			if (!x509_cred) {
 				gnutls_deinit(gvnc->tls_session);
 				gvnc->has_error = TRUE;
@@ -1354,6 +1365,18 @@ gboolean gvnc_wants_credential_username(struct gvnc *gvnc)
         return FALSE;
 }
 
+gboolean gvnc_wants_credential_x509(struct gvnc *gvnc)
+{
+        if (gvnc->auth_type == GVNC_AUTH_VENCRYPT) {
+                if (gvnc->auth_subtype == GVNC_AUTH_VENCRYPT_X509NONE ||
+                    gvnc->auth_subtype == GVNC_AUTH_VENCRYPT_X509PLAIN ||
+                    gvnc->auth_subtype == GVNC_AUTH_VENCRYPT_X509VNC)
+                        return TRUE;
+        }
+
+        return FALSE;
+}
+
 static gboolean gvnc_has_credentials(gpointer data)
 {
 	struct gvnc *gvnc = (struct gvnc *)data;
@@ -1363,6 +1386,16 @@ static gboolean gvnc_has_credentials(gpointer data)
 	if (gvnc_wants_credential_username(gvnc) && !gvnc->cred_username)
 		return FALSE;
 	if (gvnc_wants_credential_password(gvnc) && !gvnc->cred_password)
+		return FALSE;
+	/*
+	 * For x509 we require a minimum of the CA cert.
+	 * Anything else is a bonus - though the server
+	 * may reject auth if it decides it wants a client
+	 * cert. We can't express that based on auth type
+	 * alone though - we'll merely find out when TLS
+	 * negotiation takes place.
+	 */
+	if (gvnc_wants_credential_x509(gvnc) && !gvnc->cred_x509_cacert)
 		return FALSE;
 	return TRUE;
 }
@@ -1636,6 +1669,15 @@ void gvnc_close(struct gvnc *gvnc)
 	free(gvnc->cred_password);
 	gvnc->cred_password = NULL;
 
+	free(gvnc->cred_x509_cacert);
+	gvnc->cred_x509_cacert = NULL;
+	free(gvnc->cred_x509_cacrl);
+	gvnc->cred_x509_cacrl = NULL;
+	free(gvnc->cred_x509_cert);
+	gvnc->cred_x509_cert = NULL;
+	free(gvnc->cred_x509_key);
+	gvnc->cred_x509_key = NULL;
+
 	gvnc->auth_type = GVNC_AUTH_INVALID;
 	gvnc->auth_subtype = GVNC_AUTH_INVALID;
 
@@ -1877,6 +1919,53 @@ gboolean gvnc_set_credential_username(struct gvnc *gvnc, const char *username)
         return TRUE;
 }
 
+gboolean gvnc_set_credential_x509_cacert(struct gvnc *gvnc, const char *file)
+{
+        GVNC_DEBUG("Set x509 cacert %s\n", file);
+        if (gvnc->cred_x509_cacert)
+                free(gvnc->cred_x509_cacert);
+        if (!(gvnc->cred_x509_cacert = strdup(file))) {
+                gvnc->has_error = TRUE;
+                return FALSE;
+        }
+        return TRUE;
+}
+
+gboolean gvnc_set_credential_x509_cacrl(struct gvnc *gvnc, const char *file)
+{
+        GVNC_DEBUG("Set x509 cacrl %s\n", file);
+        if (gvnc->cred_x509_cacrl)
+                free(gvnc->cred_x509_cacrl);
+        if (!(gvnc->cred_x509_cacrl = strdup(file))) {
+                gvnc->has_error = TRUE;
+                return FALSE;
+        }
+        return TRUE;
+}
+
+gboolean gvnc_set_credential_x509_key(struct gvnc *gvnc, const char *file)
+{
+        GVNC_DEBUG("Set x509 key %s\n", file);
+        if (gvnc->cred_x509_key)
+                free(gvnc->cred_x509_key);
+        if (!(gvnc->cred_x509_key = strdup(file))) {
+                gvnc->has_error = TRUE;
+                return FALSE;
+        }
+        return TRUE;
+}
+
+gboolean gvnc_set_credential_x509_cert(struct gvnc *gvnc, const char *file)
+{
+        GVNC_DEBUG("Set x509 cert %s\n", file);
+        if (gvnc->cred_x509_cert)
+                free(gvnc->cred_x509_cert);
+        if (!(gvnc->cred_x509_cert = strdup(file))) {
+                gvnc->has_error = TRUE;
+                return FALSE;
+        }
+        return TRUE;
+}
 
 
 gboolean gvnc_set_local(struct gvnc *gvnc, struct gvnc_framebuffer *fb)

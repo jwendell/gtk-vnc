@@ -60,36 +60,60 @@ def send_cab(src, vnc):
     vnc.send_keys(["Control_L", "Alt_L", "BackSpace"])
 
 def vnc_auth_cred(src, credList):
-    dialog = gtk.Dialog("Authentication required", None, 0, (gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL, gtk.STOCK_OK, gtk.RESPONSE_OK))
-    label = []
-    entry = []
-
-    box = gtk.Table(2, len(credList))
+    prompt = 0
+    data = []
 
     for i in range(len(credList)):
-        if credList[i] == gtkvnc.CREDENTIAL_USERNAME:
-            label.append(gtk.Label("Username:"))
-        else:
-            label.append(gtk.Label("Password:"))
-        entry.append(gtk.Entry())
+        data.append(None)
+        if credList[i] in (gtkvnc.CREDENTIAL_USERNAME, gtkvnc.CREDENTIAL_PASSWORD):
+            prompt = prompt + 1
+        elif credList[i] == gtkvnc.CREDENTIAL_CLIENTNAME:
+            data[i] = "gvncviewer"
 
-        box.attach(label[i], 0, 1, i, i+1, 0, 0, 3, 3)
-        box.attach(entry[i], 1, 2, i, i+1, 0, 0, 3, 3)
+    if prompt:
+        dialog = gtk.Dialog("Authentication required", None, 0, (gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL, gtk.STOCK_OK, gtk.RESPONSE_OK))
+        label = []
+        entry = []
 
-    vbox = dialog.get_child()
-    vbox.add(box)
+        box = gtk.Table(2, prompt)
 
-    dialog.show_all()
-    res = dialog.run()
-    dialog.hide()
-
-    if res == gtk.RESPONSE_OK:
+        row = 0
         for i in range(len(credList)):
-            data = entry[i].get_text()
-            src.set_credential(credList[i], data)
-    else:
-        src.close()
-    dialog.destroy()
+            if credList[i] == gtkvnc.CREDENTIAL_USERNAME:
+                label.append(gtk.Label("Username:"))
+            elif credList[i] == gtkvnc.CREDENTIAL_PASSWORD:
+                label.append(gtk.Label("Password:"))
+            else:
+                continue
+
+            entry.append(gtk.Entry())
+
+            box.attach(label[row], 0, 1, row, row+1, 0, 0, 3, 3)
+            box.attach(entry[row], 1, 2, row, row+1, 0, 0, 3, 3)
+            row = row + 1
+
+        vbox = dialog.get_child()
+        vbox.add(box)
+
+        dialog.show_all()
+        res = dialog.run()
+        dialog.hide()
+
+        if res == gtk.RESPONSE_OK:
+            row = 0
+            for i in range(len(credList)):
+                if credList[i] in (gtkvnc.CREDENTIAL_USERNAME, gtkvnc.CREDENTIAL_PASSWORD):
+                    data[i] = entry[row].get_text()
+                    row = row + 1
+
+        dialog.destroy()
+
+    for i in range(len(credList)):
+        if i < len(data) and data[i] != None:
+            src.set_credential(credList[i], data[i])
+        else:
+            print "Unsupported credential type %d" % (credList[i])
+            src.close()
 
 window = gtk.Window()
 vnc = gtkvnc.Display()

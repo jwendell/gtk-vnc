@@ -96,65 +96,103 @@ static void send_cab(GtkWidget *menu G_GNUC_UNUSED, GtkWidget *vnc)
 
 static void vnc_credential(GtkWidget *vnc, GValueArray *credList)
 {
-	GtkWidget *dialog, **label, **entry, *box, *vbox;
+	GtkWidget *dialog = NULL;
 	int response;
-	unsigned int i;
+	unsigned int i, prompt = 0;
+	const char **data;
 
 	printf("Got credential request for %d credential(s)\n", credList->n_values);
 
-	dialog = gtk_dialog_new_with_buttons("Authentication required",
-					     NULL,
-					     0,
-					     GTK_STOCK_CANCEL,
-					     GTK_RESPONSE_CANCEL,
-					     GTK_STOCK_OK,
-					     GTK_RESPONSE_OK,
-					     NULL);
-	gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_OK);
-
-	box = gtk_table_new(credList->n_values, 2, FALSE);
-	label = g_new(GtkWidget *, credList->n_values);
-	entry = g_new(GtkWidget *, credList->n_values);
+	data = g_new0(const char *, credList->n_values);
 
 	for (i = 0 ; i < credList->n_values ; i++) {
 		GValue *cred = g_value_array_get_nth(credList, i);
-		int credType = g_value_get_enum(cred);
-		switch (credType) {
+		switch (g_value_get_enum(cred)) {
 		case VNC_DISPLAY_CREDENTIAL_USERNAME:
-			label[i] = gtk_label_new("Username:");
+		case VNC_DISPLAY_CREDENTIAL_PASSWORD:
+			prompt++;
 			break;
+		case VNC_DISPLAY_CREDENTIAL_CLIENTNAME:
+			data[i] = "gvncviewer";
 		default:
-			label[i] = gtk_label_new("Password:");
 			break;
 		}
-		entry[i] = gtk_entry_new();
-
-		gtk_table_attach(GTK_TABLE(box), label[i], 0, 1, i, i+1, GTK_SHRINK, GTK_SHRINK, 3, 3);
-		gtk_table_attach(GTK_TABLE(box), entry[i], 1, 2, i, i+1, GTK_SHRINK, GTK_SHRINK, 3, 3);
 	}
 
+	if (prompt) {
+		GtkWidget **label, **entry, *box, *vbox;
+		int row;
+		dialog = gtk_dialog_new_with_buttons("Authentication required",
+						     NULL,
+						     0,
+						     GTK_STOCK_CANCEL,
+						     GTK_RESPONSE_CANCEL,
+						     GTK_STOCK_OK,
+						     GTK_RESPONSE_OK,
+						     NULL);
+		gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_OK);
 
-	vbox = gtk_bin_get_child(GTK_BIN(dialog));
+		box = gtk_table_new(credList->n_values, 2, FALSE);
+		label = g_new(GtkWidget *, prompt);
+		entry = g_new(GtkWidget *, prompt);
 
-	gtk_container_add(GTK_CONTAINER(vbox), box);
-
-	gtk_widget_show_all(dialog);
-	response = gtk_dialog_run(GTK_DIALOG(dialog));
-	gtk_widget_hide(GTK_WIDGET(dialog));
-
-	if (response == GTK_RESPONSE_OK) {
-		for (i = 0 ; i < credList->n_values ; i++) {
+		for (i = 0, row =0 ; i < credList->n_values ; i++) {
 			GValue *cred = g_value_array_get_nth(credList, i);
-			int credType = g_value_get_enum(cred);
-			const char *data = gtk_entry_get_text(GTK_ENTRY(entry[i]));
-			vnc_display_set_credential(VNC_DISPLAY(vnc), credType, data);
+			switch (g_value_get_enum(cred)) {
+			case VNC_DISPLAY_CREDENTIAL_USERNAME:
+				label[row] = gtk_label_new("Username:");
+				break;
+			case VNC_DISPLAY_CREDENTIAL_PASSWORD:
+				label[row] = gtk_label_new("Password:");
+				break;
+			default:
+				continue;
+			}
+			entry[row] = gtk_entry_new();
+
+			gtk_table_attach(GTK_TABLE(box), label[i], 0, 1, row, row+1, GTK_SHRINK, GTK_SHRINK, 3, 3);
+			gtk_table_attach(GTK_TABLE(box), entry[i], 1, 2, row, row+1, GTK_SHRINK, GTK_SHRINK, 3, 3);
+			row++;
 		}
-	} else {
-		printf("Aborting connection\n");
-		vnc_display_close(VNC_DISPLAY(vnc));
+
+		vbox = gtk_bin_get_child(GTK_BIN(dialog));
+		gtk_container_add(GTK_CONTAINER(vbox), box);
+
+		gtk_widget_show_all(dialog);
+		response = gtk_dialog_run(GTK_DIALOG(dialog));
+		gtk_widget_hide(GTK_WIDGET(dialog));
+
+		if (response == GTK_RESPONSE_OK) {
+			for (i = 0, row = 0 ; i < credList->n_values ; i++) {
+				GValue *cred = g_value_array_get_nth(credList, i);
+				switch (g_value_get_enum(cred)) {
+				case VNC_DISPLAY_CREDENTIAL_USERNAME:
+				case VNC_DISPLAY_CREDENTIAL_PASSWORD:
+					data[i] = gtk_entry_get_text(GTK_ENTRY(entry[row]));
+					break;
+				}
+			}
+		}
 	}
 
-	gtk_widget_destroy(GTK_WIDGET(dialog));
+	for (i = 0 ; i < credList->n_values ; i++) {
+		GValue *cred = g_value_array_get_nth(credList, i);
+		if (data[i]) {
+			if (vnc_display_set_credential(VNC_DISPLAY(vnc),
+						       g_value_get_enum(cred),
+						       data[i])) {
+				printf("Failed to set credential type %d\n", g_value_get_enum(cred));
+				vnc_display_close(VNC_DISPLAY(vnc));
+			}
+		} else {
+			printf("Unsupported credential type %d\n", g_value_get_enum(cred));
+			vnc_display_close(VNC_DISPLAY(vnc));
+		}
+	}
+
+	g_free(data);
+	if (dialog)
+		gtk_widget_destroy(GTK_WIDGET(dialog));
 }
 
 int main(int argc, char **argv)

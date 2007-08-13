@@ -112,8 +112,14 @@ gboolean gvnc_set_auth_subtype(struct gvnc *gvnc, unsigned int type);
 
 gboolean gvnc_set_credential_password(struct gvnc *gvnc, const char *password);
 gboolean gvnc_set_credential_username(struct gvnc *gvnc, const char *username);
+gboolean gvnc_set_credential_x509_cacert(struct gvnc *gvnc, const char *file);
+gboolean gvnc_set_credential_x509_cacrl(struct gvnc *gvnc, const char *file);
+gboolean gvnc_set_credential_x509_key(struct gvnc *gvnc, const char *file);
+gboolean gvnc_set_credential_x509_cert(struct gvnc *gvnc, const char *file);
+
 gboolean gvnc_wants_credential_password(struct gvnc *gvnc);
 gboolean gvnc_wants_credential_username(struct gvnc *gvnc);
+gboolean gvnc_wants_credential_x509(struct gvnc *gvnc);
 
 gboolean gvnc_initialize(struct gvnc *gvnc, gboolean shared_flag);
 gboolean gvnc_is_initialized(struct gvnc *gvnc);
