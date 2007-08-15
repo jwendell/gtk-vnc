@@ -21,7 +21,7 @@ libgtk_vnc_1_0_la_SOURCES = blt.h blt1.h \
 	vncshmimage.h vncshmimage.c
 
 if WITH_PYTHON
-python_LTLIBRARIES = gtkvnc.la
+pyexec_LTLIBRARIES = gtkvnc.la
 
 gtkvnc_la_LIBADD = libgtk-vnc-1.0.la @PYGTK_LIBS@
 # Auto-generated C code for Python binding is full of compiler warnings :-(
