@@ -84,5 +84,5 @@ rm -fr %{buildroot}
 %{_libdir}/python*/site-packages/gtkvnc.so
 
 %changelog
-* Tue Jul  3 2007 Daniel P. Berrange <dan@berrange.com> - 0.0.1-1
-- Initial RPM package
+* Wed Aug 15 2007 Daniel P. Berrange <berrange@redhat.com> - 0.1.0-1
+- Initial official release
