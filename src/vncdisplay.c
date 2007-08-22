@@ -56,7 +56,7 @@ struct _VncDisplayPrivate
 };
 
 /* Signals */
-enum
+typedef enum
 {
  	VNC_POINTER_GRAB,
  	VNC_POINTER_UNGRAB,
@@ -69,7 +69,7 @@ enum
  	VNC_AUTH_CREDENTIAL,
 
 	LAST_SIGNAL
-};
+} vnc_display_signals;
 
 static guint signals[LAST_SIGNAL] = { 0, 0, 0, 0,
 				      0, 0, 0, 0 };

@@ -57,7 +57,7 @@ struct gvnc_framebuffer
 	int green_shift;
 };
 
-enum {
+typedef enum {
 	GVNC_ENCODING_RAW = 0,
 	GVNC_ENCODING_COPY_RECT = 1,
 	GVNC_ENCODING_RRE = 2,
@@ -72,9 +72,9 @@ enum {
 
 	GVNC_ENCODING_POINTER_CHANGE = -257,
 	GVNC_ENCODING_SHARED_MEMORY = -258,
-};
+} gvnc_encoding;
 
-enum {
+typedef enum {
 	GVNC_AUTH_INVALID = 0,
 	GVNC_AUTH_NONE = 1,
 	GVNC_AUTH_VNC = 2,
@@ -84,9 +84,9 @@ enum {
 	GVNC_AUTH_ULTRA = 17,
 	GVNC_AUTH_TLS = 18,
 	GVNC_AUTH_VENCRYPT = 19
-};
+} gvnc_auth;
 
-enum {
+typedef enum {
 	GVNC_AUTH_VENCRYPT_PLAIN = 256,
 	GVNC_AUTH_VENCRYPT_TLSNONE = 257,
 	GVNC_AUTH_VENCRYPT_TLSVNC = 258,
@@ -94,7 +94,7 @@ enum {
 	GVNC_AUTH_VENCRYPT_X509NONE = 260,
 	GVNC_AUTH_VENCRYPT_X509VNC = 261,
 	GVNC_AUTH_VENCRYPT_X509PLAIN = 262,
-};
+} gvnc_auth_vencrypt;
 
 
 struct gvnc *gvnc_new(const struct gvnc_ops *ops, gpointer ops_data);
