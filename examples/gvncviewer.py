@@ -153,7 +153,7 @@ vnc.set_keyboard_grab(True)
 #v.set_pointer_local(True)
 
 if len(sys.argv) == 3:
-    vnc.set_credential(gtkvnc.CREDENTIAL_PASSWORD, sys.argv[3])
+    vnc.set_credential(gtkvnc.CREDENTIAL_PASSWORD, sys.argv[2])
 
 disp = sys.argv[1].find(":")
 if disp != -1:
