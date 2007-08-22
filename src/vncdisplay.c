@@ -103,6 +103,8 @@ static gboolean expose_event(GtkWidget *widget, GdkEventExpose *expose,
 	VncDisplay *obj = VNC_DISPLAY(widget);
 	VncDisplayPrivate *priv = obj->priv;
 	int x, y, w, h;
+	GdkRectangle drawn;
+	GdkRegion *clear, *copy;
 
 	if (priv->shm_image == NULL)
 		return TRUE;
@@ -114,9 +116,27 @@ static gboolean expose_event(GtkWidget *widget, GdkEventExpose *expose,
 	w -= x;
 	h -= y;
 
+	drawn.x = x;
+	drawn.y = y;
+	drawn.width = w;
+	drawn.height = h;
+
+	clear = gdk_region_rectangle(&expose->area);
+	copy = gdk_region_rectangle(&drawn);
+	gdk_region_subtract(clear, copy);
+
+	gdk_gc_set_clip_region(priv->gc, copy);
 	vnc_shm_image_draw(priv->shm_image, widget->window,
-			   priv->gc, 
+			   priv->gc,
 			   x, y, x, y, w, h);
+
+	gdk_gc_set_clip_region(priv->gc, clear);
+	gdk_draw_rectangle(widget->window, priv->gc, TRUE, expose->area.x, expose->area.y,
+			   expose->area.width, expose->area.height);
+
+	gdk_region_destroy(clear);
+	gdk_region_destroy(copy);
+
 	return TRUE;
 }
 
