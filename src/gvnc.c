@@ -26,6 +26,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <endian.h>
 
 #include "coroutine.h"
 #include "d3des.h"
@@ -102,7 +103,6 @@ struct gvnc
 	gboolean perfect_match;
 	struct gvnc_framebuffer local;
 
-	int rp, gp, bp;
 	int rm, gm, bm;
 
 	gvnc_blt_func *blt;
@@ -676,9 +676,6 @@ static void gvnc_read_pixel_format(struct gvnc *gvnc, struct gvnc_pixel_format *
 	fmt->big_endian_flag = gvnc_read_u8(gvnc);
 	fmt->true_color_flag = gvnc_read_u8(gvnc);
 
-	GVNC_DEBUG("Pixel format BPP: %d,  Depth: %d, Endian: %d, True color: %d\n",
-		   fmt->bits_per_pixel, fmt->depth, fmt->big_endian_flag, fmt->true_color_flag);
-
 	fmt->red_max         = gvnc_read_u16(gvnc);
 	fmt->green_max       = gvnc_read_u16(gvnc);
 	fmt->blue_max        = gvnc_read_u16(gvnc);
@@ -688,6 +685,24 @@ static void gvnc_read_pixel_format(struct gvnc *gvnc, struct gvnc_pixel_format *
 	fmt->blue_shift      = gvnc_read_u8(gvnc);
 
 	gvnc_read(gvnc, pad, 3);
+
+	GVNC_DEBUG("Pixel format BPP: %d,  Depth: %d, Endian: %d, True color: %d\n"
+		   "             Mask  red: %3d, green: %3d, blue: %3d\n"
+		   "             Shift red: %3d, green: %3d, blue: %3d\n",
+		   fmt->bits_per_pixel, fmt->depth, fmt->big_endian_flag, fmt->true_color_flag,
+		   fmt->red_max, fmt->green_max, fmt->blue_max,
+		   fmt->red_shift, fmt->green_shift, fmt->blue_shift);
+
+
+	if (((__BYTE_ORDER == __BIG_ENDIAN) && !fmt->big_endian_flag) ||
+	    ((__BYTE_ORDER == __LITTLE_ENDIAN) && fmt->big_endian_flag)) {
+		fmt->red_shift = fmt->bits_per_pixel - fmt->red_shift - (fmt->bits_per_pixel - fmt->depth);
+		fmt->green_shift = fmt->bits_per_pixel - fmt->green_shift - (fmt->bits_per_pixel - fmt->depth);
+		fmt->blue_shift = fmt->bits_per_pixel - fmt->blue_shift - (fmt->bits_per_pixel - fmt->depth);
+
+		GVNC_DEBUG("Flipped shifts Shift red: %3d, green: %3d, blue: %3d\n",
+			   fmt->red_shift, fmt->green_shift, fmt->blue_shift);
+	}
 }
 
 /* initialize function */
@@ -1981,7 +1996,9 @@ gboolean gvnc_set_local(struct gvnc *gvnc, struct gvnc_framebuffer *fb)
 	    fb->blue_mask == gvnc->fmt.blue_max &&
 	    fb->red_shift == gvnc->fmt.red_shift &&
 	    fb->green_shift == gvnc->fmt.green_shift &&
-	    fb->blue_shift == gvnc->fmt.blue_shift)
+	    fb->blue_shift == gvnc->fmt.blue_shift &&
+	    ((gvnc->fmt.big_endian_flag && (__BYTE_ORDER == __BIG_ENDIAN)) ||
+	     (!gvnc->fmt.big_endian_flag && (__BYTE_ORDER == __LITTLE_ENDIAN))))
 		gvnc->perfect_match = TRUE;
 	else
 		gvnc->perfect_match = FALSE;
@@ -1990,21 +2007,15 @@ gboolean gvnc_set_local(struct gvnc *gvnc, struct gvnc_framebuffer *fb)
 	if (depth == 32)
 		depth = 24;
 
-	gvnc->rp =  (gvnc->local.depth - gvnc->local.red_shift);
-	gvnc->rp -= (depth - gvnc->fmt.red_shift);
-	gvnc->gp =  (gvnc->local.red_shift - gvnc->local.green_shift);
-	gvnc->gp -= (gvnc->fmt.red_shift - gvnc->fmt.green_shift);
-	gvnc->bp =  (gvnc->local.green_shift - gvnc->local.blue_shift);
-	gvnc->bp -= (gvnc->fmt.green_shift - gvnc->fmt.blue_shift);
-
-	gvnc->rp = gvnc->local.red_shift + gvnc->rp;
-	gvnc->gp = gvnc->local.green_shift + gvnc->gp;
-	gvnc->bp = gvnc->local.blue_shift + gvnc->bp;
-
 	gvnc->rm = gvnc->local.red_mask & gvnc->fmt.red_max;
 	gvnc->gm = gvnc->local.green_mask & gvnc->fmt.green_max;
 	gvnc->bm = gvnc->local.blue_mask & gvnc->fmt.blue_max;
-
+	GVNC_DEBUG("Mask local: %3d %3d %3d\n"
+		   "    remote: %3d %3d %3d\n"
+		   "    merged: %3d %3d %3d\n",
+		   gvnc->local.red_mask, gvnc->local.green_mask, gvnc->local.blue_mask,
+		   gvnc->fmt.red_max, gvnc->fmt.green_max, gvnc->fmt.blue_max,
+		   gvnc->rm, gvnc->gm, gvnc->bm);
 	i = gvnc->fmt.bits_per_pixel / 8;
 	j = gvnc->local.bpp;
 

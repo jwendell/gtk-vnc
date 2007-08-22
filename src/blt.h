@@ -40,9 +40,9 @@ static void FILL(struct gvnc *gvnc, src_pixel_t *sp,
 		int j;
 
 		for (j = 0; j < width; j++) {
-			*dp = ((*sp >> f->red_shift) & gvnc->rm) << gvnc->rp
-			    | ((*sp >> f->green_shift) & gvnc->gm) << gvnc->gp
-			    | ((*sp >> f->blue_shift) & gvnc->bm) << gvnc->bp;
+			*dp = ((*sp >> f->red_shift) & gvnc->rm) << gvnc->local.red_shift
+			    | ((*sp >> f->green_shift) & gvnc->gm) << gvnc->local.green_shift
+			    | ((*sp >> f->blue_shift) & gvnc->bm) << gvnc->local.blue_shift;
 			dp++;
 		}
 		dst += gvnc->local.linesize;
@@ -65,9 +65,9 @@ static void BLIT(struct gvnc *gvnc, uint8_t *src, int pitch, int x, int y, int w
 		int j;
 
 		for (j = 0; j < w; j++) {
-			*dp = ((*sp >> f->red_shift) & gvnc->rm) << gvnc->rp
-			    | ((*sp >> f->green_shift) & gvnc->gm) << gvnc->gp
-			    | ((*sp >> f->blue_shift) & gvnc->bm) << gvnc->bp;
+			*dp = ((*sp >> f->red_shift) & gvnc->rm) << gvnc->local.red_shift
+			    | ((*sp >> f->green_shift) & gvnc->gm) << gvnc->local.green_shift
+			    | ((*sp >> f->blue_shift) & gvnc->bm) << gvnc->local.blue_shift;
 			dp++;
 			sp++;
 		}
