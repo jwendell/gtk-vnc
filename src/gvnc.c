@@ -31,6 +31,7 @@
 #include "coroutine.h"
 #include "d3des.h"
 
+#include "utils.h"
 #include <gnutls/gnutls.h>
 #include <gnutls/x509.h>
 
@@ -122,23 +123,6 @@ struct gvnc
 	int xmit_buffer_capacity;
 	int xmit_buffer_size;
 };
-
-
-#define DEBUG 0
-#if DEBUG
-#define GVNC_DEBUG(fmt, ...) do { fprintf(stderr, fmt, ## __VA_ARGS__); } while (0)
-
-#if DEBUG == 2
-static void debug_log(int level, const char* str)
-{
-	GVNC_DEBUG("%d %s", level, str);
-}
-#endif
-
-#else
-#define GVNC_DEBUG(fmt, ...) do { } while (0)
-#endif
-
 
 #define nibhi(a) (((a) >> 4) & 0x0F)
 #define niblo(a) ((a) & 0x0F)
@@ -504,11 +488,6 @@ static gboolean gvnc_tls_initialize(void)
 		return FALSE;
 	if (gnutls_dh_params_generate2 (dh_params, DH_BITS) < 0)
 		return FALSE;
-
-#if DEBUG == 2
-	gnutls_global_set_log_level(10);
-	gnutls_global_set_log_function(debug_log);
-#endif
 
 	tlsinitialized = TRUE;
 

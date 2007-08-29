@@ -5,7 +5,8 @@ lib_LTLIBRARIES = libgtk-vnc-1.0.la
 
 libgtk_vnc_1_0_la_LIBADD = @GTK_LIBS@ @GNUTLS_LIBS@
 libgtk_vnc_1_0_la_CFLAGS = @GTK_CFLAGS@ @GNUTLS_CFLAGS@ @WARNING_CFLAGS@ \
-                           -DSYSCONFDIR=\""$(sysconfdir)"\"
+                           -DSYSCONFDIR=\""$(sysconfdir)"\" \
+                           @DEBUG_CFLAGS@
 libgtk_vnc_1_0_la_LDFLAGS = -Wl,--version-script=$(srcdir)/libgtk-vnc_sym.version \
                             -version-info 0:1:0
 
@@ -18,7 +19,8 @@ libgtk_vnc_1_0_la_SOURCES = blt.h blt1.h \
 	d3des.h d3des.c \
 	gvnc.h gvnc.c \
 	vncdisplay.h vncdisplay.c \
-	vncshmimage.h vncshmimage.c
+	vncshmimage.h vncshmimage.c \
+	utils.h
 
 if WITH_PYTHON
 pyexec_LTLIBRARIES = gtkvnc.la
@@ -26,7 +28,7 @@ pyexec_LTLIBRARIES = gtkvnc.la
 gtkvnc_la_LIBADD = libgtk-vnc-1.0.la @PYGTK_LIBS@
 # Auto-generated C code for Python binding is full of compiler warnings :-(
 #gtkvnc_la_CFLAGS = @GTK_CFLAGS@ @WARNING_CFLAGS@ @PYTHON_INCLUDES@ @PYGTK_CFLAGS@
-gtkvnc_la_CFLAGS = @GTK_CFLAGS@ @PYTHON_INCLUDES@ @PYGTK_CFLAGS@
+gtkvnc_la_CFLAGS = @GTK_CFLAGS@ @PYTHON_INCLUDES@ @PYGTK_CFLAGS@ @DEBUG_CFLAGS@
 gtkvnc_la_LDFLAGS = -module -avoid-version -fPIC
 gtkvnc_la_SOURCES = vncmodule.c vncmodule.defs.c
 

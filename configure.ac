@@ -113,6 +113,15 @@ if test "$WITH_PYTHON" = "yes"; then
   fi
 fi
 
+dnl --enable-debug=(yes|no)
+AC_ARG_ENABLE(debug, [  --enable-debug=[no/yes] turn on debugging [default=no]],,enable_debug=no)
+if test "$enable_debug" = "yes"; then
+  DEBUG_CFLAGS="-DENABLE_DEBUG"
+else
+  DEBUG_CFLAGS=""
+fi
+AC_SUBST(DEBUG_CFLAGS)
+
 AM_CONDITIONAL(WITH_PYTHON, [test "$WITH_PYTHON" = "yes"])
 
 AM_CONDITIONAL(WITH_EXAMPLES, [test "$WITH_EXAMPLES" = "yes"])
