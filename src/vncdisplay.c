@@ -56,6 +56,8 @@ struct _VncDisplayPrivate
 	gboolean local_pointer;
 };
 
+G_DEFINE_TYPE(VncDisplay, vnc_display, GTK_TYPE_DRAWING_AREA)
+
 /* Signals */
 typedef enum
 {
@@ -759,9 +761,20 @@ void vnc_display_send_keys(VncDisplay *obj, const guint *keyvals, int nkeyvals)
 		gvnc_key_event(obj->priv->gvnc, 0, keyvals[i]);
 }
 
+static void vnc_display_finalize (GObject *obj)
+{
+  VncDisplay *display = VNC_DISPLAY (obj);
+
+  vnc_display_close(display);
+	
+  G_OBJECT_CLASS (vnc_display_parent_class)->finalize (obj);
+}
+
 static void vnc_display_class_init(VncDisplayClass *klass)
 {
 	GObjectClass *object_class = G_OBJECT_CLASS (klass);
+
+	object_class->finalize = vnc_display_finalize;
 
 	signalCredParam = g_param_spec_enum("credential",
 					    "credential",
@@ -859,11 +872,10 @@ static void vnc_display_class_init(VncDisplayClass *klass)
 	g_type_class_add_private(klass, sizeof(VncDisplayPrivate));
 }
 
-static void vnc_display_init(GTypeInstance *instance, gpointer klass G_GNUC_UNUSED)
+static void vnc_display_init(VncDisplay *display)
 {
-	GtkObject *obj = GTK_OBJECT(instance);
-	GtkWidget *widget = GTK_WIDGET(instance);
-	VncDisplay *display = VNC_DISPLAY(instance);
+	GtkObject *obj = GTK_OBJECT(display);
+	GtkWidget *widget = GTK_WIDGET(display);
 
 	g_signal_connect(obj, "expose-event",
 			 G_CALLBACK(expose_event), NULL);
@@ -925,7 +937,6 @@ static int vnc_display_best_path(char *buf,
 	return -1;
 }
 
-
 static int vnc_display_set_x509_credential(VncDisplay *obj, const char *name)
 {
 	char sysdir[PATH_MAX], userdir[PATH_MAX];
@@ -959,8 +970,6 @@ static int vnc_display_set_x509_credential(VncDisplay *obj, const char *name)
 
 	return FALSE;
 }
-
-
 
 gboolean vnc_display_set_credential(VncDisplay *obj, int type, const gchar *data)
 {
@@ -1014,34 +1023,6 @@ void vnc_display_set_keyboard_grab(VncDisplay *obj, gboolean enable)
 	priv->grab_keyboard = enable;
 	if (!enable && priv->in_keyboard_grab && !priv->in_pointer_grab)
 		do_keyboard_ungrab(obj, FALSE);
-}
-
-
-GType vnc_display_get_type(void)
-{
-	static GType type;
-
-	if (type == 0) {
-		static const GTypeInfo info = {
-			sizeof(VncDisplayClass),
-			NULL,
-			NULL,
-			(GClassInitFunc)vnc_display_class_init,
-			NULL,
-			NULL,
-			sizeof(VncDisplay),
-			0,
-			vnc_display_init,
-			NULL
-		};
-
-		type = g_type_register_static(GTK_TYPE_DRAWING_AREA,
-					      "VncDisplay",
-					      &info,
-					      0);
-	}
-
-	return type;
 }
 
 GType vnc_display_credential_get_type(void)
