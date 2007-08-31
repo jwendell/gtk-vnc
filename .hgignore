@@ -22,3 +22,16 @@ Makefile\.in$
 ^src/gtkvnc_la.*$
 ^src/libgtk-vnc-1.0\.la$
 ^build
+^examples/\.deps/
+^examples/\.libs/
+^examples/gvncviewer$
+^missing$
+^INSTALL$
+^depcomp$
+^install-sh$
+
+syntax: glob
+examples/*.o
+src/*.defs
+src/*.orig
+*.spec
