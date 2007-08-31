@@ -143,7 +143,7 @@ static GIOCondition g_io_wait(GIOChannel *channel, GIOCondition cond)
 {
 	GIOCondition *ret;
 
-	g_io_add_watch(channel, cond, g_io_wait_helper, coroutine_self());
+	g_io_add_watch(channel, cond | G_IO_HUP | G_IO_ERR | G_IO_NVAL, g_io_wait_helper, coroutine_self());
 	ret = yield(NULL);
 
 	return *ret;
@@ -158,7 +158,7 @@ static GIOCondition g_io_wait_interruptable(struct wait_queue *wait,
 	gint id;
 
 	wait->context = coroutine_self();
-	id = g_io_add_watch(channel, cond, g_io_wait_helper, wait->context);
+	id = g_io_add_watch(channel, cond | G_IO_HUP | G_IO_ERR | G_IO_NVAL, g_io_wait_helper, wait->context);
 
 	wait->waiting = TRUE;
 	ret = yield(NULL);
@@ -1811,6 +1811,8 @@ void gvnc_close(struct gvnc *gvnc)
 
 void gvnc_shutdown(struct gvnc *gvnc)
 {
+	close(gvnc->fd);
+	gvnc->fd = -1;
 	gvnc->has_error = 1;
 	GVNC_DEBUG("Waking up couroutine to shutdown gracefully\n");
 	g_io_wakeup(&gvnc->wait);

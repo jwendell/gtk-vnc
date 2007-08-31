@@ -768,11 +768,11 @@ void vnc_display_send_keys(VncDisplay *obj, const guint *keyvals, int nkeyvals)
 
 static void vnc_display_finalize (GObject *obj)
 {
-  VncDisplay *display = VNC_DISPLAY (obj);
+	VncDisplay *display = VNC_DISPLAY (obj);
 
-  vnc_display_close(display);
-	
-  G_OBJECT_CLASS (vnc_display_parent_class)->finalize (obj);
+	vnc_display_close(display);
+
+	G_OBJECT_CLASS (vnc_display_parent_class)->finalize (obj);
 }
 
 static void vnc_display_class_init(VncDisplayClass *klass)
