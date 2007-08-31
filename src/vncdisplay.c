@@ -637,9 +637,12 @@ static void *vnc_coroutine(void *opaque)
 
 	int ret;
 
-	if (priv->gvnc == NULL || gvnc_is_open(priv->gvnc))
+	if (priv->gvnc == NULL || gvnc_is_open(priv->gvnc)) {
+		g_object_unref(G_OBJECT(obj));
 		return NULL;
+	}
 
+	GVNC_DEBUG("Started background coroutine\n");
 	if (priv->fd != -1) {
 		if (!gvnc_open_fd(priv->gvnc, priv->fd))
 			goto cleanup;
@@ -652,6 +655,7 @@ static void *vnc_coroutine(void *opaque)
 		       signals[VNC_CONNECTED],
 		       0);
 
+	GVNC_DEBUG("Protocol initialization\n");
 	if (!gvnc_initialize(priv->gvnc, FALSE))
 		goto cleanup;
 
@@ -678,6 +682,9 @@ static void *vnc_coroutine(void *opaque)
 	g_signal_emit (G_OBJECT (obj),
 		       signals[VNC_DISCONNECTED],
 		       0);
+	g_object_unref(G_OBJECT(obj));
+	/* Co-routine exits now - the VncDisplay object may no longer exist,
+	   so don't do anything else now unless you like SEGVs */
 	return NULL;
 }
 
@@ -686,8 +693,10 @@ static gboolean do_vnc_display_open(gpointer data)
 	VncDisplay *obj = VNC_DISPLAY(data);
 	struct coroutine *co;
 
-	if (obj->priv->gvnc == NULL || gvnc_is_open(obj->priv->gvnc))
+	if (obj->priv->gvnc == NULL || gvnc_is_open(obj->priv->gvnc)) {
+		g_object_unref(G_OBJECT(obj));
 		return FALSE;
+	}
 
 	co = &obj->priv->coroutine;
 
@@ -709,6 +718,8 @@ gboolean vnc_display_open_fd(VncDisplay *obj, int fd)
 	obj->priv->fd = fd;
 	obj->priv->host = NULL;
 	obj->priv->port = NULL;
+
+	g_object_ref(G_OBJECT(obj)); /* Unref'd when co-routine exits */
 	g_idle_add(do_vnc_display_open, obj);
 
 	return TRUE;
@@ -730,6 +741,7 @@ gboolean vnc_display_open_host(VncDisplay *obj, const char *host, const char *po
 		return FALSE;
 	}
 
+	g_object_ref(G_OBJECT(obj)); /* Unref'd when co-routine exits */
 	g_idle_add(do_vnc_display_open, obj);
 	return TRUE;
 }
@@ -766,20 +778,35 @@ void vnc_display_send_keys(VncDisplay *obj, const guint *keyvals, int nkeyvals)
 		gvnc_key_event(obj->priv->gvnc, 0, keyvals[i]);
 }
 
+
+static void vnc_display_destroy (GtkObject *obj)
+{
+	VncDisplay *display = VNC_DISPLAY (obj);
+	GVNC_DEBUG("Requesting that VNC close\n");
+	vnc_display_close(display);
+	GTK_OBJECT_CLASS (vnc_display_parent_class)->destroy (obj);
+}
+
+
 static void vnc_display_finalize (GObject *obj)
 {
 	VncDisplay *display = VNC_DISPLAY (obj);
-
-	vnc_display_close(display);
-
+	GVNC_DEBUG("Releasing VNC widget\n");
+	if (gvnc_is_open(display->priv->gvnc)) {
+		g_warning("VNC widget finalized before the connection finished shutting down");
+	}
+	gvnc_free(display->priv->gvnc);
+	display->priv->gvnc = NULL;
 	G_OBJECT_CLASS (vnc_display_parent_class)->finalize (obj);
 }
 
 static void vnc_display_class_init(VncDisplayClass *klass)
 {
 	GObjectClass *object_class = G_OBJECT_CLASS (klass);
+	GtkObjectClass *gtkobject_class = GTK_OBJECT_CLASS (klass);
 
 	object_class->finalize = vnc_display_finalize;
+	gtkobject_class->destroy = vnc_display_destroy;
 
 	signalCredParam = g_param_spec_enum("credential",
 					    "credential",
