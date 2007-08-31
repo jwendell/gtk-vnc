@@ -18,6 +18,7 @@ struct gvnc_ops
 	gboolean (*resize)(void *, int, int);
 	gboolean (*pointer_type_change)(void *, int);
 	gboolean (*shared_memory_rmid)(void *, int);
+	gboolean (*local_cursor)(void *, int, int, int, int, uint8_t *);
 };
 
 struct gvnc_pixel_format
@@ -68,7 +69,7 @@ typedef enum {
 	GVNC_ENCODING_DESKTOP_RESIZE = -223,
 	GVNC_ENCODING_CURSOR_POS = -232,
 	GVNC_ENCODING_RICH_CURSOR = -239,
-	GVNC_ENCODING_XCUSOR = -240,
+	GVNC_ENCODING_XCURSOR = -240,
 
 	GVNC_ENCODING_POINTER_CHANGE = -257,
 	GVNC_ENCODING_SHARED_MEMORY = -258,

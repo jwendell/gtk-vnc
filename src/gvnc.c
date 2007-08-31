@@ -1028,6 +1028,134 @@ static void gvnc_shared_memory_rmid(struct gvnc *gvnc, int shmid)
 		gvnc->has_error = TRUE;
 }
 
+#define RICH_CURSOR_BLIT(gvnc, pixbuf, image, mask, pitch, width, height, src_pixel_t) \
+	do {								\
+		int x1, y1;						\
+		uint8_t *src = image;					\
+		uint32_t *dst = (uint32_t*)pixbuf;			\
+		uint8_t *alpha = mask;					\
+		for (y1 = 0; y1 < height; y1++) {			\
+			src_pixel_t *sp = (src_pixel_t *)src;		\
+			uint8_t *mp = alpha;				\
+			for (x1 = 0; x1 < width; x1++) {		\
+				*dst++ = (((mp[x1 / 8] >> (7 - (x1 % 8))) & 1) ? (255 << 24) : 0) \
+					| (((*sp >> gvnc->fmt.red_shift) & (gvnc->fmt.red_max)) << 16) \
+					| (((*sp >> gvnc->fmt.green_shift) & (gvnc->fmt.green_max)) << 8) \
+					| (((*sp >> gvnc->fmt.blue_shift) & (gvnc->fmt.blue_max)) << 0); \
+				sp++;					\
+			}						\
+			src += pitch;					\
+			alpha += ((width + 7) / 8);			\
+		}							\
+	} while(0)
+
+static void gvnc_rich_cursor(struct gvnc *gvnc, int x, int y, int width, int height)
+{
+	uint8_t *pixbuf = NULL;
+
+	if (width && height) {
+		uint8_t *image, *mask;
+		int imagelen, masklen;
+
+		imagelen = width * height * (gvnc->fmt.bits_per_pixel / 8);
+		masklen = ((width + 7)/8) * height;
+
+		image = malloc(imagelen);
+		if (!image) {
+			gvnc->has_error = TRUE;
+			return;
+		}
+		mask = malloc(masklen);
+		if (!mask) {
+			free(image);
+			gvnc->has_error = TRUE;
+			return;
+		}
+		pixbuf = malloc(width * height * 4); /* RGB-A 8bit */
+		if (!pixbuf) {
+			free(mask);
+			free(image);
+			gvnc->has_error = TRUE;
+			return;
+		}
+		gvnc_read(gvnc, image, imagelen);
+		gvnc_read(gvnc, mask, masklen);
+
+		if (gvnc->fmt.bits_per_pixel == 8) {
+			RICH_CURSOR_BLIT(gvnc, pixbuf, image, mask, width * (gvnc->fmt.bits_per_pixel/8), width, height, uint8_t);
+		} else if (gvnc->fmt.bits_per_pixel == 16) {
+			RICH_CURSOR_BLIT(gvnc, pixbuf, image, mask, width * (gvnc->fmt.bits_per_pixel/8), width, height, uint16_t);
+		} else if (gvnc->fmt.bits_per_pixel == 24 || gvnc->fmt.bits_per_pixel == 32) {
+			RICH_CURSOR_BLIT(gvnc, pixbuf, image, mask, width * (gvnc->fmt.bits_per_pixel/8), width, height, uint32_t);
+		}
+		free(image);
+		free(mask);
+	}
+
+	if (gvnc->has_error || !gvnc->ops.local_cursor)
+		return;
+	if (!gvnc->ops.local_cursor(gvnc->ops_data, x, y, width, height, pixbuf))
+		gvnc->has_error = TRUE;
+
+	free(pixbuf);
+}
+
+
+static void gvnc_xcursor(struct gvnc *gvnc, int x, int y, int width, int height)
+{
+	uint8_t *pixbuf = NULL;
+
+	if (width && height) {
+		uint8_t *data, *mask, *datap, *maskp;
+		uint32_t *pixp;
+		int rowlen;
+		int x1, y1;
+		uint8_t fgrgb[3], bgrgb[3];
+		uint32_t fg, bg;
+		gvnc_read(gvnc, fgrgb, 3);
+		gvnc_read(gvnc, bgrgb, 3);
+		fg = (255 << 24) | (fgrgb[0] << 16) | (fgrgb[1] << 8) | fgrgb[2];
+		bg = (255 << 24) | (bgrgb[0] << 16) | (bgrgb[1] << 8) | bgrgb[2];
+
+		rowlen = ((width + 7)/8);
+		if (!(data = malloc(rowlen*height))) {
+			gvnc->has_error = TRUE;
+			return;
+		}
+		if (!(mask = malloc(rowlen*height))) {
+			free(data);
+			gvnc->has_error = TRUE;
+			return;
+		}
+		pixbuf = malloc(width * height * 4); /* RGB-A 8bit */
+		gvnc_read(gvnc, data, rowlen*height);
+		gvnc_read(gvnc, mask, rowlen*height);
+		datap = data;
+		maskp = mask;
+		pixp = (uint32_t*)pixbuf;
+		for (y1 = 0; y1 < height; y1++) {
+			for (x1 = 0; x1 < width; x1++) {
+				*pixp++ = ((maskp[x1 / 8] >> (7-(x1 % 8))) & 1) ?
+					(((datap[x1 / 8] >> (7-(x1 % 8))) & 1) ? fg : bg) : 0;
+			}
+			datap += rowlen;
+			maskp += rowlen;
+		}
+		free(data);
+		free(mask);
+	}
+
+
+
+	if (gvnc->has_error || !gvnc->ops.local_cursor)
+		return;
+	if (!gvnc->ops.local_cursor(gvnc->ops_data, x, y, width, height, pixbuf))
+		gvnc->has_error = TRUE;
+
+	free(pixbuf);
+}
+
+
 static void gvnc_framebuffer_update(struct gvnc *gvnc, int32_t etype,
 				    uint16_t x, uint16_t y,
 				    uint16_t width, uint16_t height)
@@ -1065,6 +1193,12 @@ static void gvnc_framebuffer_update(struct gvnc *gvnc, int32_t etype,
 		case 3:
 			break;
 		}
+		break;
+	case GVNC_ENCODING_RICH_CURSOR:
+		gvnc_rich_cursor(gvnc, x, y, width, height);
+		break;
+	case GVNC_ENCODING_XCURSOR:
+		gvnc_xcursor(gvnc, x, y, width, height);
 		break;
 	default:
 		gvnc->has_error = TRUE;
