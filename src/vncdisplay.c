@@ -12,6 +12,7 @@
 #include "coroutine.h"
 #include "gvnc.h"
 #include "vncshmimage.h"
+#include "utils.h"
 
 #include <gtk/gtk.h>
 #include <string.h>
@@ -664,6 +665,7 @@ static void *vnc_coroutine(void *opaque)
 	if (!gvnc_framebuffer_update_request(priv->gvnc, 0, 0, 0, priv->fb.width, priv->fb.height))
 		goto cleanup;
 
+	GVNC_DEBUG("Running main loop\n");
 	while ((ret = gvnc_server_message(priv->gvnc))) {
 		if (!gvnc_framebuffer_update_request(priv->gvnc, 1, 0, 0,
 						     priv->fb.width, priv->fb.height))
@@ -671,6 +673,7 @@ static void *vnc_coroutine(void *opaque)
 	}
 
  cleanup:
+	GVNC_DEBUG("Doing final VNC cleanup\n");
 	gvnc_close(priv->gvnc);
 	g_signal_emit (G_OBJECT (obj),
 		       signals[VNC_DISCONNECTED],
@@ -743,8 +746,10 @@ void vnc_display_close(VncDisplay *obj)
 	if (obj->priv->gvnc == NULL)
 		return;
 
-	if (gvnc_is_open(obj->priv->gvnc))
+	if (gvnc_is_open(obj->priv->gvnc)) {
+		GVNC_DEBUG("Requesting graceful shutdown of connection\n");
 		gvnc_shutdown(obj->priv->gvnc);
+	}
 }
 
 

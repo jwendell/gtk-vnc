@@ -1211,6 +1211,7 @@ static void gvnc_framebuffer_update(struct gvnc *gvnc, int32_t etype,
 gboolean gvnc_server_message(struct gvnc *gvnc)
 {
 	uint8_t msg;
+	int ret;
 
 	/* NB: make sure that all server message functions
 	   handle has_error appropriately */
@@ -1221,7 +1222,12 @@ gboolean gvnc_server_message(struct gvnc *gvnc)
 			gvnc_flush(gvnc);
 			gvnc->xmit_buffer_size = 0;
 		}
-	} while (gvnc_read_u8_interruptable(gvnc, &msg) == -EAGAIN);
+	} while ((ret = gvnc_read_u8_interruptable(gvnc, &msg)) == -EAGAIN);
+
+	if (ret < 0) {
+		GVNC_DEBUG("Aborting message processing on error\n");
+		return !gvnc_has_error(gvnc);
+	}
 
 	switch (msg) {
 	case 0: { /* FramebufferUpdate */
@@ -1806,6 +1812,8 @@ void gvnc_close(struct gvnc *gvnc)
 void gvnc_shutdown(struct gvnc *gvnc)
 {
 	gvnc->has_error = 1;
+	GVNC_DEBUG("Waking up couroutine to shutdown gracefully\n");
+	g_io_wakeup(&gvnc->wait);
 }
 
 gboolean gvnc_is_open(struct gvnc *gvnc)
