@@ -865,24 +865,24 @@ static void vnc_display_init(GTypeInstance *instance, gpointer klass G_GNUC_UNUS
 	GtkWidget *widget = GTK_WIDGET(instance);
 	VncDisplay *display = VNC_DISPLAY(instance);
 
-	gtk_signal_connect(obj, "expose-event",
-			   GTK_SIGNAL_FUNC(expose_event), NULL);
-	gtk_signal_connect(obj, "motion-notify-event",
-			   GTK_SIGNAL_FUNC(motion_event), NULL);
-	gtk_signal_connect(obj, "button-press-event",
-			   GTK_SIGNAL_FUNC(button_event), NULL);
-	gtk_signal_connect(obj, "button-release-event",
-			   GTK_SIGNAL_FUNC(button_event), NULL);
-	gtk_signal_connect(obj, "scroll-event",
-			   GTK_SIGNAL_FUNC(scroll_event), NULL);
-	gtk_signal_connect(obj, "key-press-event",
-			   GTK_SIGNAL_FUNC(key_event), NULL);
-	gtk_signal_connect(obj, "key-release-event",
-			   GTK_SIGNAL_FUNC(key_event), NULL);
-	gtk_signal_connect(obj, "enter-notify-event",
-			   GTK_SIGNAL_FUNC(enter_event), NULL);
-	gtk_signal_connect(obj, "leave-notify-event",
-			   GTK_SIGNAL_FUNC(leave_event), NULL);
+	g_signal_connect(obj, "expose-event",
+			 G_CALLBACK(expose_event), NULL);
+	g_signal_connect(obj, "motion-notify-event",
+			 G_CALLBACK(motion_event), NULL);
+	g_signal_connect(obj, "button-press-event",
+			 G_CALLBACK(button_event), NULL);
+	g_signal_connect(obj, "button-release-event",
+			 G_CALLBACK(button_event), NULL);
+	g_signal_connect(obj, "scroll-event",
+			 G_CALLBACK(scroll_event), NULL);
+	g_signal_connect(obj, "key-press-event",
+			 G_CALLBACK(key_event), NULL);
+	g_signal_connect(obj, "key-release-event",
+			 G_CALLBACK(key_event), NULL);
+	g_signal_connect(obj, "enter-notify-event",
+			 G_CALLBACK(enter_event), NULL);
+	g_signal_connect(obj, "leave-notify-event",
+			 G_CALLBACK(leave_event), NULL);
 
 	GTK_WIDGET_SET_FLAGS(obj, GTK_CAN_FOCUS);
 
