@@ -32,7 +32,6 @@ static void FILL(struct gvnc *gvnc, src_pixel_t *sp,
 		 int x, int y, int width, int height)
 {
 	uint8_t *dst = gvnc_get_local(gvnc, x, y);
-	struct gvnc_pixel_format *f = &gvnc->fmt;
 	int i;
 
 	for (i = 0; i < 1; i++) {
@@ -40,9 +39,9 @@ static void FILL(struct gvnc *gvnc, src_pixel_t *sp,
 		int j;
 
 		for (j = 0; j < width; j++) {
-			*dp = ((*sp >> f->red_shift) & gvnc->rm) << gvnc->local.red_shift
-			    | ((*sp >> f->green_shift) & gvnc->gm) << gvnc->local.green_shift
-			    | ((*sp >> f->blue_shift) & gvnc->bm) << gvnc->local.blue_shift;
+			*dp = ((*sp >> gvnc->rrs) & gvnc->rm) << gvnc->rls
+			    | ((*sp >> gvnc->grs) & gvnc->gm) << gvnc->gls
+			    | ((*sp >> gvnc->brs) & gvnc->bm) << gvnc->bls;
 			dp++;
 		}
 		dst += gvnc->local.linesize;
@@ -56,7 +55,6 @@ static void FILL(struct gvnc *gvnc, src_pixel_t *sp,
 static void BLIT(struct gvnc *gvnc, uint8_t *src, int pitch, int x, int y, int w, int h)
 {
 	uint8_t *dst = gvnc_get_local(gvnc, x, y);
-	struct gvnc_pixel_format *f = &gvnc->fmt;
 	int i;
 
 	for (i = 0; i < h; i++) {
@@ -65,9 +63,9 @@ static void BLIT(struct gvnc *gvnc, uint8_t *src, int pitch, int x, int y, int w
 		int j;
 
 		for (j = 0; j < w; j++) {
-			*dp = ((*sp >> f->red_shift) & gvnc->rm) << gvnc->local.red_shift
-			    | ((*sp >> f->green_shift) & gvnc->gm) << gvnc->local.green_shift
-			    | ((*sp >> f->blue_shift) & gvnc->bm) << gvnc->local.blue_shift;
+			*dp = ((*sp >> gvnc->rrs) & gvnc->rm) << gvnc->rls
+			    | ((*sp >> gvnc->grs) & gvnc->gm) << gvnc->gls
+			    | ((*sp >> gvnc->brs) & gvnc->bm) << gvnc->bls;
 			dp++;
 			sp++;
 		}
@@ -146,3 +144,12 @@ static void SUBRECT(struct gvnc *gvnc, uint8_t flags, uint16_t x, uint16_t y,
 #undef BLIT
 #undef dst_pixel_t
 #undef src_pixel_t
+
+
+/*
+ * Local variables:
+ *  c-indent-level: 8
+ *  c-basic-offset: 8
+ *  tab-width: 8
+ * End:
+ */

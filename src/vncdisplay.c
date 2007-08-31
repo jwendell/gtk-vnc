@@ -426,7 +426,6 @@ static gboolean on_resize(void *opaque, int width, int height)
 	VncDisplay *obj = VNC_DISPLAY(opaque);
 	VncDisplayPrivate *priv = obj->priv;
 	GdkVisual *visual;
-	int depth;
 
 	if (priv->gvnc == NULL || !gvnc_is_initialized(priv->gvnc))
 		return TRUE;
@@ -446,9 +445,8 @@ static gboolean on_resize(void *opaque, int width, int height)
 		priv->gc = gdk_gc_new(GTK_WIDGET(obj)->window);
 	}
 
-	depth = gdk_drawable_get_depth(GTK_WIDGET(obj)->window);
-	visual = gdk_visual_get_best_with_depth(depth);
-
+	visual = gdk_drawable_get_visual(GTK_WIDGET(obj)->window);
+	
 	priv->shm_image = vnc_shm_image_new(visual, width, height, priv->use_shm);
 	priv->fb.shm_id = priv->shm_image->shmid;
 

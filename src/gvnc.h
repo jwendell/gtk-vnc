@@ -24,7 +24,7 @@ struct gvnc_pixel_format
 {
 	uint8_t bits_per_pixel;
 	uint8_t depth;
-	uint8_t big_endian_flag;
+	uint16_t byte_order;
 	uint8_t true_color_flag;
 	uint16_t red_max;
 	uint16_t green_max;

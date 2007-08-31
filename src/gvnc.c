@@ -105,6 +105,8 @@ struct gvnc
 	struct gvnc_framebuffer local;
 
 	int rm, gm, bm;
+	int rrs, grs, brs;
+	int rls, gls, bls;
 
 	gvnc_blt_func *blt;
 	gvnc_hextile_func *hextile;
@@ -652,7 +654,7 @@ static void gvnc_read_pixel_format(struct gvnc *gvnc, struct gvnc_pixel_format *
 
 	fmt->bits_per_pixel  = gvnc_read_u8(gvnc);
 	fmt->depth           = gvnc_read_u8(gvnc);
-	fmt->big_endian_flag = gvnc_read_u8(gvnc);
+	fmt->byte_order      = gvnc_read_u8(gvnc) ? __BIG_ENDIAN : __LITTLE_ENDIAN;
 	fmt->true_color_flag = gvnc_read_u8(gvnc);
 
 	fmt->red_max         = gvnc_read_u16(gvnc);
@@ -665,23 +667,12 @@ static void gvnc_read_pixel_format(struct gvnc *gvnc, struct gvnc_pixel_format *
 
 	gvnc_read(gvnc, pad, 3);
 
-	GVNC_DEBUG("Pixel format BPP: %d,  Depth: %d, Endian: %d, True color: %d\n"
+	GVNC_DEBUG("Pixel format BPP: %d,  Depth: %d, Byte order: %d, True color: %d\n"
 		   "             Mask  red: %3d, green: %3d, blue: %3d\n"
 		   "             Shift red: %3d, green: %3d, blue: %3d\n",
-		   fmt->bits_per_pixel, fmt->depth, fmt->big_endian_flag, fmt->true_color_flag,
+		   fmt->bits_per_pixel, fmt->depth, fmt->byte_order, fmt->true_color_flag,
 		   fmt->red_max, fmt->green_max, fmt->blue_max,
 		   fmt->red_shift, fmt->green_shift, fmt->blue_shift);
-
-
-	if (((__BYTE_ORDER == __BIG_ENDIAN) && !fmt->big_endian_flag) ||
-	    ((__BYTE_ORDER == __LITTLE_ENDIAN) && fmt->big_endian_flag)) {
-		fmt->red_shift = fmt->bits_per_pixel - fmt->red_shift - (fmt->bits_per_pixel - fmt->depth);
-		fmt->green_shift = fmt->bits_per_pixel - fmt->green_shift - (fmt->bits_per_pixel - fmt->depth);
-		fmt->blue_shift = fmt->bits_per_pixel - fmt->blue_shift - (fmt->bits_per_pixel - fmt->depth);
-
-		GVNC_DEBUG("Flipped shifts Shift red: %3d, green: %3d, blue: %3d\n",
-			   fmt->red_shift, fmt->green_shift, fmt->blue_shift);
-	}
 }
 
 /* initialize function */
@@ -701,7 +692,7 @@ gboolean gvnc_set_pixel_format(struct gvnc *gvnc,
 
 	gvnc_write_u8(gvnc, fmt->bits_per_pixel);
 	gvnc_write_u8(gvnc, fmt->depth);
-	gvnc_write_u8(gvnc, fmt->big_endian_flag);
+	gvnc_write_u8(gvnc, fmt->byte_order == __BIG_ENDIAN ? 1 : 0);
 	gvnc_write_u8(gvnc, fmt->true_color_flag);
 
 	gvnc_write_u16(gvnc, fmt->red_max);
@@ -1964,7 +1955,7 @@ gboolean gvnc_set_credential_x509_cert(struct gvnc *gvnc, const char *file)
 
 gboolean gvnc_set_local(struct gvnc *gvnc, struct gvnc_framebuffer *fb)
 {
-	int i, j;
+	int i, j, n;
 	int depth;
 
 	memcpy(&gvnc->local, fb, sizeof(*fb));
@@ -1976,8 +1967,7 @@ gboolean gvnc_set_local(struct gvnc *gvnc, struct gvnc_framebuffer *fb)
 	    fb->red_shift == gvnc->fmt.red_shift &&
 	    fb->green_shift == gvnc->fmt.green_shift &&
 	    fb->blue_shift == gvnc->fmt.blue_shift &&
-	    ((gvnc->fmt.big_endian_flag && (__BYTE_ORDER == __BIG_ENDIAN)) ||
-	     (!gvnc->fmt.big_endian_flag && (__BYTE_ORDER == __LITTLE_ENDIAN))))
+	    __BYTE_ORDER == gvnc->fmt.byte_order)
 		gvnc->perfect_match = TRUE;
 	else
 		gvnc->perfect_match = FALSE;
@@ -1995,6 +1985,47 @@ gboolean gvnc_set_local(struct gvnc *gvnc, struct gvnc_framebuffer *fb)
 		   gvnc->local.red_mask, gvnc->local.green_mask, gvnc->local.blue_mask,
 		   gvnc->fmt.red_max, gvnc->fmt.green_max, gvnc->fmt.blue_max,
 		   gvnc->rm, gvnc->gm, gvnc->bm);
+
+	/* Setup shifts assuming matched bpp (but not neccessarily match rgb order)*/
+	gvnc->rrs = gvnc->fmt.red_shift;
+	gvnc->grs = gvnc->fmt.green_shift;
+	gvnc->brs = gvnc->fmt.blue_shift;
+
+	gvnc->rls = gvnc->local.red_shift;
+	gvnc->gls = gvnc->local.green_shift;
+	gvnc->bls = gvnc->local.blue_shift;
+
+
+	/* This adjusts for server/client endianness mismatch */
+	if (__BYTE_ORDER != gvnc->fmt.byte_order) {
+		gvnc->rrs = gvnc->fmt.bits_per_pixel - gvnc->rrs - (gvnc->fmt.bits_per_pixel - gvnc->fmt.depth);
+		gvnc->grs = gvnc->fmt.bits_per_pixel - gvnc->grs - (gvnc->fmt.bits_per_pixel - gvnc->fmt.depth);
+		gvnc->brs = gvnc->fmt.bits_per_pixel - gvnc->brs - (gvnc->fmt.bits_per_pixel - gvnc->fmt.depth);
+
+		GVNC_DEBUG("Flipped shifts red: %3d, green: %3d, blue: %3d\n",
+			   gvnc->rrs, gvnc->grs, gvnc->brs);
+	}
+
+
+	/* This adjusts for remote having more bpp than local */
+	for (n = gvnc->fmt.red_max; n > gvnc->local.red_mask ; n>>= 1)
+		gvnc->rrs++;
+	for (n = gvnc->fmt.green_max; n > gvnc->local.green_mask ; n>>= 1)
+		gvnc->grs++;
+	for (n = gvnc->fmt.blue_max; n > gvnc->local.blue_mask ; n>>= 1)
+		gvnc->brs++;
+
+	/* This adjusts for remote having less bpp than remote */
+	for (n = gvnc->local.red_mask ; n > gvnc->fmt.red_max ; n>>= 1)
+		gvnc->rls++;
+	for (n = gvnc->local.green_mask ; n > gvnc->fmt.green_max ; n>>= 1)
+		gvnc->gls++;
+	for (n = gvnc->local.blue_mask ; n > gvnc->fmt.blue_max ; n>>= 1)
+		gvnc->bls++;
+	GVNC_DEBUG("Pixel shifts\n   right: %3d %3d %3d\n    left: %3d %3d %3d\n",
+		   gvnc->rrs, gvnc->grs, gvnc->brs,
+		   gvnc->rls, gvnc->gls, gvnc->bls);
+
 	i = gvnc->fmt.bits_per_pixel / 8;
 	j = gvnc->local.bpp;
 
