@@ -1759,10 +1759,14 @@ struct gvnc *gvnc_new(const struct gvnc_ops *ops, gpointer ops_data)
 
 void gvnc_free(struct gvnc *gvnc)
 {
+	if (!gvnc)
+		return;
+
 	if (gvnc_is_open(gvnc))
 		gvnc_close(gvnc);
 
 	free(gvnc);
+	gvnc = NULL;
 }
 
 void gvnc_close(struct gvnc *gvnc)
@@ -1780,28 +1784,46 @@ void gvnc_close(struct gvnc *gvnc)
 		gvnc->fd = -1;
 	}
 
-	free(gvnc->host);
-	gvnc->host = NULL;
+	if (gvnc->host) {
+		free(gvnc->host);
+		gvnc->host = NULL;
+	}
 
-	free(gvnc->port);
-	gvnc->port = NULL;
+	if (gvnc->port) {
+		free(gvnc->port);
+		gvnc->port = NULL;
+	}
 
-	free(gvnc->name);
-	gvnc->name = NULL;
+	if (gvnc->name) {
+		free(gvnc->name);
+		gvnc->name = NULL;
+	}
 
-	free(gvnc->cred_username);
-	gvnc->cred_username = NULL;
-	free(gvnc->cred_password);
-	gvnc->cred_password = NULL;
+	if (gvnc->cred_username) {
+		free(gvnc->cred_username);
+		gvnc->cred_username = NULL;
+	}
+	if (gvnc->cred_password) {
+		free(gvnc->cred_password);
+		gvnc->cred_password = NULL;
+	}
 
-	free(gvnc->cred_x509_cacert);
-	gvnc->cred_x509_cacert = NULL;
-	free(gvnc->cred_x509_cacrl);
-	gvnc->cred_x509_cacrl = NULL;
-	free(gvnc->cred_x509_cert);
-	gvnc->cred_x509_cert = NULL;
-	free(gvnc->cred_x509_key);
-	gvnc->cred_x509_key = NULL;
+	if (gvnc->cred_x509_cacert) {
+		free(gvnc->cred_x509_cacert);
+		gvnc->cred_x509_cacert = NULL;
+	}
+	if (gvnc->cred_x509_cacrl) {
+		free(gvnc->cred_x509_cacrl);
+		gvnc->cred_x509_cacrl = NULL;
+	}
+	if (gvnc->cred_x509_cert) {
+		free(gvnc->cred_x509_cert);
+		gvnc->cred_x509_cert = NULL;
+	}
+	if (gvnc->cred_x509_key) {
+		free(gvnc->cred_x509_key);
+		gvnc->cred_x509_key = NULL;
+	}
 
 	gvnc->auth_type = GVNC_AUTH_INVALID;
 	gvnc->auth_subtype = GVNC_AUTH_INVALID;
@@ -1820,6 +1842,9 @@ void gvnc_shutdown(struct gvnc *gvnc)
 
 gboolean gvnc_is_open(struct gvnc *gvnc)
 {
+	if (!gvnc)
+		return FALSE;
+
 	if (gvnc->fd != -1)
 		return TRUE;
 	if (gvnc->host)
