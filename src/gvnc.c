@@ -1466,6 +1466,10 @@ gboolean gvnc_wants_credential_password(struct gvnc *gvnc)
         if (gvnc->auth_type == GVNC_AUTH_VNC)
                 return TRUE;
 
+        if (gvnc->auth_type == GVNC_AUTH_TLS &&
+	    gvnc->auth_subtype == GVNC_AUTH_VNC)
+                return TRUE;
+
         if (gvnc->auth_type == GVNC_AUTH_VENCRYPT) {
                 if (gvnc->auth_subtype == GVNC_AUTH_VENCRYPT_PLAIN ||
                     gvnc->auth_subtype == GVNC_AUTH_VENCRYPT_TLSVNC ||
@@ -1555,6 +1559,73 @@ static gboolean gvnc_has_auth_subtype(gpointer data)
 	return TRUE;
 }
 
+
+static gboolean gvnc_perform_auth_tls(struct gvnc *gvnc)
+{
+	int status;
+	unsigned int nauth, i;
+	unsigned int auth[20];
+
+	if (!gvnc_start_tls(gvnc, 1)) {
+		GVNC_DEBUG("Could not start TLS\n");
+		return FALSE;
+	}
+	GVNC_DEBUG("Completed TLS setup\n");
+
+	nauth = gvnc_read_u8(gvnc);
+	if (gvnc_has_error(gvnc))
+		return FALSE;
+
+	if (nauth == 0)
+		return gvnc_check_auth_result(gvnc);
+
+	if (nauth > sizeof(auth)) {
+		GVNC_DEBUG("Too many (%d) auth types\n", nauth);
+		gvnc->has_error = TRUE;
+		return FALSE;
+	}
+	for (i = 0 ; i < nauth ; i++) {
+		auth[i] = gvnc_read_u8(gvnc);
+	}
+
+	for (i = 0 ; i < nauth ; i++) {
+		GVNC_DEBUG("Possible sub-auth %d\n", auth[i]);
+	}
+
+	if (gvnc->has_error || !gvnc->ops.auth_subtype)
+		return FALSE;
+
+	if (!gvnc->ops.auth_subtype(gvnc->ops_data, nauth, auth))
+		gvnc->has_error = TRUE;
+	if (gvnc->has_error)
+		return FALSE;
+
+	GVNC_DEBUG("Waiting for auth subtype\n");
+	g_condition_wait(gvnc_has_auth_subtype, gvnc);
+	if (gvnc->has_error)
+		return FALSE;
+
+	GVNC_DEBUG("Choose auth %d\n", gvnc->auth_subtype);
+
+	if (!gvnc_gather_credentials(gvnc))
+		return FALSE;
+
+	gvnc_write_u8(gvnc, gvnc->auth_subtype);
+	gvnc_flush(gvnc);
+
+	switch (gvnc->auth_subtype) {
+	case GVNC_AUTH_NONE:
+		if (gvnc->minor == 8)
+			return gvnc_check_auth_result(gvnc);
+		return TRUE;
+	case GVNC_AUTH_VNC:
+		return gvnc_perform_auth_vnc(gvnc);
+	default:
+		return FALSE;
+	}
+
+	return TRUE;
+}
 
 static gboolean gvnc_perform_auth_vencrypt(struct gvnc *gvnc)
 {
@@ -1729,6 +1800,11 @@ static gboolean gvnc_perform_auth(struct gvnc *gvnc)
 		return TRUE;
 	case GVNC_AUTH_VNC:
 		return gvnc_perform_auth_vnc(gvnc);
+
+	case GVNC_AUTH_TLS:
+		if (gvnc->minor < 7)
+			return FALSE;
+		return gvnc_perform_auth_tls(gvnc);
 
 	case GVNC_AUTH_VENCRYPT:
 		return gvnc_perform_auth_vencrypt(gvnc);
@@ -2023,6 +2099,7 @@ gboolean gvnc_set_auth_type(struct gvnc *gvnc, unsigned int type)
         }
         if (type != GVNC_AUTH_NONE &&
             type != GVNC_AUTH_VNC &&
+            type != GVNC_AUTH_TLS &&
             type != GVNC_AUTH_VENCRYPT) {
                 gvnc->has_error = TRUE;
                 return !gvnc_has_error(gvnc);
@@ -2036,7 +2113,8 @@ gboolean gvnc_set_auth_type(struct gvnc *gvnc, unsigned int type)
 gboolean gvnc_set_auth_subtype(struct gvnc *gvnc, unsigned int type)
 {
         GVNC_DEBUG("Requested auth subtype %d\n", type);
-        if (gvnc->auth_type != GVNC_AUTH_VENCRYPT) {
+        if (gvnc->auth_type != GVNC_AUTH_VENCRYPT &&
+	    gvnc->auth_type != GVNC_AUTH_TLS) {
                 gvnc->has_error = TRUE;
 		return !gvnc_has_error(gvnc);
         }
