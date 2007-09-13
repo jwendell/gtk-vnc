@@ -1,3 +1,304 @@
+2007-09-13  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* src/gvnc.c:
+	Remove unused variable
+	[1873728651cc] [tip]
+
+	* NEWS, configure.ac, gtk-vnc.spec.in:
+	Prepare for 0.2.0 release
+	[e413780fce33]
+
+	* examples/gvncviewer.c, src/Makefile.am, src/gvnc.c, src/gvnc.h,
+	src/vncdisplay.c, src/vncmarshal.txt:
+	Added signals for authentication failure reports & desktop resizes
+	[ecefdda5818e]
+
+2007-09-10  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* src/gvnc.c, src/gvnc.h:
+	Support VINO's TLS auth method
+	[381f8531daab]
+
+2007-09-01  Jonh Wendell  <wendell@bani.com.br>
+
+	* src/gvnc.c:
+	Added some paranoid checkings before free() the things
+	[f869a84aa6c5]
+
+2007-08-31  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* src/vncdisplay.c:
+	Hook into destroy method to do shutdown of GVNC couroutine. Keep a
+	ref on vncdisplay, so widget isn't finalized unless the GVNC
+	coroutine is complete
+	[5493aa247633]
+
+	* src/gvnc.c, src/vncdisplay.c:
+	Monitor IO errors & close socket when shutting down to interrupt
+	poll()
+	[c6e55ffe9187]
+
+	* src/gvnc.c, src/vncdisplay.c:
+	Get graceful shutdown working correctly (ie interrupting & waking up
+	message thread)
+	[81dc7bef9183]
+
+2007-08-31  Jonh Wendell  <wendell@bani.com.br>
+
+	* src/vncdisplay.c:
+	Added a destructor for VncDisplay widget
+	[7210501ed245]
+
+	* .hgignore:
+	Added some ignored files to hgignore
+	[a4fe551643a8]
+
+	* src/vncdisplay.c:
+	Uses g_signal_connect() instead of gtk_signal_connect()
+	[d0f0dda040ed]
+
+2007-08-31  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* src/gvnc.c, src/gvnc.h, src/vncdisplay.c:
+	Added impl of xcursor and richcursor encodings for OSX-VNC and
+	TightVNC compatability
+	[12bb6b38448b]
+
+	* src/blt.h, src/gvnc.c, src/gvnc.h, src/vncdisplay.c:
+	Fix decoding of mixed colour depths between client & server
+	[e59d5638a8e8]
+
+2007-08-29  Jonh Wendell  <wendell@bani.com.br>
+
+	* configure.ac, src/Makefile.am, src/gvnc.c, src/utils.h:
+	Enable debugging messages
+	[3aa27e27cfe0]
+
+2007-08-22  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* src/vncdisplay.c:
+	Clear excess space in widget
+	[b1c48ddc01d9]
+
+	* src/blt.h, src/gvnc.c:
+	Fixed handling of shifts for BGR displays and mixed endian client vs
+	server
+	[f6b6e9e2ac43]
+
+	* src/gvnc.h, src/vncdisplay.c:
+	typedef the enums to aid API readability/docs generation
+	[453f9ca2a737]
+
+	* examples/gvncviewer.py:
+	Fix offf by one in argv use
+	[a4bd9ecc4e4e]
+
+2007-08-15  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* .hgtags:
+	Added tag release-0.1.0 for changeset 87259132efca
+	[860bcf129876]
+
+	* README, configure.ac, gtk-vnc.spec.in:
+	Update version to 0.1.0 for release
+	[87259132efca] [release-0.1.0]
+
+	* src/Makefile.am:
+	Fix makefile rule for python bindings to install in lib64 on x86_64
+	[9eae5e847060]
+
+2007-08-13  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* src/gvnc.c, src/vncdisplay.c:
+	Merge heads
+	[4bf741278c01]
+
+2007-08-01  Jonh Wendell  <wendell@bani.com.br>
+
+	* src/gvnc.c, src/vncdisplay.c:
+	Changed boolean functions (which use gvnc_has_error) to return FALSE
+	when failure
+	[2f8878799f3c]
+
+2007-08-13  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* examples/gvncviewer.c, examples/gvncviewer.py, src/Makefile.am,
+	src/gvnc.c, src/gvnc.h, src/vncdisplay.c, src/vncdisplay.h:
+	Added support for TLS related credentials
+	[6c4a0385c705]
+
+2007-07-30  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* src/gvnc.c:
+	Fixed up handling of TLS i/o functions
+	[4c3599147f53]
+
+	* src/gvnc.c:
+	Only print GNU TLS debug if debug level > 1
+	[24ed08897f52]
+
+	* src/gvnc.c:
+	Remove hardcoded hostname & use user supplied hostname in
+	certificate validation
+	[a1196dc0d8ae]
+
+2007-07-20  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* examples/gvncviewer.c, examples/gvncviewer.py, src/libgtk-
+	vnc_sym.version, src/vncdisplay.c, src/vncdisplay.h,
+	src/vncshmimage.c, src/vncshmimage.h:
+	Added API for taking a screenshot
+	[f5d4e8c6c0bf]
+
+	* src/vncdisplay.c:
+	Fixed typo in conditional test
+	[b6bd362ad33c]
+
+	* examples/gvncviewer.c, examples/gvncviewer.py, src/gvnc.c,
+	src/gvnc.h, src/libgtk-vnc_sym.version, src/vncdisplay.c,
+	src/vncdisplay.h, src/vncmodule.c:
+	Added more general purpose authentication API
+	[89041eebbead]
+
+	* examples/Makefile.am, examples/gvncviewer.c, examples/gvncviewer.py,
+	src/gvnc.c, src/gvnc.h, src/libgtk-vnc_sym.version,
+	src/vncdisplay.c, src/vncdisplay.h:
+	Refactor GVNC open/close lifecycle APIs
+	[12b4191b7cb4]
+
+2007-07-19  Anthony Liguori  <anthony@codemonkey.ws>
+
+	* configure.ac, examples/Makefile.am, examples/gvncviewer.c:
+	[PATCH] Enhance gvncviewer a bit This patch adds the following to
+	gvncviewer:
+
+	1) install by default 2) make title consistently displayed 3) make
+	the VNC session part of the title 4) use a command line syntax more
+	common with vnc viewers
+
+	Signed-off-by: Anthony Liguori <anthony@codemonkey.ws>
+	[3f09199bff0f]
+
+	* merge
+	[cae84d5bd9ad]
+
+	* configure.ac:
+	Line up the output of ./configure --help and correct a typo
+	[a2126b9a1c1e]
+
+2007-07-18  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* Merge
+	[7802cb9f9d47]
+
+2007-07-18  Anthony Liguori  <anthony@codemonkey.ws>
+
+	* src/gvnc.c:
+	Buffer client messages to avoid race condition when write() blocks.
+	[2a92ce0f7cf5]
+
+2007-07-18  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* examples/gvncviewer.c, examples/gvncviewer.py, src/libgtk-
+	vnc_sym.version, src/vnc.override, src/vncdisplay.c,
+	src/vncdisplay.h:
+	Added vnc_display_send_keys API & example usage
+	[ee139f2eefc8]
+
+2007-07-15  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* autobuild.sh:
+	Run automated builds with -Werror enabled
+	[ab919470c43f]
+
+	* src/Makefile.am:
+	Disable verbose compiler warnings for python module - the auto-
+	generated code is crap
+	[e2b249eab7cf]
+
+2007-07-12  Anthony Liguori  <anthony@codemonkey.ws>
+
+	* src/libgtk-vnc_sym.version:
+	merge
+	[5b8f080db6d9]
+
+	* src/Makefile.am, src/libgtk-vnc_sym.version:
+	Expose GVNC in libgtk-vnc-1.0
+
+	This patch exposes gvnc as part of the public API for libgtk-vnc.
+	We won't considered this a supported API for the first release. I'm
+	using this lower level API at the moment to build an automation
+	system.
+
+	Signed-off-by: Anthony Liguori <anthony@codemonkey.ws>
+	[ea0cdea4fa5e]
+
+2007-07-10  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* src/vncdisplay.c:
+	Fixed keycode -> keysym conversion wrt to modifier state
+	[8d2ec85be8c3]
+
+	* src/continuation.c, src/coroutine.c:
+	Fix coroutine cleanup/release
+	[47b768fb7f7d]
+
+	* examples/gvncviewer.c, examples/gvncviewer.py, src/libgtk-
+	vnc_sym.version, src/vncdisplay.c, src/vncdisplay.h:
+	Allow local pointer hiding to be configurable
+	[ab0313ca8f7a]
+
+	* examples/gvncviewer.c, examples/gvncviewer.py, src/libgtk-
+	vnc_sym.version, src/vncdisplay.c, src/vncdisplay.h:
+	Add APIs for keyboard & pointer grab policy
+	[9a6dd1146e9f]
+
+	* src/gvnc.c:
+	Treat EHOSTUNREACH as non-fatal connection error
+	[fbbfa57a79cd]
+
+2007-07-04  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* examples/gvncviewer.c, examples/gvncviewer.py, src/blt.h,
+	src/gvnc.c, src/gvnc.h, src/vncdisplay.c, src/vncdisplay.h:
+	Separate creation of gvnc object, from connect opening. Add ability
+	to free/cleanup object & notify upon disconnect
+	[b77ea47300ab]
+
+	* src/gvnc.c, src/gvnc.h, src/vncdisplay.c:
+	Use constants for framebuffer encodings
+	[8a6239867d1e]
+
+	* Makefile.am, configure.ac, examples/Makefile.am,
+	examples/gvncviewer.c, examples/gvncviewer.py, gtk-vnc.spec.in:
+	Added really simple example programs in both C & python
+	[5b0848e7fa26]
+
+	* src/gvnc.c, src/gvnc.h, src/libgtk-vnc_sym.version,
+	src/vncdisplay.c, src/vncdisplay.h, src/vncmodule.c:
+	Allow connecting based on a host & port, vs a filedescriptor
+	[7ea49c093bcf]
+
+	* src/continuation.c, src/continuation.h, src/coroutine.c,
+	src/coroutine.h, src/gvnc.h, src/vncdisplay.c, src/vncdisplay.h:
+	Tidy whitespace & put emacs formatting rules at bottom of files
+	[81b497e4bed7]
+
+	* src/blt.h, src/gvnc.c, src/vncdisplay.c, src/vncmodule.c,
+	src/vncshmimage.c:
+	Fixed a number of compiler warnings
+	[f99dcbc7c31f]
+
+	* .hgignore, AUTHORS, COPYING.LIB, COPYING.lib, ChangeLog, MANIFEST,
+	Makefile.am, NEWS, README, acinclude.m4, autobuild.sh, autogen.sh,
+	configure.ac, dsextras.py, gtk-vnc-1.0.pc.in, gtk-vnc.spec.in,
+	setup.py, src/Makefile, src/Makefile.am, src/gen-vnc.defs.c, src
+	/libgtk-vnc_sym.version, src/vnc.defs, src/vnc.override,
+	src/vncmodule.c:
+	Switched over to using automake/conf/libtool. Added pkgconfig data
+	file. Added linker script to control library symbols
+	[f1588033db9c]
+
 2007-06-20  Jonh Wendell  <wendell@bani.com.br>
 
 	* src/gvnc.c, src/gvnc.h, src/vncdisplay.c, src/vncdisplay.h:
@@ -5,7 +306,7 @@
 	- Created a vnc-initialized signal
 	- Made small changes in order to work with ultravnc, which reports rfb
 	3.6
-	[0a645e462b27] [tip]
+	[0a645e462b27]
 
 2007-02-24  Anthony Liguori  <anthony@codemonkey.ws>
 
