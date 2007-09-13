@@ -60,6 +60,16 @@ static void vnc_initialized(GtkWidget *vnc, GtkWidget *window)
 	gtk_widget_show_all(window);
 }
 
+static void vnc_auth_failure(GtkWidget *vnc, const char *msg)
+{
+	printf("Authentication failed '%s'\n", msg ? msg : "");
+}
+
+static void vnc_desktop_resize(GtkWidget *vnc, int width, int height)
+{
+	printf("Remote desktop size changed to %dx%d\n", width, height);
+}
+
 static void vnc_disconnected(GtkWidget *vnc G_GNUC_UNUSED)
 {
 	printf("Disconnected from server\n");
@@ -271,8 +281,13 @@ int main(int argc, char **argv)
 			   GTK_SIGNAL_FUNC(vnc_initialized), window);
 	gtk_signal_connect(GTK_OBJECT(vnc), "vnc-disconnected",
 			   GTK_SIGNAL_FUNC(vnc_disconnected), NULL);
-	g_signal_connect(GTK_OBJECT(vnc), "vnc-auth-credential",
+	gtk_signal_connect(GTK_OBJECT(vnc), "vnc-auth-credential",
 			   GTK_SIGNAL_FUNC(vnc_credential), NULL);
+	gtk_signal_connect(GTK_OBJECT(vnc), "vnc-auth-failure",
+			   GTK_SIGNAL_FUNC(vnc_auth_failure), NULL);
+
+	gtk_signal_connect(GTK_OBJECT(vnc), "vnc-desktop-resize",
+			   GTK_SIGNAL_FUNC(vnc_desktop_resize), NULL);
 
 	gtk_signal_connect(GTK_OBJECT(vnc), "vnc-pointer-grab",
 			   GTK_SIGNAL_FUNC(vnc_grab), window);

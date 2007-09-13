@@ -11,6 +11,7 @@ struct gvnc_ops
 	gboolean (*auth_cred)(void *);
 	gboolean (*auth_type)(void *, unsigned int, unsigned int *);
 	gboolean (*auth_subtype)(void *, unsigned int, unsigned int *);
+	gboolean (*auth_failure)(void *, const char *);
 	gboolean (*update)(void *, int, int, int, int);
 	gboolean (*set_color_map_entry)(void *, int, int, int, int);
 	gboolean (*bell)(void *);

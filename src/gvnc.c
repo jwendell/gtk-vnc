@@ -1326,8 +1326,12 @@ static gboolean gvnc_check_auth_result(struct gvnc *gvnc)
 		gvnc_read(gvnc, reason, len);
 		reason[len] = '\0';
 		GVNC_DEBUG("Fail %s\n", reason);
+		if (!gvnc->has_error && gvnc->ops.auth_failure)
+			gvnc->ops.auth_failure(gvnc->ops_data, reason);
 	} else {
 		GVNC_DEBUG("Fail\n");
+		if (!gvnc->has_error && gvnc->ops.auth_failure)
+			gvnc->ops.auth_failure(gvnc->ops_data, NULL);
 	}
 	return FALSE;
 }

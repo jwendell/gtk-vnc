@@ -1,5 +1,5 @@
 
-EXTRA_DIST = libgtk-vnc_sym.version
+EXTRA_DIST = libgtk-vnc_sym.version vncmarshal.txt
 
 lib_LTLIBRARIES = libgtk-vnc-1.0.la
 
@@ -20,7 +20,18 @@ libgtk_vnc_1_0_la_SOURCES = blt.h blt1.h \
 	gvnc.h gvnc.c \
 	vncdisplay.h vncdisplay.c \
 	vncshmimage.h vncshmimage.c \
+        vncmarshal.h vncmarshal.c \
 	utils.h
+
+vncmarshal.c: vncmarshal.txt
+	glib-genmarshal --body $< > $@ || (rm -f $@ && exit 1)
+
+vncmarshal.h: vncmarshal.txt
+	glib-genmarshal --header $< > $@ || (rm -f $@ && exit 1)
+
+vncdisplay.c:: vncmarshal.h
+
+CLEANFILES = vncmarshal.c vncmarshal.h
 
 if WITH_PYTHON
 pyexec_LTLIBRARIES = gtkvnc.la
@@ -44,7 +55,7 @@ vncmodule.defs.c: vnc.override vnc.defs
                           --register $(DEFSDIR)/gtk-types.defs \
                           --override $(srcdir)/vnc.override vnc.defs > $@
 
-CLEANFILES = vnc.defs
+CLEANFILES += vnc.defs vncmodule.defs.c
 EXTRA_DIST += vnc.override
 
 else

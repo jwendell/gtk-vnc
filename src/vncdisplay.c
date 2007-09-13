@@ -13,6 +13,7 @@
 #include "gvnc.h"
 #include "vncshmimage.h"
 #include "utils.h"
+#include "vncmarshal.h"
 
 #include <gtk/gtk.h>
 #include <string.h>
@@ -72,11 +73,16 @@ typedef enum
 	VNC_DISCONNECTED,
  	VNC_AUTH_CREDENTIAL,
 
+	VNC_DESKTOP_RESIZE,
+
+	VNC_AUTH_FAILURE,
+
 	LAST_SIGNAL
 } vnc_display_signals;
 
 static guint signals[LAST_SIGNAL] = { 0, 0, 0, 0,
-				      0, 0, 0, 0 };
+				      0, 0, 0, 0,
+				      0, 0, };
 static GParamSpec *signalCredParam;
 
 GtkWidget *vnc_display_new(void)
@@ -480,6 +486,11 @@ static gboolean on_resize(void *opaque, int width, int height)
 
 	gvnc_set_local(priv->gvnc, &priv->fb);
 
+	g_signal_emit (G_OBJECT (obj),
+		       signals[VNC_DESKTOP_RESIZE],
+		       0,
+		       width, height);
+
 	return TRUE;
 }
 
@@ -579,6 +590,18 @@ static gboolean on_auth_subtype(void *opaque, unsigned int ntype, unsigned int *
 	return TRUE;
 }
 
+static gboolean on_auth_failure(void *opaque, const char *msg)
+{
+	VncDisplay *obj = VNC_DISPLAY(opaque);
+
+	g_signal_emit (G_OBJECT (obj),
+		       signals[VNC_AUTH_FAILURE],
+		       0,
+		       msg);
+
+	return TRUE;
+}
+
 static gboolean on_local_cursor(void *opaque, int x, int y, int width, int height, uint8_t *image)
 {
 	VncDisplay *obj = VNC_DISPLAY(opaque);
@@ -610,11 +633,11 @@ static gboolean on_local_cursor(void *opaque, int x, int y, int width, int heigh
 	return TRUE;
 }
 
-
 static const struct gvnc_ops vnc_display_ops = {
 	.auth_cred = on_auth_cred,
 	.auth_type = on_auth_type,
 	.auth_subtype = on_auth_subtype,
+	.auth_failure = on_auth_failure,
 	.update = on_update,
 	.resize = on_resize,
 	.pointer_type_change = on_pointer_type_change,
@@ -900,6 +923,31 @@ static void vnc_display_class_init(VncDisplayClass *klass)
 			     g_cclosure_marshal_VOID__VOID,
 			     G_TYPE_NONE,
 			     0);
+
+
+	signals[VNC_DESKTOP_RESIZE] =
+		g_signal_new("vnc-desktop-resize",
+			     G_TYPE_FROM_CLASS(klass),
+			     G_SIGNAL_RUN_LAST | G_SIGNAL_NO_HOOKS,
+			     0,
+			     NULL,
+			     NULL,
+			     g_cclosure_user_marshal_VOID__INT_INT,
+			     G_TYPE_NONE,
+			     2,
+			     G_TYPE_INT, G_TYPE_INT);
+
+	signals[VNC_AUTH_FAILURE] =
+		g_signal_new("vnc-auth-failure",
+			     G_TYPE_FROM_CLASS(klass),
+			     G_SIGNAL_RUN_LAST | G_SIGNAL_NO_HOOKS,
+			     0,
+			     NULL,
+			     NULL,
+			     g_cclosure_marshal_VOID__STRING,
+			     G_TYPE_NONE,
+			     1,
+			     G_TYPE_STRING);
 
 	g_type_class_add_private(klass, sizeof(VncDisplayPrivate));
 }
