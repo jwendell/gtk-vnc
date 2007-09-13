@@ -1566,7 +1566,6 @@ static gboolean gvnc_has_auth_subtype(gpointer data)
 
 static gboolean gvnc_perform_auth_tls(struct gvnc *gvnc)
 {
-	int status;
 	unsigned int nauth, i;
 	unsigned int auth[20];
 
