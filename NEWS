@@ -1,6 +1,29 @@
     GTK VNC News
     ============
 
-None yet, watch this space...
+Sep 13, 2007: Release 0.2.0
+===========================
+
+Bug fixes:
+
+This release fixes compatability with mixed endianess client
+and servers and BGR/RGB pixel format displays. Mixed colour
+depths are now correctly accounted for & converted appropriately.
+Graceful shutdown is now handled correctly, interrupting any
+pending I/O waits. Added destructor to widget to ensure all
+resources are free'd when the widget is deleted.
+
+New features:
+
+The two common client cursor offload extensions are supported
+for compatability with OSX-VNC, UltraVNC and TightVNC. Support
+for Vino's TLS authentication method is added. Added signals
+for getting notified of desktop resize events, and authentication
+failures.
+
+Aug 15, 2007: Release 0.1.0
+===========================
+
+Initial public release
 
 -- End
