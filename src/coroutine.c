@@ -44,8 +44,8 @@ int coroutine_init(struct coroutine *co)
 
 	co->cc.stack_size = co->stack_size;
 	co->cc.stack = mmap(0, co->stack_size,
-			    PROT_READ | PROT_WRITE | PROT_EXEC,
-			    MAP_SHARED | MAP_ANONYMOUS | MAP_GROWSDOWN,
+			    PROT_READ | PROT_WRITE,
+			    MAP_PRIVATE | MAP_ANONYMOUS,
 			    -1, 0);
 	if (co->cc.stack == MAP_FAILED)
 		return -1;
