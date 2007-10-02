@@ -1960,6 +1960,7 @@ gboolean gvnc_initialize(struct gvnc *gvnc, gboolean shared_flag)
 	if (gvnc->major != 3)
 		goto fail;
 	if (gvnc->minor != 3 &&
+	    gvnc->minor != 4 &&
 	    gvnc->minor != 5 &&
 	    gvnc->minor != 6 &&
 	    gvnc->minor != 7 &&
