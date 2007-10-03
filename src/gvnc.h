@@ -20,6 +20,7 @@ struct gvnc_ops
 	gboolean (*pointer_type_change)(void *, int);
 	gboolean (*shared_memory_rmid)(void *, int);
 	gboolean (*local_cursor)(void *, int, int, int, int, uint8_t *);
+	gboolean (*auth_unsupported)(void *, unsigned int);
 };
 
 struct gvnc_pixel_format

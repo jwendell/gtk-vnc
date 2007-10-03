@@ -76,13 +76,14 @@ typedef enum
 	VNC_DESKTOP_RESIZE,
 
 	VNC_AUTH_FAILURE,
+	VNC_AUTH_UNSUPPORTED,
 
 	LAST_SIGNAL
 } vnc_display_signals;
 
 static guint signals[LAST_SIGNAL] = { 0, 0, 0, 0,
 				      0, 0, 0, 0,
-				      0, 0, };
+				      0, 0, 0, };
 static GParamSpec *signalCredParam;
 
 GtkWidget *vnc_display_new(void)
@@ -602,6 +603,18 @@ static gboolean on_auth_failure(void *opaque, const char *msg)
 	return TRUE;
 }
 
+static gboolean on_auth_unsupported(void *opaque, unsigned int auth_type)
+{
+	VncDisplay *obj = VNC_DISPLAY(opaque);
+
+	g_signal_emit (G_OBJECT (obj),
+		       signals[VNC_AUTH_UNSUPPORTED],
+		       0,
+		       auth_type);
+
+	return TRUE;
+}
+
 static gboolean on_local_cursor(void *opaque, int x, int y, int width, int height, uint8_t *image)
 {
 	VncDisplay *obj = VNC_DISPLAY(opaque);
@@ -643,6 +656,7 @@ static const struct gvnc_ops vnc_display_ops = {
 	.pointer_type_change = on_pointer_type_change,
 	.shared_memory_rmid = on_shared_memory_rmid,
 	.local_cursor = on_local_cursor,
+	.auth_unsupported = on_auth_unsupported
 };
 
 static void *vnc_coroutine(void *opaque)
@@ -948,6 +962,18 @@ static void vnc_display_class_init(VncDisplayClass *klass)
 			     G_TYPE_NONE,
 			     1,
 			     G_TYPE_STRING);
+
+	signals[VNC_AUTH_UNSUPPORTED] =
+		g_signal_new("vnc-auth-unsupported",
+			     G_TYPE_FROM_CLASS(klass),
+			     G_SIGNAL_RUN_LAST | G_SIGNAL_NO_HOOKS,
+			     0,
+			     NULL,
+			     NULL,
+			     g_cclosure_marshal_VOID__UINT,
+			     G_TYPE_NONE,
+			     1,
+			     G_TYPE_UINT);
 
 	g_type_class_add_private(klass, sizeof(VncDisplayPrivate));
 }

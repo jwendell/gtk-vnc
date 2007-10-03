@@ -1771,7 +1771,7 @@ static gboolean gvnc_perform_auth(struct gvnc *gvnc)
 	}
 
 	for (i = 0 ; i < nauth ; i++) {
-		GVNC_DEBUG("Possible auth %d\n", auth[i]);
+		GVNC_DEBUG("Possible auth %u\n", auth[i]);
 	}
 
 	if (gvnc->has_error || !gvnc->ops.auth_type)
@@ -1787,7 +1787,7 @@ static gboolean gvnc_perform_auth(struct gvnc *gvnc)
 	if (gvnc->has_error)
 		return FALSE;
 
-	GVNC_DEBUG("Choose auth %d\n", gvnc->auth_type);
+	GVNC_DEBUG("Choose auth %u\n", gvnc->auth_type);
 	if (!gvnc_gather_credentials(gvnc))
 		return FALSE;
 
@@ -1813,6 +1813,10 @@ static gboolean gvnc_perform_auth(struct gvnc *gvnc)
 		return gvnc_perform_auth_vencrypt(gvnc);
 
 	default:
+		if (gvnc->ops.auth_unsupported)
+			gvnc->ops.auth_unsupported (gvnc->ops_data, gvnc->auth_type);
+		gvnc->has_error = TRUE;
+
 		return FALSE;
 	}
 
@@ -2096,7 +2100,7 @@ gboolean gvnc_open_host(struct gvnc *gvnc, const char *host, const char *port)
 
 gboolean gvnc_set_auth_type(struct gvnc *gvnc, unsigned int type)
 {
-        GVNC_DEBUG("Requested auth type %d\n", type);
+        GVNC_DEBUG("Requested auth type %u\n", type);
         if (gvnc->auth_type != GVNC_AUTH_INVALID) {
                 gvnc->has_error = TRUE;
                 return !gvnc_has_error(gvnc);
@@ -2105,6 +2109,9 @@ gboolean gvnc_set_auth_type(struct gvnc *gvnc, unsigned int type)
             type != GVNC_AUTH_VNC &&
             type != GVNC_AUTH_TLS &&
             type != GVNC_AUTH_VENCRYPT) {
+            	if (gvnc->ops.auth_unsupported)
+					gvnc->ops.auth_unsupported (gvnc->ops_data, type);
+
                 gvnc->has_error = TRUE;
                 return !gvnc_has_error(gvnc);
         }
