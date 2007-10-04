@@ -991,6 +991,9 @@ static void gvnc_bell(struct gvnc *gvnc)
 {
 	if (gvnc->has_error || !gvnc->ops.bell)
 		return;
+
+	GVNC_DEBUG("Server beep\n");
+
 	if (!gvnc->ops.bell(gvnc->ops_data))
 		gvnc->has_error = TRUE;
 }

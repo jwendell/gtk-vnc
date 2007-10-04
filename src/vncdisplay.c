@@ -79,13 +79,14 @@ typedef enum
 	VNC_AUTH_UNSUPPORTED,
 
 	VNC_SERVER_CUT_TEXT,
+	VNC_BELL,
 
 	LAST_SIGNAL
 } vnc_display_signals;
 
 static guint signals[LAST_SIGNAL] = { 0, 0, 0, 0,
 				      0, 0, 0, 0,
-				      0, 0, 0, 0,};
+				      0, 0, 0, 0, 0,};
 static GParamSpec *signalCredParam;
 
 GtkWidget *vnc_display_new(void)
@@ -631,6 +632,17 @@ static gboolean on_server_cut_text(void *opaque, const void* text, size_t len)
 	return TRUE;
 }
 
+static gboolean on_bell(void *opaque)
+{
+	VncDisplay *obj = VNC_DISPLAY(opaque);
+
+	g_signal_emit (G_OBJECT (obj),
+		       signals[VNC_BELL],
+		       0);
+
+	return TRUE;
+}
+
 static gboolean on_local_cursor(void *opaque, int x, int y, int width, int height, uint8_t *image)
 {
 	VncDisplay *obj = VNC_DISPLAY(opaque);
@@ -673,7 +685,8 @@ static const struct gvnc_ops vnc_display_ops = {
 	.shared_memory_rmid = on_shared_memory_rmid,
 	.local_cursor = on_local_cursor,
 	.auth_unsupported = on_auth_unsupported,
-	.server_cut_text = on_server_cut_text
+	.server_cut_text = on_server_cut_text,
+	.bell = on_bell
 };
 
 static void *vnc_coroutine(void *opaque)
@@ -1003,6 +1016,17 @@ static void vnc_display_class_init(VncDisplayClass *klass)
 			     G_TYPE_NONE,
 			     1,
 			     G_TYPE_STRING);
+
+	signals[VNC_BELL] =
+		g_signal_new("vnc-bell",
+			     G_TYPE_FROM_CLASS(klass),
+			     G_SIGNAL_RUN_LAST | G_SIGNAL_NO_HOOKS,
+			     0,
+			     NULL,
+			     NULL,
+			     g_cclosure_marshal_VOID__VOID,
+			     G_TYPE_NONE,
+			     0);
 
 	g_type_class_add_private(klass, sizeof(VncDisplayPrivate));
 }
