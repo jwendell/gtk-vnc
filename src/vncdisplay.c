@@ -78,12 +78,14 @@ typedef enum
 	VNC_AUTH_FAILURE,
 	VNC_AUTH_UNSUPPORTED,
 
+	VNC_SERVER_CUT_TEXT,
+
 	LAST_SIGNAL
 } vnc_display_signals;
 
 static guint signals[LAST_SIGNAL] = { 0, 0, 0, 0,
 				      0, 0, 0, 0,
-				      0, 0, 0, };
+				      0, 0, 0, 0,};
 static GParamSpec *signalCredParam;
 
 GtkWidget *vnc_display_new(void)
@@ -615,6 +617,20 @@ static gboolean on_auth_unsupported(void *opaque, unsigned int auth_type)
 	return TRUE;
 }
 
+static gboolean on_server_cut_text(void *opaque, const void* text, size_t len)
+{
+	VncDisplay *obj = VNC_DISPLAY(opaque);
+	GString *str = g_string_new_len ((const gchar *)text, len);
+
+	g_signal_emit (G_OBJECT (obj),
+		       signals[VNC_SERVER_CUT_TEXT],
+		       0,
+		       str->str);
+
+	g_string_free (str, TRUE);
+	return TRUE;
+}
+
 static gboolean on_local_cursor(void *opaque, int x, int y, int width, int height, uint8_t *image)
 {
 	VncDisplay *obj = VNC_DISPLAY(opaque);
@@ -656,7 +672,8 @@ static const struct gvnc_ops vnc_display_ops = {
 	.pointer_type_change = on_pointer_type_change,
 	.shared_memory_rmid = on_shared_memory_rmid,
 	.local_cursor = on_local_cursor,
-	.auth_unsupported = on_auth_unsupported
+	.auth_unsupported = on_auth_unsupported,
+	.server_cut_text = on_server_cut_text
 };
 
 static void *vnc_coroutine(void *opaque)
@@ -975,6 +992,18 @@ static void vnc_display_class_init(VncDisplayClass *klass)
 			     1,
 			     G_TYPE_UINT);
 
+	signals[VNC_SERVER_CUT_TEXT] =
+		g_signal_new("vnc-server-cut-text",
+			     G_TYPE_FROM_CLASS(klass),
+			     G_SIGNAL_RUN_LAST | G_SIGNAL_NO_HOOKS,
+			     0,
+			     NULL,
+			     NULL,
+			     g_cclosure_marshal_VOID__STRING,
+			     G_TYPE_NONE,
+			     1,
+			     G_TYPE_STRING);
+
 	g_type_class_add_private(klass, sizeof(VncDisplayPrivate));
 }
 
@@ -1177,6 +1206,13 @@ const char * vnc_display_get_name(VncDisplay *obj)
 	g_return_val_if_fail (VNC_IS_DISPLAY (obj), NULL);
 
 	return gvnc_get_name (obj->priv->gvnc);
+}
+
+void vnc_display_client_cut_text(VncDisplay *obj, const gchar *text)
+{
+	g_return_if_fail (VNC_IS_DISPLAY (obj));
+
+	gvnc_client_cut_text(obj->priv->gvnc, text, strlen (text));
 }
 
 /*

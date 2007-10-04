@@ -87,6 +87,8 @@ int		vnc_display_get_width(VncDisplay *obj);
 int		vnc_display_get_height(VncDisplay *obj);
 const char *	vnc_display_get_name(VncDisplay *obj);
 
+void		vnc_display_client_cut_text(VncDisplay *obj, const gchar *text);
+
 G_END_DECLS
 
 #endif

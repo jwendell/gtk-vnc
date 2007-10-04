@@ -1000,6 +1000,9 @@ static void gvnc_server_cut_text(struct gvnc *gvnc, const void *data,
 {
 	if (gvnc->has_error || !gvnc->ops.server_cut_text)
 		return;
+
+	GVNC_DEBUG("Server cut text\n");
+
 	if (!gvnc->ops.server_cut_text(gvnc->ops_data, data, len))
 		gvnc->has_error = TRUE;
 }

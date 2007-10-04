@@ -24,6 +24,8 @@
     vnc_display_get_height;
     vnc_display_get_name;
 
+    vnc_display_client_cut_text;
+
     gvnc_new;
     gvnc_free;
     gvnc_close;
