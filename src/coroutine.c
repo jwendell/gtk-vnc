@@ -11,6 +11,7 @@
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "coroutine.h"
 
 int coroutine_release(struct coroutine *co)
@@ -57,25 +58,23 @@ int coroutine_init(struct coroutine *co)
 }
 
 #if 0
-static __thread struct coroutine system;
+static __thread struct coroutine leader;
 static __thread struct coroutine *current;
 #else
-static struct coroutine system;
+static struct coroutine leader;
 static struct coroutine *current;
 #endif
 
 struct coroutine *coroutine_self(void)
 {
 	if (current == NULL)
-		current = &system;
+		current = &leader;
 	return current;
 }
 
 void *coroutine_swap(struct coroutine *from, struct coroutine *to, void *arg)
 {
 	int ret;
-
-	to->caller = from;
 	to->data = arg;
 	current = to;
 	ret = cc_swap(&from->cc, &to->cc);
@@ -83,7 +82,7 @@ void *coroutine_swap(struct coroutine *from, struct coroutine *to, void *arg)
 		return from->data;
 	else if (ret == 1) {
 		coroutine_release(to);
-		current = &system;
+		current = &leader;
 		to->exited = 1;
 		return to->data;
 	}
@@ -93,12 +92,23 @@ void *coroutine_swap(struct coroutine *from, struct coroutine *to, void *arg)
 
 void *yieldto(struct coroutine *to, void *arg)
 {
+	if (to->caller) {
+		fprintf(stderr, "Co-routine is re-entering itself\n");
+		abort();
+	}
+	to->caller = coroutine_self();
 	return coroutine_swap(coroutine_self(), to, arg);
 }
 
 void *yield(void *arg)
 {
-	return yieldto(coroutine_self()->caller, arg);
+	struct coroutine *to = coroutine_self()->caller;
+	if (!to) {
+		fprintf(stderr, "Co-routine is yielding to no one\n");
+		abort();
+	}
+	coroutine_self()->caller = NULL;
+	return coroutine_swap(coroutine_self(), to, arg);
 }
 /*
  * Local variables:
