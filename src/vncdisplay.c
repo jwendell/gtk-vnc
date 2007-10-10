@@ -1064,7 +1064,8 @@ static void vnc_display_init(VncDisplay *display)
 			      GDK_BUTTON_MOTION_MASK |
 			      GDK_ENTER_NOTIFY_MASK |
 			      GDK_LEAVE_NOTIFY_MASK |
-			      GDK_SCROLL_MASK);
+			      GDK_SCROLL_MASK |
+			      GDK_KEY_PRESS_MASK);
 	gtk_widget_set_double_buffered(widget, FALSE);
 
 	display->priv = VNC_DISPLAY_GET_PRIVATE(display);
