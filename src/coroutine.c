@@ -29,6 +29,8 @@ static int _coroutine_release(struct continuation *cc)
 			return ret;
 	}
 
+	co->caller = NULL;
+
 	return munmap(cc->stack, cc->stack_size);
 }
 
