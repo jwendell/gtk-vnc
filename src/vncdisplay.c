@@ -1174,6 +1174,8 @@ void vnc_display_set_pointer_grab(VncDisplay *obj, gboolean enable)
 	priv->grab_pointer = enable;
 	if (!enable && priv->absolute && priv->in_pointer_grab)
 		do_pointer_ungrab(obj, FALSE);
+	if (enable && priv->absolute && !priv->in_pointer_grab)
+		do_pointer_grab(obj, FALSE);
 }
 
 void vnc_display_set_keyboard_grab(VncDisplay *obj, gboolean enable)
@@ -1183,6 +1185,9 @@ void vnc_display_set_keyboard_grab(VncDisplay *obj, gboolean enable)
 	priv->grab_keyboard = enable;
 	if (!enable && priv->in_keyboard_grab && !priv->in_pointer_grab)
 		do_keyboard_ungrab(obj, FALSE);
+	if (enable && !priv->in_keyboard_grab)
+		do_keyboard_grab(obj, FALSE);
+
 }
 
 GType vnc_display_credential_get_type(void)
