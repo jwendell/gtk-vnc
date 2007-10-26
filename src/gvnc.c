@@ -135,7 +135,7 @@ static gboolean g_io_wait_helper(GIOChannel *channel G_GNUC_UNUSED,
 				 gpointer data)
 {
 	struct coroutine *to = data;
-	yieldto(to, &cond);
+	coroutine_yieldto(to, &cond);
 	return FALSE;
 }
 
@@ -144,7 +144,7 @@ static GIOCondition g_io_wait(GIOChannel *channel, GIOCondition cond)
 	GIOCondition *ret;
 
 	g_io_add_watch(channel, cond | G_IO_HUP | G_IO_ERR | G_IO_NVAL, g_io_wait_helper, coroutine_self());
-	ret = yield(NULL);
+	ret = coroutine_yield(NULL);
 
 	return *ret;
 }
@@ -161,7 +161,7 @@ static GIOCondition g_io_wait_interruptable(struct wait_queue *wait,
 	id = g_io_add_watch(channel, cond | G_IO_HUP | G_IO_ERR | G_IO_NVAL, g_io_wait_helper, wait->context);
 
 	wait->waiting = TRUE;
-	ret = yield(NULL);
+	ret = coroutine_yield(NULL);
 	wait->waiting = FALSE;
 
 	if (ret == NULL) {
@@ -174,7 +174,7 @@ static GIOCondition g_io_wait_interruptable(struct wait_queue *wait,
 static void g_io_wakeup(struct wait_queue *wait)
 {
 	if (wait->waiting)
-		yieldto(wait->context, NULL);
+		coroutine_yieldto(wait->context, NULL);
 }
 
 
@@ -213,7 +213,7 @@ GSourceFuncs waitFuncs = {
 static gboolean g_condition_wait_helper(gpointer data)
 {
         struct coroutine *co = (struct coroutine *)data;
-        yieldto(co, NULL);
+        coroutine_yieldto(co, NULL);
         return FALSE;
 }
 
@@ -240,7 +240,7 @@ static gboolean g_condition_wait(g_condition_wait_func func, gpointer data)
 
 	g_source_attach(src, NULL);
 	g_source_set_callback(src, g_condition_wait_helper, coroutine_self(), NULL);
-	yield(NULL);
+	coroutine_yield(NULL);
 	return TRUE;
 }
 

@@ -772,7 +772,7 @@ static gboolean do_vnc_display_open(gpointer data)
 	co->release = NULL;
 
 	coroutine_init(co);
-	yieldto(co, obj);
+	coroutine_yieldto(co, obj);
 
 	return FALSE;
 }

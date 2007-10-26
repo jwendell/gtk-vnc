@@ -37,9 +37,9 @@ void *coroutine_swap(struct coroutine *from, struct coroutine *to, void *arg);
 
 struct coroutine *coroutine_self(void);
 
-void *yieldto(struct coroutine *to, void *arg);
+void *coroutine_yieldto(struct coroutine *to, void *arg);
 
-void *yield(void *arg);
+void *coroutine_yield(void *arg);
 
 #endif
 /*

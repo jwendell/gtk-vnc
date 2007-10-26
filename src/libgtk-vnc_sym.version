@@ -58,8 +58,8 @@
     coroutine_release;
     coroutine_swap;
     coroutine_self;
-    yieldto;
-    yield;
+    coroutine_yieldto;
+    coroutine_yield;
 
   local:
       *;
