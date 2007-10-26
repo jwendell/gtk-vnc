@@ -1,5 +1,8 @@
-#define src_pixel_t SPLICE(uint, SPLICE(SRC, _t))
-#define dst_pixel_t SPLICE(uint, SPLICE(DST, _t))
+/* Ordering of the SPLICE calls here is important to avoid
+ * a Solaris compiler/cpp  whitespace bug
+ */
+#define src_pixel_t SPLICE(SPLICE(uint, SRC), _t)
+#define dst_pixel_t SPLICE(SPLICE(uint, DST), _t)
 #define SUFFIX() SPLICE(SRC,SPLICE(x,DST))
 #define BLIT SPLICE(gvnc_blt_, SUFFIX())
 #define FILL SPLICE(gvnc_fill_, SUFFIX())
