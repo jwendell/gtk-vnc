@@ -2079,7 +2079,9 @@ gboolean gvnc_open_host(struct gvnc *gvnc, const char *host, const char *port)
                 }
 
         reconnect:
-                if (connect(fd, runp->ai_addr, runp->ai_addrlen) == 0) {
+                /* FIXME: Better handle EINPROGRESS/EISCONN return values,
+                   as explained in connect(2) man page */
+                if ( (connect(fd, runp->ai_addr, runp->ai_addrlen) == 0) || errno == EISCONN) {
                         gvnc->channel = chan;
                         gvnc->fd = fd;
                         freeaddrinfo(ai);
