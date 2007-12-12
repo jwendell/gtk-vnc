@@ -1,6 +1,20 @@
     GTK VNC News
     ============
 
+Dec 12, 2007: Release 0.3.0
+===========================
+
+Bug fixes:
+
+This release fixes a number of build issues on Solaris.  It
+also fixes cursor grabbing, a potential race during connect(),
+an SELinux error, and race condition in the coroutine library.
+
+New features:
+
+Interfaces for bell messages and the clipboard are now supported.
+RFB 3.4 is now supported for increased compatibility with UltraVNC.
+
 Sep 13, 2007: Release 0.2.0
 ===========================
 
