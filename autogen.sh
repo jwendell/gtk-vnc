@@ -47,7 +47,7 @@ fi
 libtoolize --copy --force
 aclocal
 autoheader
-automake --add-missing
+automake --add-missing --copy
 autoconf
 # We use COPYING.LIB instead
 rm -f COPYING

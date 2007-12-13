@@ -1,6 +1,14 @@
     GTK VNC News
     ============
 
+Dec 13, 2007: Release 0.3.1
+===========================
+
+Bug fixes:
+
+Fix build so that generated tarball contains all the necessary files after a
+make dist.
+
 Dec 12, 2007: Release 0.3.0
 ===========================
 
