@@ -237,7 +237,7 @@ static gboolean button_event(GtkWidget *widget, GdkEventButton *button,
 	int n;
 
 	if (priv->gvnc == NULL || !gvnc_is_initialized(priv->gvnc))
-		return TRUE;
+		return FALSE;
 
 	if ((priv->grab_pointer || !priv->absolute) &&
 	    !priv->in_pointer_grab &&
@@ -258,7 +258,7 @@ static gboolean button_event(GtkWidget *widget, GdkEventButton *button,
 				   0x7FFF, 0x7FFF);
 	}
 
-	return TRUE;
+	return FALSE;
 }
 
 static gboolean scroll_event(GtkWidget *widget, GdkEventScroll *scroll,
@@ -268,7 +268,7 @@ static gboolean scroll_event(GtkWidget *widget, GdkEventScroll *scroll,
 	int mask;
 
 	if (priv->gvnc == NULL || !gvnc_is_initialized(priv->gvnc))
-		return TRUE;
+		return FALSE;
 
 	if (scroll->direction == GDK_SCROLL_UP)
 		mask = (1 << 3);
@@ -279,7 +279,7 @@ static gboolean scroll_event(GtkWidget *widget, GdkEventScroll *scroll,
 	else if (scroll->direction == GDK_SCROLL_RIGHT)
 		mask = (1 << 6);
 	else
-		return TRUE;
+		return FALSE;
 
 	if (priv->absolute) {
 		gvnc_pointer_event(priv->gvnc, priv->button_mask | mask,
@@ -293,7 +293,7 @@ static gboolean scroll_event(GtkWidget *widget, GdkEventScroll *scroll,
 				   0x7FFF, 0x7FFF);
 	}
 
-	return TRUE;
+	return FALSE;
 }
 
 static gboolean motion_event(GtkWidget *widget, GdkEventMotion *motion,
@@ -303,10 +303,10 @@ static gboolean motion_event(GtkWidget *widget, GdkEventMotion *motion,
 	int dx, dy;
 
 	if (priv->gvnc == NULL || !gvnc_is_initialized(priv->gvnc))
-		return TRUE;
+		return FALSE;
 
 	if (!priv->absolute && !priv->in_pointer_grab)
-		return TRUE;
+		return FALSE;
 
 	if (!priv->absolute && priv->in_pointer_grab) {
 		GdkDrawable *drawable = GDK_DRAWABLE(widget->window);
@@ -324,7 +324,7 @@ static gboolean motion_event(GtkWidget *widget, GdkEventMotion *motion,
 			gdk_display_warp_pointer(display, screen, x, y);
 			priv->last_x = -1;
 			priv->last_y = -1;
-			return TRUE;
+			return FALSE;
 		}
 	}
 
@@ -343,7 +343,7 @@ static gboolean motion_event(GtkWidget *widget, GdkEventMotion *motion,
 	priv->last_x = (int)motion->x;
 	priv->last_y = (int)motion->y;
 
-	return TRUE;
+	return FALSE;
 }
 
 static gboolean key_event(GtkWidget *widget, GdkEventKey *key,
