@@ -20,6 +20,7 @@ typedef struct _VncDisplayPrivate VncDisplayPrivate;
 
 #define VNC_TYPE_DISPLAY (vnc_display_get_type())
 #define VNC_TYPE_DISPLAY_CREDENTIAL (vnc_display_credential_get_type())
+#define VNC_TYPE_DISPLAY_KEY_EVENT (vnc_display_key_event_get_type())
 
 #define VNC_DISPLAY(obj) \
         (G_TYPE_CHECK_INSTANCE_CAST((obj), VNC_TYPE_DISPLAY, VncDisplay))
@@ -61,10 +62,18 @@ typedef enum
 	VNC_DISPLAY_CREDENTIAL_CLIENTNAME,
 } VncDisplayCredential;
 
+typedef enum
+{
+	VNC_DISPLAY_KEY_EVENT_PRESS = 1,
+	VNC_DISPLAY_KEY_EVENT_RELEASE = 2,
+	VNC_DISPLAY_KEY_EVENT_CLICK = 3,
+} VncDisplayKeyEvent;
+
 G_BEGIN_DECLS
 
 GType		vnc_display_get_type(void);
 GType		vnc_display_credential_get_type(void);
+GType		vnc_display_key_event_get_type(void);
 GtkWidget *	vnc_display_new(void);
 
 gboolean	vnc_display_open_fd(VncDisplay *obj, int fd);
@@ -73,6 +82,9 @@ gboolean	vnc_display_is_open(VncDisplay *obj);
 void		vnc_display_close(VncDisplay *obj);
 
 void            vnc_display_send_keys(VncDisplay *obj, const guint *keyvals, int nkeyvals);
+/* FIXME: can we just eliminate the old send_keys interface? */
+void            vnc_display_send_keys_ex(VncDisplay *obj, const guint *keyvals,
+					 int nkeyvals, VncDisplayKeyEvent kind);
 
 gboolean	vnc_display_set_credential(VncDisplay *obj, int type, const gchar *data);
 

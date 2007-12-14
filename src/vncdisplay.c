@@ -834,15 +834,26 @@ void vnc_display_close(VncDisplay *obj)
 
 void vnc_display_send_keys(VncDisplay *obj, const guint *keyvals, int nkeyvals)
 {
+	vnc_display_send_keys_ex(obj, keyvals,
+				 nkeyvals, VNC_DISPLAY_KEY_EVENT_CLICK);
+}
+
+void vnc_display_send_keys_ex(VncDisplay *obj, const guint *keyvals,
+			      int nkeyvals, VncDisplayKeyEvent kind)
+{
 	int i;
 	if (obj->priv->gvnc == NULL || !gvnc_is_open(obj->priv->gvnc))
 		return;
 
-	for (i = 0 ; i < nkeyvals ; i++)
-		gvnc_key_event(obj->priv->gvnc, 1, keyvals[i]);
+	if (kind & VNC_DISPLAY_KEY_EVENT_PRESS) {
+		for (i = 0 ; i < nkeyvals ; i++)
+			gvnc_key_event(obj->priv->gvnc, 1, keyvals[i]);
+	}
 
-	for (i = (nkeyvals-1) ; i >= 0 ; i--)
-		gvnc_key_event(obj->priv->gvnc, 0, keyvals[i]);
+	if (kind & VNC_DISPLAY_KEY_EVENT_RELEASE) {
+		for (i = (nkeyvals-1) ; i >= 0 ; i--)
+			gvnc_key_event(obj->priv->gvnc, 0, keyvals[i]);
+	}
 }
 
 
@@ -1202,6 +1213,23 @@ GType vnc_display_credential_get_type(void)
 			{ 0, NULL, NULL }
 		};
 		etype = g_enum_register_static ("VncDisplayCredentialType", values );
+	}
+
+	return etype;
+}
+
+GType vnc_display_key_event_get_type(void)
+{
+	static GType etype = 0;
+
+	if (etype == 0) {
+		static const GEnumValue values[] = {
+			{ VNC_DISPLAY_KEY_EVENT_PRESS, "VNC_DISPLAY_KEY_EVENT_PRESS", "press" },
+			{ VNC_DISPLAY_KEY_EVENT_RELEASE, "VNC_DISPLAY_KEY_EVENT_RELEASE", "release" },
+			{ VNC_DISPLAY_KEY_EVENT_CLICK, "VNC_DISPLAY_KEY_EVENT_CLICK", "click" },
+			{ 0, NULL, NULL }
+		};
+		etype = g_enum_register_static ("VncDisplayKeyEvents", values );
 	}
 
 	return etype;
