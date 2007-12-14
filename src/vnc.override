@@ -24,10 +24,10 @@ _wrap_vnc_display_send_keys(PyGObject *self,
     if (!PyArg_ParseTupleAndKeywords(args, kwargs,    
                                      "O:VncDisplay.send_keys", kwlist,
                                      &keyList))
-        return;
+	return NULL;
 
     if (!PyList_Check(keyList))
-        return;
+	return NULL;
 
     len = PyList_Size(keyList);
     keys = malloc(sizeof(guint)*len);
@@ -38,11 +38,14 @@ _wrap_vnc_display_send_keys(PyGObject *self,
         sym = PyString_AsString(val);
         if (!sym) {
             free(keys);
-            return;
+	    return NULL;
         }
         keys[i] = gdk_keyval_from_name(sym);
     }
 
     vnc_display_send_keys(VNC_DISPLAY(self->obj), keys, len);
     free(keys);
+
+    Py_INCREF(Py_None);
+    return Py_None;
 }
