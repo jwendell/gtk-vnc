@@ -56,6 +56,7 @@ struct _VncDisplayPrivate
 	gboolean grab_pointer;
 	gboolean grab_keyboard;
 	gboolean local_pointer;
+	gboolean read_only;
 };
 
 G_DEFINE_TYPE(VncDisplay, vnc_display, GTK_TYPE_DRAWING_AREA)
@@ -239,6 +240,9 @@ static gboolean button_event(GtkWidget *widget, GdkEventButton *button,
 	if (priv->gvnc == NULL || !gvnc_is_initialized(priv->gvnc))
 		return FALSE;
 
+	if (priv->read_only)
+		return FALSE;
+
 	if ((priv->grab_pointer || !priv->absolute) &&
 	    !priv->in_pointer_grab &&
 	    button->button == 1 && button->type == GDK_BUTTON_PRESS)
@@ -268,6 +272,9 @@ static gboolean scroll_event(GtkWidget *widget, GdkEventScroll *scroll,
 	int mask;
 
 	if (priv->gvnc == NULL || !gvnc_is_initialized(priv->gvnc))
+		return FALSE;
+
+	if (priv->read_only)
 		return FALSE;
 
 	if (scroll->direction == GDK_SCROLL_UP)
@@ -306,6 +313,9 @@ static gboolean motion_event(GtkWidget *widget, GdkEventMotion *motion,
 		return FALSE;
 
 	if (!priv->absolute && !priv->in_pointer_grab)
+		return FALSE;
+
+	if (priv->read_only)
 		return FALSE;
 
 	if (!priv->absolute && priv->in_pointer_grab) {
@@ -356,6 +366,9 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *key,
 
 	if (priv->gvnc == NULL || !gvnc_is_initialized(priv->gvnc))
 		return TRUE;
+
+	if (priv->read_only)
+		return FALSE;
 
 	/*
 	 * Key handling in VNC is screwy. The event.keyval from GTK is
@@ -1199,6 +1212,11 @@ void vnc_display_set_keyboard_grab(VncDisplay *obj, gboolean enable)
 	if (enable && !priv->in_keyboard_grab)
 		do_keyboard_grab(obj, FALSE);
 
+}
+
+void vnc_display_set_read_only(VncDisplay *obj, gboolean enable)
+{
+	obj->priv->read_only = enable;
 }
 
 GType vnc_display_credential_get_type(void)

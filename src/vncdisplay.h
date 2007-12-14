@@ -92,6 +92,7 @@ void		vnc_display_set_use_shm(VncDisplay *obj, gboolean enable);
 void		vnc_display_set_pointer_local(VncDisplay *obj, gboolean enable);
 void		vnc_display_set_pointer_grab(VncDisplay *obj, gboolean enable);
 void		vnc_display_set_keyboard_grab(VncDisplay *obj, gboolean enable);
+void		vnc_display_set_read_only(VncDisplay *obj, gboolean enable);
 
 GdkPixbuf *	vnc_display_get_pixbuf(VncDisplay *obj);
 
