@@ -88,7 +88,6 @@ void            vnc_display_send_keys_ex(VncDisplay *obj, const guint *keyvals,
 
 gboolean	vnc_display_set_credential(VncDisplay *obj, int type, const gchar *data);
 
-void		vnc_display_set_use_shm(VncDisplay *obj, gboolean enable);
 void		vnc_display_set_pointer_local(VncDisplay *obj, gboolean enable);
 void		vnc_display_set_pointer_grab(VncDisplay *obj, gboolean enable);
 void		vnc_display_set_keyboard_grab(VncDisplay *obj, gboolean enable);

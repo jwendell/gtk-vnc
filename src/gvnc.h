@@ -18,7 +18,6 @@ struct gvnc_ops
 	gboolean (*server_cut_text)(void *, const void *, size_t);
 	gboolean (*resize)(void *, int, int);
 	gboolean (*pointer_type_change)(void *, int);
-	gboolean (*shared_memory_rmid)(void *, int);
 	gboolean (*local_cursor)(void *, int, int, int, int, uint8_t *);
 	gboolean (*auth_unsupported)(void *, unsigned int);
 };
@@ -40,8 +39,6 @@ struct gvnc_pixel_format
 struct gvnc_framebuffer
 {
 	uint8_t *data;
-
-	int shm_id;
 
 	int width;
 	int height;
