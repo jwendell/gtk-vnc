@@ -44,6 +44,8 @@ struct wait_queue
 
 typedef void gvnc_blt_func(struct gvnc *, uint8_t *, int, int, int, int, int);
 
+typedef void gvnc_fill_func(struct gvnc *, uint8_t *, int, int, int, int);
+
 typedef void gvnc_hextile_func(struct gvnc *gvnc, uint8_t flags,
 			       uint16_t x, uint16_t y,
 			       uint16_t width, uint16_t height,
@@ -109,6 +111,7 @@ struct gvnc
 	int rls, gls, bls;
 
 	gvnc_blt_func *blt;
+	gvnc_fill_func *fill;
 	gvnc_hextile_func *hextile;
 
 	struct gvnc_ops ops;
@@ -853,6 +856,18 @@ static gvnc_hextile_func *gvnc_hextile_table[3][3] = {
 	  (gvnc_hextile_func *)gvnc_hextile_32x32 },
 };
 
+static gvnc_fill_func *gvnc_fill_table[3][3] = {
+	{ (gvnc_fill_func *)gvnc_fill_8x8,
+	  (gvnc_fill_func *)gvnc_fill_8x16,
+	  (gvnc_fill_func *)gvnc_fill_8x32 },
+	{ (gvnc_fill_func *)gvnc_fill_16x8,
+	  (gvnc_fill_func *)gvnc_fill_16x16,
+	  (gvnc_fill_func *)gvnc_fill_16x32 },
+	{ (gvnc_fill_func *)gvnc_fill_32x8,
+	  (gvnc_fill_func *)gvnc_fill_32x16,
+	  (gvnc_fill_func *)gvnc_fill_32x32 },
+};	
+
 /* a fast blit for the perfect match scenario */
 static void gvnc_blt_fast(struct gvnc *gvnc, uint8_t *src, int pitch,
 			  int x, int y, int width, int height)
@@ -952,6 +967,33 @@ static void gvnc_hextile_update(struct gvnc *gvnc,
 			flags = gvnc_read_u8(gvnc);
 			gvnc->hextile(gvnc, flags, x + i, y + j, w, h, fg, bg);
 		}
+	}
+}
+
+static void gvnc_rre_update(struct gvnc *gvnc,
+			    uint16_t x, uint16_t y,
+			    uint16_t width, uint16_t height)
+{
+	uint8_t bg[4];
+	uint32_t num;
+	uint32_t i;
+
+	num = gvnc_read_u32(gvnc);
+	gvnc_read(gvnc, bg, gvnc->fmt.bits_per_pixel / 8);
+	gvnc->fill(gvnc, bg, x, y, width, height);
+
+	for (i = 0; i < num; i++) {
+		uint8_t fg[4];
+		uint16_t sub_x, sub_y, sub_w, sub_h;
+
+		gvnc_read(gvnc, fg, gvnc->fmt.bits_per_pixel / 8);
+		sub_x = gvnc_read_u16(gvnc);
+		sub_y = gvnc_read_u16(gvnc);
+		sub_w = gvnc_read_u16(gvnc);
+		sub_h = gvnc_read_u16(gvnc);
+
+		gvnc->fill(gvnc, fg,
+			   x + sub_x, y + sub_y, sub_w, sub_h);
 	}
 }
 
@@ -1154,6 +1196,9 @@ static void gvnc_framebuffer_update(struct gvnc *gvnc, int32_t etype,
 		break;
 	case GVNC_ENCODING_COPY_RECT:
 		gvnc_copyrect_update(gvnc, x, y, width, height);
+		break;
+	case GVNC_ENCODING_RRE:
+		gvnc_rre_update(gvnc, x, y, width, height);
 		break;
 	case GVNC_ENCODING_HEXTILE:
 		gvnc_hextile_update(gvnc, x, y, width, height);
@@ -2263,6 +2308,7 @@ gboolean gvnc_set_local(struct gvnc *gvnc, struct gvnc_framebuffer *fb)
 	if (j == 4) j = 3;
 
 	gvnc->blt = gvnc_blt_table[i - 1][j - 1];
+	gvnc->fill = gvnc_fill_table[i - 1][j - 1];
 	gvnc->hextile = gvnc_hextile_table[i - 1][j - 1];
 
 	if (gvnc->perfect_match)

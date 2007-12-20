@@ -7,7 +7,8 @@
 #define BLIT SPLICE(gvnc_blt_, SUFFIX())
 #define FILL SPLICE(gvnc_fill_, SUFFIX())
 #define FAST_FILL SPLICE(gvnc_fill_fast_, SUFFIX())
-#define SUBRECT SPLICE(gvnc_hextile_, SUFFIX())
+#define HEXTILE SPLICE(gvnc_hextile_, SUFFIX())
+#define RRE SPLICE(gvnc_rre_, SUFFIX())
 
 static void FAST_FILL(struct gvnc *gvnc, src_pixel_t *sp,
 		      int x, int y, int width, int height)
@@ -77,7 +78,7 @@ static void BLIT(struct gvnc *gvnc, uint8_t *src, int pitch, int x, int y, int w
 	}
 }
 
-static void SUBRECT(struct gvnc *gvnc, uint8_t flags, uint16_t x, uint16_t y,
+static void HEXTILE(struct gvnc *gvnc, uint8_t flags, uint16_t x, uint16_t y,
 		    uint16_t width, uint16_t height, src_pixel_t *fg, src_pixel_t *bg)
 {
 	int stride = width * sizeof(src_pixel_t);
@@ -141,7 +142,7 @@ static void SUBRECT(struct gvnc *gvnc, uint8_t flags, uint16_t x, uint16_t y,
 	}
 }
 
-#undef SUBRECT
+#undef HEXTILE
 #undef FILL
 #undef FAST_FILL
 #undef BLIT
