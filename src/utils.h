@@ -8,8 +8,15 @@
  *  GTK VNC Widget
  */
 
+#ifndef _UTILS_H
+#define _UTILS_H
+
 #ifdef ENABLE_DEBUG
 #define GVNC_DEBUG(fmt, ...) do { fprintf(stderr, fmt, ## __VA_ARGS__); } while (0)
 #else
 #define GVNC_DEBUG(fmt, ...) do { } while (0)
+#endif
+
+#define ARRAY_SIZE(array) (sizeof((array)) / sizeof((array)[0]))
+
 #endif

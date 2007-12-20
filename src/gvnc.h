@@ -71,7 +71,6 @@ typedef enum {
 	GVNC_ENCODING_XCURSOR = -240,
 
 	GVNC_ENCODING_POINTER_CHANGE = -257,
-	GVNC_ENCODING_SHARED_MEMORY = -258,
 } gvnc_encoding;
 
 typedef enum {

@@ -677,7 +677,6 @@ static void *vnc_coroutine(void *opaque)
 	int32_t encodings[] = { GVNC_ENCODING_DESKTOP_RESIZE,
 				GVNC_ENCODING_RICH_CURSOR,
 				GVNC_ENCODING_XCURSOR,
-				GVNC_ENCODING_SHARED_MEMORY,
 				GVNC_ENCODING_POINTER_CHANGE,
 				GVNC_ENCODING_HEXTILE,
 				GVNC_ENCODING_COPY_RECT,
@@ -711,7 +710,7 @@ static void *vnc_coroutine(void *opaque)
 		       signals[VNC_INITIALIZED],
 		       0);
 
-	if (!gvnc_set_encodings(priv->gvnc, 6, encodings))
+	if (!gvnc_set_encodings(priv->gvnc, ARRAY_SIZE(encodings), encodings))
 		goto cleanup;
 
 	if (!gvnc_framebuffer_update_request(priv->gvnc, 0, 0, 0, priv->fb.width, priv->fb.height))
