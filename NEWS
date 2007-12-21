@@ -1,6 +1,24 @@
     GTK VNC News
     ============
 
+Dec XX, 2007: Release 0.3.2
+===========================
+
+Bug fixes:
+
+This release fixes a bug in the python bindings whereas send_keys() was not
+always returning a value.  It also fixed a bug in how mouse events get
+propagated and ensures that the right number of encodings are sent to the
+server.
+
+New features:
+
+A new interface was added (vnc_display_send_keys_ex) for passing key press and
+key release sequences directly.  Another interface was added
+(vnc_display_set_read_only) to prevent the user from being able to send any
+input at all to the server.  Support for the RRE encoding was added along
+with a GThread-based coroutine implementation to improve portability.
+
 Dec 13, 2007: Release 0.3.1
 ===========================
 
