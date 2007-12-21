@@ -143,8 +143,6 @@ gboolean gvnc_set_encodings(struct gvnc *gvnc, int n_encoding, int32_t *encoding
 gboolean gvnc_set_pixel_format(struct gvnc *gvnc,
 			       const struct gvnc_pixel_format *fmt);
 
-gboolean gvnc_set_shared_buffer(struct gvnc *gvnc, int line_size, int shmid);
-
 gboolean gvnc_has_error(struct gvnc *gvnc);
 
 gboolean gvnc_set_local(struct gvnc *gvnc, struct gvnc_framebuffer *fb);
