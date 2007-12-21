@@ -9,6 +9,7 @@ GNUTLS_REQUIRED=1.4.0
 AC_SUBST(GNUTLS_REQUIRED)
 
 PYGTK_REQUIRED=2.0.0
+GTHREAD_REQUIRED=2.0.0
 PYTHON_REQUIRED=2.4
 
 AC_CONFIG_HEADERS([config.h:config.hin])
@@ -19,6 +20,7 @@ AC_CANONICAL_TARGET
 AM_INIT_AUTOMAKE(gtk-vnc, 0.3.1)
 
 AC_PROG_CC_STDC
+AM_PROG_CC_C_O
 AC_PROG_LIBTOOL
 
 AC_ARG_WITH(python,
@@ -84,6 +86,39 @@ AC_SUBST(GTK_LIBS)
 PKG_CHECK_MODULES(GNUTLS, gnutls >= $GNUTLS_REQUIRED)
 AC_SUBST(GNUTLS_CFLAGS)
 AC_SUBST(GNUTLS_LIBS)
+
+GTHREAD_CFLAGS=
+GTHREAD_LIBS=
+
+WITH_UCONTEXT=1
+
+AC_ARG_WITH(coroutine,
+[  --with-coroutine=ucontext/gthread  use ucontext or GThread for coroutines],
+[],[with_coroutine=ucontext])
+
+case $with_coroutine in
+  ucontext)
+    ;;
+  gthread)
+    ;;
+  *)
+    AC_ERROR([Unsupported coroutine type])
+esac
+
+if test "$with_coroutine" = "ucontext"; then
+  AC_CHECK_FUNC(makecontext, [],[with_coroutine=gthread])
+  AC_CHECK_FUNC(swapcontext, [],[with_coroutine=gthread])
+  AC_CHECK_FUNC(getcontext, [],[with_coroutine=gthread])
+fi
+
+if test "$with_coroutine" = "gthread"; then
+  PKG_CHECK_MODULES(GTHREAD, gthread-2.0 > $GTHREAD_REQUIRED)
+  WITH_UCONTEXT=0
+fi
+AC_SUBST(GTHREAD_CFLAGS)
+AC_SUBST(GTHREAD_LIBS)
+AC_DEFINE_UNQUOTED(WITH_UCONTEXT,[$WITH_UCONTEXT], [Whether to use ucontext coroutine impl])
+AM_CONDITIONAL(WITH_UCONTEXT, [test "$WITH_UCONTEXT" != "0"])
 
 if test "$WITH_PYTHON" = "yes"; then
   PKG_CHECK_MODULES(PYGTK, pygtk-2.0 >= $PYGTK_REQUIRED)

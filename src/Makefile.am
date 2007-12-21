@@ -3,24 +3,32 @@ EXTRA_DIST = libgtk-vnc_sym.version vncmarshal.txt
 
 lib_LTLIBRARIES = libgtk-vnc-1.0.la
 
-libgtk_vnc_1_0_la_LIBADD = @GTK_LIBS@ @GNUTLS_LIBS@
-libgtk_vnc_1_0_la_CFLAGS = @GTK_CFLAGS@ @GNUTLS_CFLAGS@ @WARNING_CFLAGS@ \
+libgtk_vnc_1_0_la_LIBADD = @GTK_LIBS@ @GNUTLS_LIBS@ @GTHREAD_LIBS@
+libgtk_vnc_1_0_la_CFLAGS = @GTK_CFLAGS@ @GNUTLS_CFLAGS@ @GTHREAD_CFLAGS@ \
+			   @WARNING_CFLAGS@ \
                            -DSYSCONFDIR=\""$(sysconfdir)"\" \
                            @DEBUG_CFLAGS@
 libgtk_vnc_1_0_la_LDFLAGS = -Wl,--version-script=$(srcdir)/libgtk-vnc_sym.version \
                             -version-info 0:1:0
 
 gtk_vnc_includedir = $(includedir)/gtk-vnc-1.0/
-gtk_vnc_include_HEADERS = vncdisplay.h gvnc.h coroutine.h continuation.h
+gtk_vnc_include_HEADERS = vncdisplay.h gvnc.h
 
 libgtk_vnc_1_0_la_SOURCES = blt.h blt1.h \
-	continuation.h continuation.c \
-	coroutine.h coroutine.c \
+	coroutine.h \
 	d3des.h d3des.c \
 	gvnc.h gvnc.c \
 	vncdisplay.h vncdisplay.c \
         vncmarshal.h vncmarshal.c \
 	utils.h
+
+if WITH_UCONTEXT
+libgtk_vnc_1_0_la_SOURCES += continuation.h continuation.c coroutine_ucontext.c
+EXTRA_DIST += coroutine_gthread.c
+else
+libgtk_vnc_1_0_la_SOURCES += coroutine_gthread.c
+EXTRA_DIST += continuation.h continuation.c coroutine_ucontext.c
+endif
 
 vncmarshal.c: vncmarshal.txt
 	glib-genmarshal --body $< > $@ || (rm -f $@ && exit 1)

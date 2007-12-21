@@ -28,41 +28,6 @@
 
     vnc_display_client_cut_text;
 
-    gvnc_new;
-    gvnc_free;
-    gvnc_close;
-    gvnc_shutdown;
-
-    gvnc_open_fd;
-    gvnc_open_host;
-    gvnc_is_open;
-
-    gvnc_initialize;
-    gvnc_is_initialized;
-
-    gvnc_server_message;
-    gvnc_client_cut_text;
-    gvnc_pointer_event;
-    gvnc_key_event;
-    gvnc_framebuffer_update_request;
-    gvnc_set_encodings;
-    gvnc_set_pixel_format;
-    gvnc_set_shared_buffer;
-    gvnc_has_error;
-    gvnc_set_local;
-    gvnc_set_vnc_ops;
-    gvnc_shared_memory_enabled;
-    gvnc_get_name;
-    gvnc_get_width;
-    gvnc_get_height;
-
-    coroutine_init;
-    coroutine_release;
-    coroutine_swap;
-    coroutine_self;
-    coroutine_yieldto;
-    coroutine_yield;
-
   local:
       *;
 };

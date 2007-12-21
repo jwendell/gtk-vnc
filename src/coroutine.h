@@ -11,7 +11,13 @@
 #ifndef _COROUTINE_H_
 #define _COROUTINE_H_
 
+#include "config.h"
+
+#if WITH_UCONTEXT
 #include "continuation.h"
+#else
+#include <glib.h>
+#endif
 
 struct coroutine
 {
@@ -26,7 +32,12 @@ struct coroutine
 	struct coroutine *caller;
 	void *data;
 
+#if WITH_UCONTEXT
 	struct continuation cc;
+#else
+	GThread *thread;
+	gboolean runnable;
+#endif
 };
 
 int coroutine_init(struct coroutine *co);
