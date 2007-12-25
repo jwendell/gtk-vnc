@@ -10,6 +10,7 @@
     vnc_display_is_open;
     vnc_display_close;
 
+    vnc_display_send_pointer;
     vnc_display_send_keys;
     vnc_display_send_keys_ex;
 

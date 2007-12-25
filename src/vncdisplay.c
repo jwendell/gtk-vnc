@@ -837,6 +837,20 @@ void vnc_display_send_keys_ex(VncDisplay *obj, const guint *keyvals,
 	}
 }
 
+void vnc_display_send_pointer(VncDisplay *obj, gint x, gint y, int button_mask)
+{
+	VncDisplayPrivate *priv = obj->priv;
+
+	if (priv->gvnc == NULL || !gvnc_is_open(obj->priv->gvnc))
+		return;
+
+	if (priv->absolute) {
+		priv->button_mask = button_mask;
+		priv->last_x = x;
+		priv->last_y = y;
+		gvnc_pointer_event(priv->gvnc, priv->button_mask, x, y);
+	}
+}
 
 static void vnc_display_destroy (GtkObject *obj)
 {

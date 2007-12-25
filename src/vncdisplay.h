@@ -86,6 +86,8 @@ void            vnc_display_send_keys(VncDisplay *obj, const guint *keyvals, int
 void            vnc_display_send_keys_ex(VncDisplay *obj, const guint *keyvals,
 					 int nkeyvals, VncDisplayKeyEvent kind);
 
+void		vnc_display_send_pointer(VncDisplay *obj, gint x, gint y, int button_mask);
+
 gboolean	vnc_display_set_credential(VncDisplay *obj, int type, const gchar *data);
 
 void		vnc_display_set_pointer_local(VncDisplay *obj, gboolean enable);
