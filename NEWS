@@ -1,7 +1,7 @@
     GTK VNC News
     ============
 
-Dec XX, 2007: Release 0.3.2
+Dec 31, 2007: Release 0.3.2
 ===========================
 
 Bug fixes:
@@ -19,7 +19,8 @@ key release sequences directly and for sending pointer events directly
 (vnc_display_send_pointer).  Another interface was added
 (vnc_display_set_read_only) to prevent the user from being able to send any
 input at all to the server.  Support for the RRE encoding was added along
-with a GThread-based coroutine implementation to improve portability.
+with a GThread-based coroutine implementation to improve portability.  ZRLE
+support was also added.
 
 Dec 13, 2007: Release 0.3.1
 ===========================

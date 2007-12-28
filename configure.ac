@@ -1,6 +1,6 @@
 dnl Process this file with autoconf to produce a configure script.
 
-AC_INIT([gtk-vnc], [0.3.1], [anthony@codemonkey.ws])
+AC_INIT([gtk-vnc], [0.3.2], [anthony@codemonkey.ws])
 AC_CONFIG_SRCDIR([src/gvnc.c])
 
 GTK_REQUIRED=2.0.0
@@ -17,7 +17,7 @@ AC_CONFIG_HEADERS([config.h:config.hin])
 
 AC_CANONICAL_TARGET
 
-AM_INIT_AUTOMAKE(gtk-vnc, 0.3.1)
+AM_INIT_AUTOMAKE(gtk-vnc, 0.3.2)
 
 AC_PROG_CC_STDC
 AM_PROG_CC_C_O
