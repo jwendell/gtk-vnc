@@ -90,6 +90,8 @@ AC_SUBST(GNUTLS_LIBS)
 GTHREAD_CFLAGS=
 GTHREAD_LIBS=
 
+AC_CHECK_LIB(z, inflate, [], [AC_MSG_ERROR([zlib not found])])
+
 WITH_UCONTEXT=1
 
 AC_ARG_WITH(coroutine,

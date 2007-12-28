@@ -4,6 +4,8 @@
 #define src_pixel_t SPLICE(SPLICE(uint, SRC), _t)
 #define dst_pixel_t SPLICE(SPLICE(uint, DST), _t)
 #define SUFFIX() SPLICE(SRC,SPLICE(x,DST))
+#define SET_PIXEL SPLICE(gvnc_set_pixel_, SUFFIX())
+#define SET_PIXEL_AT SPLICE(gvnc_set_pixel_at_, SUFFIX())
 #define BLIT SPLICE(gvnc_blt_, SUFFIX())
 #define FILL SPLICE(gvnc_fill_, SUFFIX())
 #define FAST_FILL SPLICE(gvnc_fill_fast_, SUFFIX())
@@ -33,6 +35,20 @@ static void FAST_FILL(struct gvnc *gvnc, src_pixel_t *sp,
 	}
 }
 
+static void SET_PIXEL(struct gvnc *gvnc, dst_pixel_t *dp, src_pixel_t *sp)
+{
+	*dp = ((*sp >> gvnc->rrs) & gvnc->rm) << gvnc->rls
+		| ((*sp >> gvnc->grs) & gvnc->gm) << gvnc->gls
+		| ((*sp >> gvnc->brs) & gvnc->bm) << gvnc->bls;
+}
+
+static void SET_PIXEL_AT(struct gvnc *gvnc, int x, int y, src_pixel_t *sp)
+{
+	dst_pixel_t *dp = (dst_pixel_t *)gvnc_get_local(gvnc, x, y);
+
+	SET_PIXEL(gvnc, dp, sp);
+}
+
 static void FILL(struct gvnc *gvnc, src_pixel_t *sp,
 		 int x, int y, int width, int height)
 {
@@ -44,9 +60,7 @@ static void FILL(struct gvnc *gvnc, src_pixel_t *sp,
 		int j;
 
 		for (j = 0; j < width; j++) {
-			*dp = ((*sp >> gvnc->rrs) & gvnc->rm) << gvnc->rls
-			    | ((*sp >> gvnc->grs) & gvnc->gm) << gvnc->gls
-			    | ((*sp >> gvnc->brs) & gvnc->bm) << gvnc->bls;
+			SET_PIXEL(gvnc, dp, sp);
 			dp++;
 		}
 		dst += gvnc->local.linesize;
@@ -68,9 +82,7 @@ static void BLIT(struct gvnc *gvnc, uint8_t *src, int pitch, int x, int y, int w
 		int j;
 
 		for (j = 0; j < w; j++) {
-			*dp = ((*sp >> gvnc->rrs) & gvnc->rm) << gvnc->rls
-			    | ((*sp >> gvnc->grs) & gvnc->gm) << gvnc->gls
-			    | ((*sp >> gvnc->brs) & gvnc->bm) << gvnc->bls;
+			SET_PIXEL(gvnc, dp, sp);
 			dp++;
 			sp++;
 		}
