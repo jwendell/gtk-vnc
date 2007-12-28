@@ -51,6 +51,9 @@ typedef void gvnc_hextile_func(struct gvnc *gvnc, uint8_t flags,
 			       uint16_t width, uint16_t height,
 			       uint8_t *fg, uint8_t *bg);
 
+typedef void gvnc_rich_cursor_blt_func(struct gvnc *, uint8_t *, uint8_t *,
+				       uint8_t *, int, uint16_t, uint16_t);
+
 /*
  * A special GSource impl which allows us to wait on a certain
  * condition to be satisified. This is effectively a boolean test
@@ -113,6 +116,7 @@ struct gvnc
 	gvnc_blt_func *blt;
 	gvnc_fill_func *fill;
 	gvnc_hextile_func *hextile;
+	gvnc_rich_cursor_blt_func *rich_cursor_blt;
 
 	struct gvnc_ops ops;
 	gpointer ops_data;
@@ -866,7 +870,13 @@ static gvnc_fill_func *gvnc_fill_table[3][3] = {
 	{ (gvnc_fill_func *)gvnc_fill_32x8,
 	  (gvnc_fill_func *)gvnc_fill_32x16,
 	  (gvnc_fill_func *)gvnc_fill_32x32 },
-};	
+};
+
+static gvnc_rich_cursor_blt_func *gvnc_rich_cursor_blt_table[3] = {
+	gvnc_rich_cursor_blt_8x32,
+	gvnc_rich_cursor_blt_16x32,
+	gvnc_rich_cursor_blt_32x32,
+};
 
 /* a fast blit for the perfect match scenario */
 static void gvnc_blt_fast(struct gvnc *gvnc, uint8_t *src, int pitch,
@@ -1055,26 +1065,12 @@ static void gvnc_pointer_type_change(struct gvnc *gvnc, int absolute)
 		gvnc->has_error = TRUE;
 }
 
-#define RICH_CURSOR_BLIT(gvnc, pixbuf, image, mask, pitch, width, height, src_pixel_t) \
-	do {								\
-		int x1, y1;						\
-		uint8_t *src = image;					\
-		uint32_t *dst = (uint32_t*)pixbuf;			\
-		uint8_t *alpha = mask;					\
-		for (y1 = 0; y1 < height; y1++) {			\
-			src_pixel_t *sp = (src_pixel_t *)src;		\
-			uint8_t *mp = alpha;				\
-			for (x1 = 0; x1 < width; x1++) {		\
-				*dst++ = (((mp[x1 / 8] >> (7 - (x1 % 8))) & 1) ? (255 << 24) : 0) \
-					| (((*sp >> gvnc->fmt.red_shift) & (gvnc->fmt.red_max)) << 16) \
-					| (((*sp >> gvnc->fmt.green_shift) & (gvnc->fmt.green_max)) << 8) \
-					| (((*sp >> gvnc->fmt.blue_shift) & (gvnc->fmt.blue_max)) << 0); \
-				sp++;					\
-			}						\
-			src += pitch;					\
-			alpha += ((width + 7) / 8);			\
-		}							\
-	} while(0)
+static void gvnc_rich_cursor_blt(struct gvnc *gvnc, uint8_t *pixbuf,
+				 uint8_t *image, uint8_t *mask,
+				 int pitch, uint16_t width, uint16_t height)
+{
+	gvnc->rich_cursor_blt(gvnc, pixbuf, image, mask, pitch, width, height);
+}
 
 static void gvnc_rich_cursor(struct gvnc *gvnc, int x, int y, int width, int height)
 {
@@ -1108,13 +1104,10 @@ static void gvnc_rich_cursor(struct gvnc *gvnc, int x, int y, int width, int hei
 		gvnc_read(gvnc, image, imagelen);
 		gvnc_read(gvnc, mask, masklen);
 
-		if (gvnc->fmt.bits_per_pixel == 8) {
-			RICH_CURSOR_BLIT(gvnc, pixbuf, image, mask, width * (gvnc->fmt.bits_per_pixel/8), width, height, uint8_t);
-		} else if (gvnc->fmt.bits_per_pixel == 16) {
-			RICH_CURSOR_BLIT(gvnc, pixbuf, image, mask, width * (gvnc->fmt.bits_per_pixel/8), width, height, uint16_t);
-		} else if (gvnc->fmt.bits_per_pixel == 24 || gvnc->fmt.bits_per_pixel == 32) {
-			RICH_CURSOR_BLIT(gvnc, pixbuf, image, mask, width * (gvnc->fmt.bits_per_pixel/8), width, height, uint32_t);
-		}
+		gvnc_rich_cursor_blt(gvnc, pixbuf, image, mask,
+				     width * (gvnc->fmt.bits_per_pixel/8),
+				     width, height);
+
 		free(image);
 		free(mask);
 	}
@@ -1171,8 +1164,6 @@ static void gvnc_xcursor(struct gvnc *gvnc, int x, int y, int width, int height)
 		free(data);
 		free(mask);
 	}
-
-
 
 	if (gvnc->has_error || !gvnc->ops.local_cursor)
 		return;
@@ -2310,6 +2301,7 @@ gboolean gvnc_set_local(struct gvnc *gvnc, struct gvnc_framebuffer *fb)
 	gvnc->blt = gvnc_blt_table[i - 1][j - 1];
 	gvnc->fill = gvnc_fill_table[i - 1][j - 1];
 	gvnc->hextile = gvnc_hextile_table[i - 1][j - 1];
+	gvnc->rich_cursor_blt = gvnc_rich_cursor_blt_table[i - 1];
 
 	if (gvnc->perfect_match)
 		gvnc->blt = gvnc_blt_fast;
