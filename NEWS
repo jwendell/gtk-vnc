@@ -9,7 +9,8 @@ Bug fixes:
 This release fixes a bug in the python bindings whereas send_keys() was not
 always returning a value.  It also fixed a bug in how mouse events get
 propagated and ensures that the right number of encodings are sent to the
-server.
+server.  This release also fixes the RichCursor encoding when the server is
+using a depth of less than 24.
 
 New features:
 
