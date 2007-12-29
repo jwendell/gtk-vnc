@@ -894,11 +894,11 @@ gboolean gvnc_client_cut_text(struct gvnc *gvnc,
 {
 	uint8_t pad[3] = {0};
 
-	gvnc_write_u8(gvnc, 6);
-	gvnc_write(gvnc, pad, 3);
-	gvnc_write_u32(gvnc, length);
-	gvnc_write(gvnc, data, length);
-	gvnc_flush(gvnc);
+	gvnc_buffered_write_u8(gvnc, 6);
+	gvnc_buffered_write(gvnc, pad, 3);
+	gvnc_buffered_write_u32(gvnc, length);
+	gvnc_buffered_write(gvnc, data, length);
+	gvnc_buffered_flush(gvnc);
 	return !gvnc_has_error(gvnc);
 }
 
