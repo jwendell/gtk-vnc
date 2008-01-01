@@ -29,6 +29,8 @@
 
     vnc_display_client_cut_text;
 
+    vnc_display_set_lossy_encoding;
+
   local:
       *;
 };

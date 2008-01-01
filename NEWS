@@ -1,6 +1,14 @@
     GTK VNC News
     ============
 
+Jan XX, 2008: Release 0.3.3
+===========================
+
+New features:
+
+Support for the Tight encoding has been added along with a new interface
+(vnc_display_set_lossy_encoding) to enable the lossy feature of Tight.
+
 Dec 31, 2007: Release 0.3.2
 ===========================
 

@@ -2,6 +2,7 @@
  * a Solaris compiler/cpp  whitespace bug
  */
 #define src_pixel_t SPLICE(SPLICE(uint, SRC), _t)
+#define ssrc_pixel_t SPLICE(SPLICE(int, SRC), _t)
 #define dst_pixel_t SPLICE(SPLICE(uint, DST), _t)
 #define SUFFIX() SPLICE(SRC,SPLICE(x,DST))
 #define SET_PIXEL SPLICE(gvnc_set_pixel_, SUFFIX())
@@ -12,6 +13,10 @@
 #define HEXTILE SPLICE(gvnc_hextile_, SUFFIX())
 #define RRE SPLICE(gvnc_rre_, SUFFIX())
 #define RICH_CURSOR_BLIT SPLICE(gvnc_rich_cursor_blt_, SUFFIX())
+#define RGB24_BLIT SPLICE(gvnc_rgb24_blt_, SUFFIX())
+#define TIGHT_COMPUTE_PREDICTED SPLICE(gvnc_tight_compute_predicted_, SUFFIX())
+#define TIGHT_SUM_PIXEL SPLICE(gvnc_tight_sum_pixel_, SUFFIX())
+#define COMPONENT(color, pixel) (((pixel) >> gvnc->fmt.SPLICE(color, _shift) & gvnc->fmt.SPLICE(color, _max)))
 
 static void FAST_FILL(struct gvnc *gvnc, src_pixel_t *sp,
 		      int x, int y, int width, int height)
@@ -175,9 +180,9 @@ static void RICH_CURSOR_BLIT(struct gvnc *gvnc, uint8_t *pixbuf,
 		src_pixel_t *sp = (src_pixel_t *)src;
 		uint8_t *mp = alpha;
 		for (x1 = 0; x1 < width; x1++) {
-			*dst = (((*sp >> gvnc->fmt.red_shift) & gvnc->fmt.red_max) << rs)
-				| (((*sp >> gvnc->fmt.green_shift) & gvnc->fmt.green_max) << gs)
-				| (((*sp >> gvnc->fmt.blue_shift) & gvnc->fmt.blue_max) << bs);
+			*dst = (COMPONENT(red, *sp) << rs)
+				| (COMPONENT(green, *sp) << gs)
+				| (COMPONENT(blue, *sp) << bs);
 
 			if ((mp[x1 / 8] >> (7 - (x1 % 8))) & 1)
 				*dst |= 0xFF000000;
@@ -191,6 +196,73 @@ static void RICH_CURSOR_BLIT(struct gvnc *gvnc, uint8_t *pixbuf,
 }
 #endif
 
+#if SRC == 32
+static void RGB24_BLIT(struct gvnc *gvnc, int x, int y, int width, int height,
+		       uint8_t *data, int pitch)
+{
+	uint8_t *dst = gvnc_get_local(gvnc, x, y);
+	int i, j;
+
+	for (j = 0; j < height; j++) {
+		dst_pixel_t *dp = (dst_pixel_t *)dst;
+		uint8_t *sp = data;
+
+		for (i = 0; i < width; i++) {
+			*dp = (((sp[0] * gvnc->fmt.red_max) / 255) << gvnc->fmt.red_shift) |
+				(((sp[1] * gvnc->fmt.green_max) / 255) << gvnc->fmt.green_shift) |
+				(((sp[2] * gvnc->fmt.blue_max) / 255) << gvnc->fmt.blue_shift);
+			dp++;
+			sp += 3;
+		}
+
+		dst += gvnc->local.linesize;
+		data += pitch;
+	}
+}
+#endif
+
+#if SRC == DST
+
+static void TIGHT_COMPUTE_PREDICTED(struct gvnc *gvnc, src_pixel_t *ppixel,
+				    src_pixel_t *lp, src_pixel_t *cp,
+				    src_pixel_t *llp)
+{
+	ssrc_pixel_t red, green, blue;
+
+	red = COMPONENT(red, *lp) + COMPONENT(red, *cp) - COMPONENT(red, *llp);
+	red = MAX(red, 0);
+	red = MIN(red, gvnc->fmt.red_max);
+
+	green = COMPONENT(green, *lp) + COMPONENT(green, *cp) - COMPONENT(green, *llp);
+	green = MAX(green, 0);
+	green = MIN(green, gvnc->fmt.green_max);
+
+	blue = COMPONENT(blue, *lp) + COMPONENT(blue, *cp) - COMPONENT(blue, *llp);
+	blue = MAX(blue, 0);
+	blue = MIN(blue, gvnc->fmt.blue_max);
+
+	*ppixel = (red << gvnc->fmt.red_shift) |
+		(green << gvnc->fmt.green_shift) |
+		(blue << gvnc->fmt.blue_shift);
+}
+
+static void TIGHT_SUM_PIXEL(struct gvnc *gvnc,
+			    src_pixel_t *lhs, src_pixel_t *rhs)
+{
+	src_pixel_t red, green, blue;
+
+	red = COMPONENT(red, *lhs) + COMPONENT(red, *rhs);
+	green = COMPONENT(green, *lhs) + COMPONENT(green, *rhs);
+	blue = COMPONENT(blue, *lhs) + COMPONENT(blue, *rhs);
+
+	*lhs = ((red & gvnc->fmt.red_max) << gvnc->fmt.red_shift) |
+		((green & gvnc->fmt.green_max) << gvnc->fmt.green_shift) |
+		((blue & gvnc->fmt.blue_max) << gvnc->fmt.blue_shift);
+}
+
+#endif
+
+#undef COMPONENT
 #undef HEXTILE
 #undef FILL
 #undef FAST_FILL

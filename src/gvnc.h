@@ -6,6 +6,8 @@
 
 struct gvnc;
 
+typedef void (rgb24_render_func)(void *, int, int, int, int, uint8_t *, int);
+
 struct gvnc_ops
 {
 	gboolean (*auth_cred)(void *);
@@ -20,6 +22,8 @@ struct gvnc_ops
 	gboolean (*pointer_type_change)(void *, int);
 	gboolean (*local_cursor)(void *, int, int, int, int, uint8_t *);
 	gboolean (*auth_unsupported)(void *, unsigned int);
+	gboolean (*render_jpeg)(void *, rgb24_render_func *render, void *,
+				int, int, int, int, uint8_t *, int);
 };
 
 struct gvnc_pixel_format
@@ -63,8 +67,22 @@ typedef enum {
 	GVNC_ENCODING_RRE = 2,
 	GVNC_ENCODING_CORRE = 4,
 	GVNC_ENCODING_HEXTILE = 5,
+	GVNC_ENCODING_TIGHT = 7,
 	GVNC_ENCODING_ZRLE = 16,
 
+	/* Tight JPEG quality levels */
+	GVNC_ENCODING_TIGHT_JPEG0 = -32,
+	GVNC_ENCODING_TIGHT_JPEG1 = -31,
+	GVNC_ENCODING_TIGHT_JPEG2 = -30,
+	GVNC_ENCODING_TIGHT_JPEG3 = -29,
+	GVNC_ENCODING_TIGHT_JPEG4 = -28,
+	GVNC_ENCODING_TIGHT_JPEG5 = -27,
+	GVNC_ENCODING_TIGHT_JPEG6 = -26,
+	GVNC_ENCODING_TIGHT_JPEG7 = -25,
+	GVNC_ENCODING_TIGHT_JPEG8 = -24,
+	GVNC_ENCODING_TIGHT_JPEG9 = -23,
+
+	/* Pseudo encodings */
 	GVNC_ENCODING_DESKTOP_RESIZE = -223,
 	GVNC_ENCODING_CURSOR_POS = -232,
 	GVNC_ENCODING_RICH_CURSOR = -239,

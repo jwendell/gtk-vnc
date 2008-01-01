@@ -18,6 +18,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <gdk/gdkkeysyms.h>
+#include <gdk-pixbuf/gdk-pixbuf.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -53,6 +54,7 @@ struct _VncDisplayPrivate
 	gboolean grab_keyboard;
 	gboolean local_pointer;
 	gboolean read_only;
+	gboolean allow_lossy;
 };
 
 G_DEFINE_TYPE(VncDisplay, vnc_display, GTK_TYPE_DRAWING_AREA)
@@ -656,6 +658,51 @@ static gboolean on_local_cursor(void *opaque, int x, int y, int width, int heigh
 	return TRUE;
 }
 
+static gboolean check_pixbuf_support(const char *name)
+{
+	GSList *list, *i;
+
+	list = gdk_pixbuf_get_formats();
+
+	for (i = list; i; i = i->next) {
+		GdkPixbufFormat *fmt = i->data;
+		if (!strcmp(gdk_pixbuf_format_get_name(fmt), name))
+			break;
+	}
+
+	g_slist_free(list);
+
+	return !!(i);
+}
+
+static gboolean on_render_jpeg(void *opaque,
+			       rgb24_render_func *render, void *render_opaque,
+			       int x, int y, int w, int h,
+			       uint8_t *data, int size)
+{
+	GdkPixbufLoader *loader = gdk_pixbuf_loader_new();
+	GdkPixbuf *p;
+	uint8_t *pixels;
+
+	if (!gdk_pixbuf_loader_write(loader, data, size, NULL))
+		return FALSE;
+
+	gdk_pixbuf_loader_close(loader, NULL);
+
+	p = g_object_ref(gdk_pixbuf_loader_get_pixbuf(loader));
+	g_object_unref(loader);
+
+	pixels = gdk_pixbuf_get_pixels(p);
+
+	render(render_opaque, x, y, w, h,
+	       gdk_pixbuf_get_pixels(p),
+	       gdk_pixbuf_get_rowstride(p));
+
+	gdk_pixbuf_unref(p);
+
+	return TRUE;
+}
+
 static const struct gvnc_ops vnc_display_ops = {
 	.auth_cred = on_auth_cred,
 	.auth_type = on_auth_type,
@@ -667,14 +714,19 @@ static const struct gvnc_ops vnc_display_ops = {
 	.local_cursor = on_local_cursor,
 	.auth_unsupported = on_auth_unsupported,
 	.server_cut_text = on_server_cut_text,
-	.bell = on_bell
+	.bell = on_bell,
+	.render_jpeg = on_render_jpeg,
 };
 
 static void *vnc_coroutine(void *opaque)
 {
 	VncDisplay *obj = VNC_DISPLAY(opaque);
 	VncDisplayPrivate *priv = obj->priv;
-	int32_t encodings[] = { GVNC_ENCODING_DESKTOP_RESIZE,
+
+	/* this order is extremely important! */
+	int32_t encodings[] = {	GVNC_ENCODING_TIGHT_JPEG0,
+				GVNC_ENCODING_TIGHT,
+				GVNC_ENCODING_DESKTOP_RESIZE,
 				GVNC_ENCODING_RICH_CURSOR,
 				GVNC_ENCODING_XCURSOR,
 				GVNC_ENCODING_POINTER_CHANGE,
@@ -683,6 +735,8 @@ static void *vnc_coroutine(void *opaque)
 				GVNC_ENCODING_RRE,
 				GVNC_ENCODING_COPY_RECT,
 				GVNC_ENCODING_RAW };
+	int32_t *encodingsp;
+	int n_encodings;
 
 	int ret;
 
@@ -712,8 +766,21 @@ static void *vnc_coroutine(void *opaque)
 		       signals[VNC_INITIALIZED],
 		       0);
 
-	if (!gvnc_set_encodings(priv->gvnc, ARRAY_SIZE(encodings), encodings))
-		goto cleanup;
+	encodingsp = encodings;
+	n_encodings = ARRAY_SIZE(encodings);
+
+	if (check_pixbuf_support("jpeg")) {
+		if (!priv->allow_lossy) {
+			encodingsp++;
+			n_encodings--;
+		}
+	} else {
+		encodingsp += 2;
+		n_encodings -= 2;
+	}
+
+	if (!gvnc_set_encodings(priv->gvnc, n_encodings, encodingsp))
+			goto cleanup;
 
 	if (!gvnc_framebuffer_update_request(priv->gvnc, 0, 0, 0, priv->fb.width, priv->fb.height))
 		goto cleanup;
@@ -1280,6 +1347,12 @@ void vnc_display_client_cut_text(VncDisplay *obj, const gchar *text)
 	g_return_if_fail (VNC_IS_DISPLAY (obj));
 
 	gvnc_client_cut_text(obj->priv->gvnc, text, strlen (text));
+}
+
+void vnc_display_set_lossy_encoding(VncDisplay *obj, gboolean enable)
+{
+	g_return_if_fail (VNC_IS_DISPLAY (obj));
+	obj->priv->allow_lossy = enable;
 }
 
 /*

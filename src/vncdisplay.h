@@ -103,6 +103,8 @@ const char *	vnc_display_get_name(VncDisplay *obj);
 
 void		vnc_display_client_cut_text(VncDisplay *obj, const gchar *text);
 
+void		vnc_display_set_lossy_encoding(VncDisplay *obj, gboolean enable);
+
 G_END_DECLS
 
 #endif
