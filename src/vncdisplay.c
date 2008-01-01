@@ -724,7 +724,7 @@ static void *vnc_coroutine(void *opaque)
 	VncDisplayPrivate *priv = obj->priv;
 
 	/* this order is extremely important! */
-	int32_t encodings[] = {	GVNC_ENCODING_TIGHT_JPEG0,
+	int32_t encodings[] = {	GVNC_ENCODING_TIGHT_JPEG5,
 				GVNC_ENCODING_TIGHT,
 				GVNC_ENCODING_DESKTOP_RESIZE,
 				GVNC_ENCODING_RICH_CURSOR,
