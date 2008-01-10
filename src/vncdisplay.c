@@ -44,6 +44,8 @@ struct _VncDisplayPrivate
 	gboolean in_pointer_grab;
 	gboolean in_keyboard_grab;
 
+	guint down_keyval[16];
+
 	int button_mask;
 	int last_x;
 	int last_y;
@@ -392,7 +394,58 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *key,
 					    &level,
 					    &consumed);
 
-	gvnc_key_event(priv->gvnc, key->type == GDK_KEY_PRESS ? 1 : 0, keyval);
+	/*
+	 * More VNC suckiness with key state & modifiers in particular
+	 *
+	 * Because VNC has no concept of modifiers, we have to track what keys are
+	 * pressed and when the widget looses focus send fake key up events for all
+	 * keys current held down. This is because upon gaining focus any keys held
+	 * down are no longer likely to be down. This would thus result in keys
+	 * being 'stuck on' in the remote server. eg upon Alt-Tab to switch window
+	 * focus you'd never see key up for the Alt or Tab keys without this :-(
+	 *
+	 * This is mostly a problem with modifier keys, but its best to just track
+	 * all key presses regardless. There's a limit to how many keys a user can
+	 * press at once due to a max of 10 fingers (normally :-), so down_key_vals
+	 * is only storing upto 16 for now. Should be plenty...
+	 *
+	 * Arggggh.
+	 */
+	if (key->type == GDK_KEY_PRESS) {
+		int i;
+		for (i = 0 ; i < (int)(sizeof(priv->down_keyval)/sizeof(priv->down_keyval[0])) ; i++) {
+			if (priv->down_keyval[i] == 0) {
+				priv->down_keyval[i] = keyval;
+				/* Send the actual key event we're dealing with */
+				gvnc_key_event(priv->gvnc, 1, keyval);
+				break;
+			} else if (priv->down_keyval[i] == keyval) {
+				/* Got an press when we're already pressed ! Why ... ?
+				 *
+				 * Well, GTK merges sequential press+release pairs of the same
+				 * key so instead of press+release,press+release,press+release
+				 * we only get press+press+press+press+press+release. This
+				 * really annoys some VNC servers, so we have to un-merge
+				 * them into a sensible stream of press+release pairs
+				 */
+				/* Fake an up event for the previous down event */
+				gvnc_key_event(priv->gvnc, 0, keyval);
+				/* Now send our actual ldown event */
+				gvnc_key_event(priv->gvnc, 1, keyval);
+			}
+		}
+	} else {
+		int i;
+		for (i = 0 ; i < (int)(sizeof(priv->down_keyval)/sizeof(priv->down_keyval[0])) ; i++) {
+			/* We were pressed, and now we're released, so... */
+			if (priv->down_keyval[i] == keyval) {
+				priv->down_keyval[i] = 0;
+				/* ..send the key releae event we're dealing with */
+				gvnc_key_event(priv->gvnc, 0, keyval);
+				break;
+			}
+		}
+	}
 
 	if (key->type == GDK_KEY_PRESS &&
 	    ((keyval == GDK_Control_L && (key->state & GDK_MOD1_MASK)) ||
@@ -436,6 +489,28 @@ static gboolean leave_event(GtkWidget *widget, GdkEventCrossing *crossing,
 
         if (priv->grab_keyboard)
                 do_keyboard_ungrab(VNC_DISPLAY(widget), FALSE);
+
+        return TRUE;
+}
+
+
+static gboolean focus_event(GtkWidget *widget, GdkEventFocus *focus G_GNUC_UNUSED,
+                            gpointer data G_GNUC_UNUSED)
+{
+        VncDisplayPrivate *priv = VNC_DISPLAY(widget)->priv;
+	int i;
+
+        if (priv->gvnc == NULL || !gvnc_is_initialized(priv->gvnc))
+                return TRUE;
+
+	for (i = 0 ; i < (int)(sizeof(priv->down_keyval)/sizeof(priv->down_keyval[0])) ; i++) {
+		/* We are currently pressed so... */
+		if (priv->down_keyval[i] != 0) {
+			/* ..send the fake key releae event to match */
+			gvnc_key_event(priv->gvnc, 0, priv->down_keyval[i]);
+			priv->down_keyval[i] = 0;
+		}
+	}
 
         return TRUE;
 }
@@ -1128,6 +1203,8 @@ static void vnc_display_init(VncDisplay *display)
 			 G_CALLBACK(enter_event), NULL);
 	g_signal_connect(obj, "leave-notify-event",
 			 G_CALLBACK(leave_event), NULL);
+	g_signal_connect(obj, "focus-out-event",
+			 G_CALLBACK(focus_event), NULL);
 
 	GTK_WIDGET_SET_FLAGS(obj, GTK_CAN_FOCUS);
 
