@@ -1,0 +1,120 @@
+  README for plugin
+  ==========================
+  by Richard W.M. Jones <rjones@redhat.com>
+
+This is a web browser plugin featuring a Gtk VNC widget which can be
+embedded in a web page.
+
+This code is primarily an example of how to write such a plugin.  You
+could use it directly, but it's more likely that you'll want to
+customise it for particular situations.
+
+The plugin supports all browsers which supply the NPAPI and XEmbed
+APIs.  This includes all modern Mozilla/Firefox-derived browsers on
+Unix, and [untested] WebKit-based browsers (eg. Konqueror, Safari) and
+Opera.
+
+All the code is based on Adobe's demonstration XEmbed-based browser
+called DiamondX (http://multimedia.cx/diamondx/).
+
+Building
+--------
+
+The code is not enabled by default.  To enable, at the top-level
+directory do:
+
+  ./configure --enable-plugin
+
+You will need the following APIs/header files for this to work:
+
+  npapi.h           (from a Firefox or Mozilla development package)
+  npupp.h
+
+  gtk/gtk.h
+
+  X11/Xlib.h        (X11 development package)
+
+  NSPR              (Netscape Portable Runtime development package)
+
+Other plugins usually come with their own npapi.h and npupp.h, copied
+from the Mozilla source code.  However since in Fedora we ship a
+'firefox-devel' package which contains these headers (albeit in a
+rather inconvenient location), I have not duplicated them here.
+
+If configuration was successful then the usual 'make' at the toplevel
+will build the plugin (gtk-vnc-plugin.so).
+
+Installing
+----------
+
+The 'make install' rule installs the plugin (gtk-vnc-plugin.so) in the
+site-wide Mozilla plugins directory ($libdir/mozilla/plugins).
+
+For a single user install you can also do this:
+
+  cp gtk-vnc-plugin.so $HOME/.mozilla/plugins
+
+For other browsers, you'll need to find out where they keep their
+plugins.
+
+Testing
+-------
+
+Restart your browser.  In the location bar, type:
+
+  about:plugins
+
+Amongst your other plugins you should see the GTK-VNC plugin:
+
+  GTK-VNC plugin
+
+  File name: gtk-vnc-plugin.so
+  VNC (remote desktop) viewer plugin
+
+  MIME Type              Description    Suffixes        Enabled
+  application/x-gtk-vnc  VNC viewer     gtk-vnc         Yes
+
+If that appears, then next edit the test.html page in the current
+directory.  You will need to change the source of this page to point
+to a working VNC server (eg. a machine on your local network).
+
+Then load the edited 'test.html' page into your browser, and you
+should see a VNC widget and the desktop of the remote server.
+
+Embedding
+---------
+
+The basic embedding HTML code is:
+
+  <embed type="application/x-gtk-vnc"
+    width="800"
+    height="600"
+    host="192.168.2.129" port="5900">
+  </embed>
+
+Both host and port are required, otherwise the plugin (currently)
+won't do anything.
+
+Future work
+-----------
+
+* Try to get it working in other browsers.
+* Compile on Windows.
+* Get desktop-resize working properly.
+* Allow remote control from Javascript.
+* Allow authentication methods to be specified as parameters.
+
+Security
+--------
+
+Obviously if you have this plugin, then any web page could invoke it,
+which would entail a VNC connection to any IP address/port
+combination, including addresses which are behind firewalls.  As it
+stands, this doesn't seem like very much risk because (1) Gtk-VNC will
+only talk to VNC servers which respond with the appropriate VNC
+greeting, and (2) in any case the web page can't query the plugin to
+see if the connection was successful.
+
+Security will become an issue if the plugin is extended to allow
+control / status from Javascript.  You might want to think about
+having a whitelist of sites which are allowed to use the plugin.
