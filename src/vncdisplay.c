@@ -41,6 +41,8 @@ struct _VncDisplayPrivate
 	struct coroutine coroutine;
 	struct gvnc *gvnc;
 
+	guint open_id;
+
 	gboolean in_pointer_grab;
 	gboolean in_keyboard_grab;
 
@@ -889,6 +891,8 @@ static gboolean do_vnc_display_open(gpointer data)
 		return FALSE;
 	}
 
+	obj->priv->open_id = 0;
+
 	co = &obj->priv->coroutine;
 
 	co->stack_size = 16 << 20;
@@ -911,7 +915,7 @@ gboolean vnc_display_open_fd(VncDisplay *obj, int fd)
 	obj->priv->port = NULL;
 
 	g_object_ref(G_OBJECT(obj)); /* Unref'd when co-routine exits */
-	g_idle_add(do_vnc_display_open, obj);
+	obj->priv->open_id = g_idle_add(do_vnc_display_open, obj);
 
 	return TRUE;
 }
@@ -933,7 +937,7 @@ gboolean vnc_display_open_host(VncDisplay *obj, const char *host, const char *po
 	}
 
 	g_object_ref(G_OBJECT(obj)); /* Unref'd when co-routine exits */
-	g_idle_add(do_vnc_display_open, obj);
+	obj->priv->open_id = g_idle_add(do_vnc_display_open, obj);
 	return TRUE;
 }
 
@@ -946,6 +950,11 @@ gboolean vnc_display_is_open(VncDisplay *obj)
 
 void vnc_display_close(VncDisplay *obj)
 {
+	if (obj->priv->open_id) {
+		g_source_remove (obj->priv->open_id);
+		obj->priv->open_id = 0;
+	}
+
 	if (obj->priv->gvnc == NULL)
 		return;
 
