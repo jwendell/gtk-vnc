@@ -2627,6 +2627,9 @@ gboolean gvnc_initialize(struct gvnc *gvnc, gboolean shared_flag)
 	    gvnc->minor != 8)
 		goto fail;
 
+	/* For UltraVNC ... */
+	if  (gvnc->minor > 3 && gvnc->minor < 7) gvnc->minor = 3;
+
 	snprintf(version, 12, "RFB %03d.%03d\n", gvnc->major, gvnc->minor);
 	gvnc_write(gvnc, version, 12);
 	gvnc_flush(gvnc);
