@@ -1183,21 +1183,15 @@ static uint8_t gvnc_read_zrle_pi(struct gvnc *gvnc, int palette_size)
 	if (gvnc->zrle_pi_bits == 0) {
 		gvnc->zrle_pi = gvnc_read_u8(gvnc);
 		gvnc->zrle_pi_bits = 8;
-	}
-
-	switch (palette_size) {
-	case 2:
+	} else if ( palette_size == 2) {
 		pi = (gvnc->zrle_pi >> (gvnc->zrle_pi_bits - 1)) & 1;
 		gvnc->zrle_pi_bits -= 1;
-		break;
-	case 3 ... 4:
+	} else if ((palette_size == 3) || (palette_size == 4)) {
 		pi = (gvnc->zrle_pi >> (gvnc->zrle_pi_bits - 2)) & 3;
 		gvnc->zrle_pi_bits -= 2;
-		break;
-	case 5 ... 16:
+	} else if ((palette_size >=5) && (palette_size <=16)){
 		pi = (gvnc->zrle_pi >> (gvnc->zrle_pi_bits - 4)) & 15;
 		gvnc->zrle_pi_bits -= 4;
-		break;
 	}
 
 	return pi;
@@ -1294,30 +1288,28 @@ static void gvnc_zrle_update_tile(struct gvnc *gvnc, uint16_t x, uint16_t y,
 	uint8_t subencoding = gvnc_read_u8(gvnc);
 	uint8_t pixel[4];
 
-	switch (subencoding) {
-	case 0: /* Raw pixel data */
+	if (subencoding == 0 ) {
+		/* Raw pixel data */
 		gvnc_zrle_update_tile_blit(gvnc, x, y, width, height);
-		break;
-	case 1: /* Solid tile of a single color */
+	} else if (subencoding == 1) {
+		/* Solid tile of a single color */
 		gvnc_read_cpixel(gvnc, pixel);
 		gvnc_fill(gvnc, pixel, x, y, width, height);
-		break;
-	case 2 ... 16: /* Packed palette types */
+	} else if ((subencoding >= 2) && (subencoding <= 16)) {
+		/* Packed palette types */
 		gvnc_zrle_update_tile_palette(gvnc, subencoding,
 					      x, y, width, height);
-		break;
-	case 128: /* Plain RLE */
+	} else if ((subencoding >= 17) && (subencoding <= 127)) {
+		/* FIXME raise error? */
+	} else if (subencoding == 128) {
+		/* Plain RLE */
 		gvnc_zrle_update_tile_rle(gvnc, x, y, width, height);
-		break;
-	case 130 ... 255: /* Palette RLE */
+	} else if (subencoding == 129) { 
+	
+	} else if ((subencoding >= 130) && (subencoding <= 255)) {
+		/* Palette RLE */
 		gvnc_zrle_update_tile_prle(gvnc, subencoding - 128,
 					   x, y, width, height);
-		break;
-	case 129:
-	case 17 ... 127:
-	default:
-		/* FIXME raise error? */
-		break;
 	}
 }
 
@@ -1568,8 +1560,8 @@ static void gvnc_tight_update(struct gvnc *gvnc,
 	ccontrol >>= 4;
 	ccontrol &= 0x0F;
 
-	switch (ccontrol) {
-	case 0 ... 7: { /* basic */
+	if ((ccontrol >= 0) && (ccontrol <= 7)) {
+		/* basic */
 		uint8_t filter_id = 0;
 		uint32_t data_size, zlib_length;
 		uint8_t *zlib_data;
@@ -1633,14 +1625,13 @@ static void gvnc_tight_update(struct gvnc *gvnc,
 		}
 
 		gvnc->strm = NULL;
-		break;
-	}
-	case 8: /* fill */
+	} else if (ccontrol == 8) {
+		/* fill */
 		/* FIXME check each width; endianness */
 		gvnc_read_tpixel(gvnc, pixel);
 		gvnc_fill(gvnc, pixel, x, y, width, height);
-		break;
-	case 9: { /* jpeg */
+	} else if (ccontrol == 9) {
+		/* jpeg */
 		uint32_t length;
 		uint8_t *jpeg_data;
 
@@ -1650,11 +1641,9 @@ static void gvnc_tight_update(struct gvnc *gvnc,
 		gvnc_tight_update_jpeg(gvnc, x, y, width, height,
 				       jpeg_data, length);
 		g_free(jpeg_data);
-		break;
-	}
-	default: /* error */
+	} else {
+		/* error */
 		gvnc->has_error = TRUE;
-		break;
 	}
 }
 
