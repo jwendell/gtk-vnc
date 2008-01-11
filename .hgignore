@@ -33,8 +33,8 @@ Makefile\.in$
 ^src/vncmarshal\.[ch]$
 ^plugin/\.deps/
 ^plugin/\.libs/
-^plugin/libgtk_vnc_plugin.la$
-^plugin/libgtk_vnc_plugin_la-.*
+^plugin/gtk-vnc-plugin.la$
+^plugin/gtk_vnc_plugin_la-.*
 ^plugin/gtk-vnc-plugin.so
 
 syntax: glob

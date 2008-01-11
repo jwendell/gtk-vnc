@@ -63,4 +63,20 @@ extern NPError GtkVNCXSetWindow (NPP instance, NPWindow* window);
 extern NPError GtkVNCDestroyWindow (NPP instance);
 extern int16 GtkVNCXHandleEvent (NPP instance, void* event);
 
+#ifdef ENABLE_DEBUG
+static inline void
+debug (const char *msg, ...)
+{
+  va_list args;
+
+  va_start (args, msg);
+  vfprintf (stderr, msg, args);
+  va_end (args);
+  fprintf (stderr, "\n");
+  fflush (stderr);
+}
+#else
+static inline void debug (const char *msg G_GNUC_UNUSED, ...) { }
+#endif
+
 #endif /* GTK_VNC_PLUGIN_H */

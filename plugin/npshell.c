@@ -85,18 +85,6 @@ Contributor(s): Adobe Systems Incorporated.
 
 #include "gtk-vnc-plugin.h"
 
-static void
-debug (const char *msg, ...)
-{
-  va_list args;
-
-  va_start (args, msg);
-  vfprintf (stderr, msg, args);
-  va_end (args);
-  fprintf (stderr, "\n");
-  fflush (stderr);
-}
-
 /***********************************************************************
  *
  * Implementations of plugin API functions
@@ -186,11 +174,13 @@ NPP_New(NPMIMEType pluginType G_GNUC_UNUSED,
   if (err != NPERR_NO_ERROR || supportsXEmbed != PR_TRUE)
     return NPERR_INCOMPATIBLE_VERSION_ERROR;
 
+#if 1
   err = NPN_GetValue (instance,
                       NPNVToolkit,
                       (void *)&toolkit);
   if (err != NPERR_NO_ERROR || toolkit != NPNVGtk2)
     return NPERR_INCOMPATIBLE_VERSION_ERROR;
+#endif
 
   instance->pdata = NPN_MemAlloc(sizeof(PluginInstance));
 
