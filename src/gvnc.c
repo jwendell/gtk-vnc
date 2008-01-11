@@ -1306,7 +1306,7 @@ static void gvnc_zrle_update_tile(struct gvnc *gvnc, uint16_t x, uint16_t y,
 		gvnc_zrle_update_tile_rle(gvnc, x, y, width, height);
 	} else if (subencoding == 129) { 
 	
-	} else if ((subencoding >= 130) && (subencoding <= 255)) {
+	} else if (subencoding >= 130) {
 		/* Palette RLE */
 		gvnc_zrle_update_tile_prle(gvnc, subencoding - 128,
 					   x, y, width, height);
@@ -1560,7 +1560,7 @@ static void gvnc_tight_update(struct gvnc *gvnc,
 	ccontrol >>= 4;
 	ccontrol &= 0x0F;
 
-	if ((ccontrol >= 0) && (ccontrol <= 7)) {
+	if (ccontrol <= 7) {
 		/* basic */
 		uint8_t filter_id = 0;
 		uint32_t data_size, zlib_length;
