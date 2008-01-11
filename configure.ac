@@ -159,14 +159,33 @@ else
 fi
 AC_SUBST(DEBUG_CFLAGS)
 
+dnl --enable-plugin to enable the browser plugin.
+NSPR_REQUIRED=4.0.0
+FIREFOX_PLUGIN_REQUIRED=2.0.0
+AC_ARG_ENABLE(plugin,
+	[  --enable-plugin=[no/yes] enable browser plugin [default=no]],,
+	enable_plugin=no)
+if test "x$enable_plugin" = "xyes"; then
+    dnl Check for Netscape Portable Runtime development package.
+    PKG_CHECK_MODULES(NSPR, nspr >= $NSPR_REQUIRED)
+    dnl Check for Firefox plugin package (also includes NSPR cflags/libs).
+    PKG_CHECK_MODULES(FIREFOX_PLUGIN,
+		      firefox-plugin >= $FIREFOX_PLUGIN_REQUIRED)
+    AC_SUBST(FIREFOX_PLUGIN_CFLAGS)
+    AC_SUBST(FIREFOX_PLUGIN_LIBS)
+fi
+
 AM_CONDITIONAL(WITH_PYTHON, [test "$WITH_PYTHON" = "yes"])
 
 AM_CONDITIONAL(WITH_EXAMPLES, [test "$WITH_EXAMPLES" = "yes"])
+
+AM_CONDITIONAL(ENABLE_PLUGIN, [test "$enable_plugin" = "yes"])
 
 AC_CONFIG_FILES(
   Makefile
   src/Makefile
   examples/Makefile
+  plugin/Makefile
   gtk-vnc-1.0.pc
   gtk-vnc.spec
   )

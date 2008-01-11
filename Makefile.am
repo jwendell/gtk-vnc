@@ -1,5 +1,5 @@
 
-SUBDIRS = src examples
+SUBDIRS = src examples plugin
 
 pkgconfig_DATA = @PACKAGE@-1.0.pc
 pkgconfigdir = $(libdir)/pkgconfig
