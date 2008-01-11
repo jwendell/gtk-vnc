@@ -191,3 +191,16 @@ AC_CONFIG_FILES(
   )
 
 AC_OUTPUT
+
+echo "
+Configure summary:
+
+	Compiler ...................:  ${CC} 
+	Compiler Flags .............:  ${CFLAGS}
+	Prefix......................:  ${prefix}
+
+	Python biding ..............:  ${WITH_PYTHON}
+	Install example programs ...:  ${WITH_EXAMPLES}
+	Browser plugin .............:  ${enable_plugin}
+	DEBUG messages..............:  ${enable_debug}
+"
