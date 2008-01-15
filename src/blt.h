@@ -16,7 +16,8 @@
 #define RGB24_BLIT SPLICE(gvnc_rgb24_blt_, SUFFIX())
 #define TIGHT_COMPUTE_PREDICTED SPLICE(gvnc_tight_compute_predicted_, SUFFIX())
 #define TIGHT_SUM_PIXEL SPLICE(gvnc_tight_sum_pixel_, SUFFIX())
-#define COMPONENT(color, pixel) (((pixel) >> gvnc->fmt.SPLICE(color, _shift) & gvnc->fmt.SPLICE(color, _max)))
+#define SWAP(gvnc, pixel) SPLICE(gvnc_swap_, SRC)(gvnc, pixel)
+#define COMPONENT(color, pixel) ((SWAP(gvnc, pixel) >> gvnc->fmt.SPLICE(color, _shift) & gvnc->fmt.SPLICE(color, _max)))
 
 static void FAST_FILL(struct gvnc *gvnc, src_pixel_t *sp,
 		      int x, int y, int width, int height)
@@ -241,9 +242,10 @@ static void TIGHT_COMPUTE_PREDICTED(struct gvnc *gvnc, src_pixel_t *ppixel,
 	blue = MAX(blue, 0);
 	blue = MIN(blue, gvnc->fmt.blue_max);
 
-	*ppixel = (red << gvnc->fmt.red_shift) |
-		(green << gvnc->fmt.green_shift) |
-		(blue << gvnc->fmt.blue_shift);
+	*ppixel = SWAP(gvnc,
+		       (red << gvnc->fmt.red_shift) |
+		       (green << gvnc->fmt.green_shift) |
+		       (blue << gvnc->fmt.blue_shift));
 }
 
 static void TIGHT_SUM_PIXEL(struct gvnc *gvnc,
@@ -255,9 +257,10 @@ static void TIGHT_SUM_PIXEL(struct gvnc *gvnc,
 	green = COMPONENT(green, *lhs) + COMPONENT(green, *rhs);
 	blue = COMPONENT(blue, *lhs) + COMPONENT(blue, *rhs);
 
-	*lhs = ((red & gvnc->fmt.red_max) << gvnc->fmt.red_shift) |
-		((green & gvnc->fmt.green_max) << gvnc->fmt.green_shift) |
-		((blue & gvnc->fmt.blue_max) << gvnc->fmt.blue_shift);
+	*lhs = SWAP(gvnc,
+		    ((red & gvnc->fmt.red_max) << gvnc->fmt.red_shift) |
+		    ((green & gvnc->fmt.green_max) << gvnc->fmt.green_shift) |
+		    ((blue & gvnc->fmt.blue_max) << gvnc->fmt.blue_shift));
 }
 
 #endif

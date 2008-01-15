@@ -922,6 +922,31 @@ static inline uint8_t *gvnc_get_local(struct gvnc *gvnc, int x, int y)
 		(x * gvnc->local.bpp);
 }
 
+static uint8_t gvnc_swap_8(struct gvnc *gvnc, uint8_t pixel)
+{
+	return pixel;
+}
+
+static uint16_t gvnc_swap_16(struct gvnc *gvnc, uint16_t pixel)
+{
+	if (gvnc->fmt.byte_order != __BYTE_ORDER)
+		return  (((pixel >> 8) & 0xFF) << 0) |
+			(((pixel >> 0) & 0xFF) << 8);
+	else
+		return pixel;
+}
+
+static uint32_t gvnc_swap_32(struct gvnc *gvnc, uint32_t pixel)
+{
+	if (gvnc->fmt.byte_order != __BYTE_ORDER)
+		return  (((pixel >> 24) & 0xFF) <<  0) |
+			(((pixel >> 16) & 0xFF) <<  8) |
+			(((pixel >>  8) & 0xFF) << 16) |
+			(((pixel >>  0) & 0xFF) << 24);
+	else
+		return pixel;
+}
+
 #define SPLICE_I(a, b) a ## b
 #define SPLICE(a, b) SPLICE_I(a, b)
 
