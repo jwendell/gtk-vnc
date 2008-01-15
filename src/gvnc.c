@@ -1153,9 +1153,8 @@ static void gvnc_read_cpixel(struct gvnc *gvnc, uint8_t *pixel)
 
 	if (bpp == 4 && gvnc->fmt.true_color_flag && gvnc->fmt.depth == 24) {
 		bpp = 3;
-#if __BYTE_ORDER == __BIG_ENDIAN
-		pixel += 1;
-#endif
+		if (gvnc->fmt.byte_order == __BIG_ENDIAN)
+			pixel += 1;
 	}
 
 	gvnc_read(gvnc, pixel, bpp);
@@ -1399,6 +1398,13 @@ static void gvnc_read_tpixel(struct gvnc *gvnc, uint8_t *pixel)
 		val = (pixel[0] << gvnc->fmt.red_shift)
 			| (pixel[1] << gvnc->fmt.green_shift)
 			| (pixel[2] << gvnc->fmt.blue_shift);
+
+		if (gvnc->fmt.byte_order != __BYTE_ORDER)
+			val =   (((val >>  0) & 0xFF) << 24) |
+				(((val >>  8) & 0xFF) << 16) |
+				(((val >> 16) & 0xFF) << 8) |
+				(((val >> 24) & 0xFF) << 0);
+
 		memcpy(pixel, &val, 4);
 	} else
 		gvnc_read_pixel(gvnc, pixel);
