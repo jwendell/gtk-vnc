@@ -111,6 +111,8 @@ vnc_auth_credential (GtkWidget *vnc, GValueArray *creds, void *Thisv)
 	continue;
       }
       entry[row] = gtk_entry_new();
+      if (g_value_get_enum (cred) == VNC_DISPLAY_CREDENTIAL_PASSWORD)
+	gtk_entry_set_visibility (GTK_ENTRY (entry[row]), FALSE);
 
       gtk_table_attach(GTK_TABLE(box), label[i], 0, 1, row, row+1, GTK_SHRINK, GTK_SHRINK, 3, 3);
       gtk_table_attach(GTK_TABLE(box), entry[i], 1, 2, row, row+1, GTK_SHRINK, GTK_SHRINK, 3, 3);
