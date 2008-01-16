@@ -1884,6 +1884,7 @@ static void gvnc_framebuffer_update(struct gvnc *gvnc, int32_t etype,
 		gvnc_xcursor(gvnc, x, y, width, height);
 		break;
 	default:
+		GVNC_DEBUG("Received an unknown encoding type: %d\n", etype);
 		gvnc->has_error = TRUE;
 		break;
 	}
@@ -1983,6 +1984,7 @@ gboolean gvnc_server_message(struct gvnc *gvnc)
 		free(data);
 	}	break;
 	default:
+		GVNC_DEBUG("Received an unknown message: %u\n", msg);
 		gvnc->has_error = TRUE;
 		break;
 	}
