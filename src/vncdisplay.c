@@ -795,6 +795,17 @@ static const struct gvnc_ops vnc_display_ops = {
 	.render_jpeg = on_render_jpeg,
 };
 
+/* we use an idle function to allow the coroutine to exit before we actually
+ * unref the object since the coroutine's state is part of the object */
+static gboolean delayed_unref_object(gpointer data)
+{
+	VncDisplay *obj = VNC_DISPLAY(data);
+
+	g_assert(obj->priv->coroutine.exited == TRUE);
+	g_object_unref(G_OBJECT(data));
+	return FALSE;
+}
+
 static void *vnc_coroutine(void *opaque)
 {
 	VncDisplay *obj = VNC_DISPLAY(opaque);
@@ -818,7 +829,7 @@ static void *vnc_coroutine(void *opaque)
 	int ret;
 
 	if (priv->gvnc == NULL || gvnc_is_open(priv->gvnc)) {
-		g_object_unref(G_OBJECT(obj));
+		g_idle_add(delayed_unref_object, obj);
 		return NULL;
 	}
 
@@ -875,7 +886,7 @@ static void *vnc_coroutine(void *opaque)
 	g_signal_emit (G_OBJECT (obj),
 		       signals[VNC_DISCONNECTED],
 		       0);
-	g_object_unref(G_OBJECT(obj));
+	g_idle_add(delayed_unref_object, obj);
 	/* Co-routine exits now - the VncDisplay object may no longer exist,
 	   so don't do anything else now unless you like SEGVs */
 	return NULL;
