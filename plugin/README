@@ -104,17 +104,20 @@ Future work
 * Allow remote control from Javascript.
 * Allow authentication methods to be specified as parameters.
 
-Security
+SECURITY
 --------
 
-Obviously if you have this plugin, then any web page could invoke it,
-which would entail a VNC connection to any IP address/port
-combination, including addresses which are behind firewalls.  As it
-stands, this doesn't seem like very much risk because (1) Gtk-VNC will
-only talk to VNC servers which respond with the appropriate VNC
-greeting, and (2) in any case the web page can't query the plugin to
-see if the connection was successful.
+If you install this plugin, then any web page could invoke it.
 
-Security will become an issue if the plugin is extended to allow
-control / status from Javascript.  You might want to think about
-having a whitelist of sites which are allowed to use the plugin.
+Specific security implications of this are:
+
+(1) Malicious web page could cause your browser to connect to any IP
+address/port, even addresses behind a firewall.  If you allow the
+plugin to be controlled by Javascript, and to communicate back
+success/failure indications, then this would allow a hacker to probe
+ports which they might otherwise not have access to.
+
+(2) A web page could connect to a malicious VNC server.  The Gtk-VNC
+widget is not hardened against responses from malicious VNC servers
+which might provide faulty responses, causing Gtk-VNC to crash or be
+subverted.
