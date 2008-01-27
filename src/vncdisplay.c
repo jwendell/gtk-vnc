@@ -591,36 +591,36 @@ static gboolean on_pointer_type_change(void *opaque, int absolute)
 static gboolean on_auth_cred(void *opaque)
 {
 	VncDisplay *obj = VNC_DISPLAY(opaque);
-	GValueArray *credList;
+	GValueArray *cred_list;
 	GValue username, password, clientname;
 
 	memset(&username, 0, sizeof(username));
 	memset(&password, 0, sizeof(password));
 	memset(&clientname, 0, sizeof(clientname));
 
-	credList = g_value_array_new(2);
+	cred_list = g_value_array_new(0);
 	if (gvnc_wants_credential_username(obj->priv->gvnc)) {
 		g_value_init(&username, G_PARAM_SPEC_VALUE_TYPE(signalCredParam));
 		g_value_set_enum(&username, VNC_DISPLAY_CREDENTIAL_USERNAME);
-		g_value_array_append(credList, &username);
+		cred_list = g_value_array_append(cred_list, &username);
 	}
 	if (gvnc_wants_credential_password(obj->priv->gvnc)) {
 		g_value_init(&password, G_PARAM_SPEC_VALUE_TYPE(signalCredParam));
 		g_value_set_enum(&password, VNC_DISPLAY_CREDENTIAL_PASSWORD);
-		g_value_array_append(credList, &password);
+		cred_list = g_value_array_append(cred_list, &password);
 	}
 	if (gvnc_wants_credential_x509(obj->priv->gvnc)) {
 		g_value_init(&clientname, G_PARAM_SPEC_VALUE_TYPE(signalCredParam));
 		g_value_set_enum(&clientname, VNC_DISPLAY_CREDENTIAL_CLIENTNAME);
-		g_value_array_append(credList, &clientname);
+		cred_list = g_value_array_append(cred_list, &clientname);
 	}
 
 	g_signal_emit (G_OBJECT (obj),
 		       signals[VNC_AUTH_CREDENTIAL],
 		       0,
-		       credList);
+		       cred_list);
 
-	g_value_array_free(credList);
+	g_value_array_free(cred_list);
 
 	return TRUE;
 }
@@ -1087,10 +1087,10 @@ static void vnc_display_class_init(VncDisplayClass *klass)
 			      G_SIGNAL_RUN_FIRST,
 			      G_STRUCT_OFFSET (VncDisplayClass, vnc_auth_credential),
 			      NULL, NULL,
-			      g_cclosure_marshal_VOID__PARAM,
+			      g_cclosure_marshal_VOID__POINTER,
 			      G_TYPE_NONE,
 			      1,
-			      G_TYPE_VALUE_ARRAY);
+			      G_TYPE_POINTER);
 
 
 	signals[VNC_POINTER_GRAB] =
