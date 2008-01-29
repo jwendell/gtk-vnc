@@ -1207,7 +1207,8 @@ static uint8_t gvnc_read_zrle_pi(struct gvnc *gvnc, int palette_size)
 	if (gvnc->zrle_pi_bits == 0) {
 		gvnc->zrle_pi = gvnc_read_u8(gvnc);
 		gvnc->zrle_pi_bits = 8;
-	} else if ( palette_size == 2) {
+	}
+	if ( palette_size == 2) {
 		pi = (gvnc->zrle_pi >> (gvnc->zrle_pi_bits - 1)) & 1;
 		gvnc->zrle_pi_bits -= 1;
 	} else if ((palette_size == 3) || (palette_size == 4)) {
