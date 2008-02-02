@@ -105,6 +105,8 @@ void		vnc_display_client_cut_text(VncDisplay *obj, const gchar *text);
 
 void		vnc_display_set_lossy_encoding(VncDisplay *obj, gboolean enable);
 
+gboolean	vnc_display_set_scaling(VncDisplay *obj, gboolean enable);
+
 G_END_DECLS
 
 #endif
