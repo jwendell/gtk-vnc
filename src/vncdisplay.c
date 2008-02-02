@@ -67,6 +67,7 @@ struct _VncDisplayPrivate
 	gboolean in_keyboard_grab;
 
 	guint down_keyval[16];
+	guint down_scancode[16];
 
 	int button_mask;
 	int last_x;
@@ -496,6 +497,16 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *key,
 	if (priv->read_only)
 		return FALSE;
 
+	if (gvnc_using_raw_keycodes(priv->gvnc)) {
+		if (key->type == GDK_KEY_PRESS)
+			gvnc_key_event(priv->gvnc, 1,
+				       key->keyval, key->hardware_keycode);
+		else
+			gvnc_key_event(priv->gvnc, 0,
+				       key->keyval, key->hardware_keycode);
+		return TRUE;
+	}
+
 	/*
 	 * Key handling in VNC is screwy. The event.keyval from GTK is
 	 * interpreted relative to modifier state. This really messes
@@ -543,8 +554,9 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *key,
 		for (i = 0 ; i < (int)(sizeof(priv->down_keyval)/sizeof(priv->down_keyval[0])) ; i++) {
 			if (priv->down_keyval[i] == 0) {
 				priv->down_keyval[i] = keyval;
+				priv->down_scancode[i] = key->hardware_keycode;
 				/* Send the actual key event we're dealing with */
-				gvnc_key_event(priv->gvnc, 1, keyval);
+				gvnc_key_event(priv->gvnc, 1, keyval, key->hardware_keycode);
 				break;
 			} else if (priv->down_keyval[i] == keyval) {
 				/* Got an press when we're already pressed ! Why ... ?
@@ -556,9 +568,9 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *key,
 				 * them into a sensible stream of press+release pairs
 				 */
 				/* Fake an up event for the previous down event */
-				gvnc_key_event(priv->gvnc, 0, keyval);
+				gvnc_key_event(priv->gvnc, 0, keyval, key->hardware_keycode);
 				/* Now send our actual ldown event */
-				gvnc_key_event(priv->gvnc, 1, keyval);
+				gvnc_key_event(priv->gvnc, 1, keyval, key->hardware_keycode);
 			}
 		}
 	} else {
@@ -567,8 +579,9 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *key,
 			/* We were pressed, and now we're released, so... */
 			if (priv->down_keyval[i] == keyval) {
 				priv->down_keyval[i] = 0;
+				priv->down_scancode[i] = 0;
 				/* ..send the key releae event we're dealing with */
-				gvnc_key_event(priv->gvnc, 0, keyval);
+				gvnc_key_event(priv->gvnc, 0, keyval, key->hardware_keycode);
 				break;
 			}
 		}
@@ -634,8 +647,10 @@ static gboolean focus_event(GtkWidget *widget, GdkEventFocus *focus G_GNUC_UNUSE
 		/* We are currently pressed so... */
 		if (priv->down_keyval[i] != 0) {
 			/* ..send the fake key releae event to match */
-			gvnc_key_event(priv->gvnc, 0, priv->down_keyval[i]);
+			gvnc_key_event(priv->gvnc, 0,
+				       priv->down_keyval[i], priv->down_scancode[i]);
 			priv->down_keyval[i] = 0;
+			priv->down_scancode[i] = 0;
 		}
 	}
 
@@ -1204,6 +1219,7 @@ static void *vnc_coroutine(void *opaque)
 	/* this order is extremely important! */
 	int32_t encodings[] = {	GVNC_ENCODING_TIGHT_JPEG5,
 				GVNC_ENCODING_TIGHT,
+				GVNC_ENCODING_EXT_KEY_EVENT,
 				GVNC_ENCODING_DESKTOP_RESIZE,
 				GVNC_ENCODING_RICH_CURSOR,
 				GVNC_ENCODING_XCURSOR,
@@ -1372,21 +1388,40 @@ void vnc_display_send_keys(VncDisplay *obj, const guint *keyvals, int nkeyvals)
 				 nkeyvals, VNC_DISPLAY_KEY_EVENT_CLICK);
 }
 
+static guint get_keycode_from_keyval(guint keyval)
+{
+	guint keycode = 0;
+	GdkKeymapKey *keys = NULL;
+	gint n_keys = 0;
+
+	if (gdk_keymap_get_entries_for_keyval(gdk_keymap_get_default(),
+					      keyval, &keys, &n_keys)) {
+		/* FIXME what about levels? */
+		keycode = keys[0].keycode;
+		g_free(keys);
+	}
+
+	return keycode;
+}
+
 void vnc_display_send_keys_ex(VncDisplay *obj, const guint *keyvals,
 			      int nkeyvals, VncDisplayKeyEvent kind)
 {
 	int i;
+
 	if (obj->priv->gvnc == NULL || !gvnc_is_open(obj->priv->gvnc))
 		return;
 
 	if (kind & VNC_DISPLAY_KEY_EVENT_PRESS) {
 		for (i = 0 ; i < nkeyvals ; i++)
-			gvnc_key_event(obj->priv->gvnc, 1, keyvals[i]);
+			gvnc_key_event(obj->priv->gvnc, 1, keyvals[i],
+				       get_keycode_from_keyval(keyvals[i]));
 	}
 
 	if (kind & VNC_DISPLAY_KEY_EVENT_RELEASE) {
 		for (i = (nkeyvals-1) ; i >= 0 ; i--)
-			gvnc_key_event(obj->priv->gvnc, 0, keyvals[i]);
+			gvnc_key_event(obj->priv->gvnc, 0, keyvals[i],
+				       get_keycode_from_keyval(keyvals[i]));
 	}
 }
 

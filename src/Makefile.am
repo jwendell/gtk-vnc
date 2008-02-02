@@ -13,7 +13,7 @@ libgtk_vnc_1_0_la_LDFLAGS = -Wl,--version-script=$(srcdir)/libgtk-vnc_sym.versio
                             -version-info 0:1:0
 
 gtk_vnc_includedir = $(includedir)/gtk-vnc-1.0/
-gtk_vnc_include_HEADERS = vncdisplay.h gvnc.h
+gtk_vnc_include_HEADERS = vncdisplay.h
 
 libgtk_vnc_1_0_la_SOURCES = blt.h blt1.h \
 	coroutine.h \
@@ -21,6 +21,7 @@ libgtk_vnc_1_0_la_SOURCES = blt.h blt1.h \
 	gvnc.h gvnc.c \
 	vncdisplay.h vncdisplay.c \
         vncmarshal.h vncmarshal.c \
+	x_keymap.h x_keymap.c vnc_keycodes.h \
 	utils.h
 
 if WITH_UCONTEXT

@@ -31,11 +31,17 @@
 #include "coroutine.h"
 #include "d3des.h"
 
+#include "x_keymap.h"
+
 #include "utils.h"
 #include <gnutls/gnutls.h>
 #include <gnutls/x509.h>
 
 #include <zlib.h>
+
+#include <gdk/gdkkeysyms.h>
+
+#include "vnc_keycodes.h"
 
 struct wait_queue
 {
@@ -158,6 +164,8 @@ struct gvnc
 
 	uint8_t zrle_pi;
 	int zrle_pi_bits;
+
+	gboolean has_ext_key_event;
 };
 
 #define nibhi(a) (((a) >> 4) & 0x0F)
@@ -815,6 +823,7 @@ gboolean gvnc_set_encodings(struct gvnc *gvnc, int n_encoding, int32_t *encoding
 	uint8_t pad[1] = {0};
 	int i;
 
+	gvnc->has_ext_key_event = FALSE;
 	gvnc_write_u8(gvnc, 2);
 	gvnc_write(gvnc, pad, 1);
 	gvnc_write_u16(gvnc, n_encoding);
@@ -879,14 +888,29 @@ static void gvnc_buffered_flush(struct gvnc *gvnc)
 	g_io_wakeup(&gvnc->wait);
 }
 
-gboolean gvnc_key_event(struct gvnc *gvnc, uint8_t down_flag, uint32_t key)
+gboolean gvnc_key_event(struct gvnc *gvnc, uint8_t down_flag,
+			uint32_t key, uint16_t scancode)
 {
 	uint8_t pad[2] = {0};
 
-	gvnc_buffered_write_u8(gvnc, 4);
-	gvnc_buffered_write_u8(gvnc, down_flag);
-	gvnc_buffered_write(gvnc, pad, 2);
-	gvnc_buffered_write_u32(gvnc, key);
+	if (gvnc->has_ext_key_event) {
+		if (key == GDK_Pause)
+			scancode = VKC_PAUSE;
+		else
+			scancode = x_keycode_to_pc_keycode(scancode);
+
+		gvnc_buffered_write_u8(gvnc, 255);
+		gvnc_buffered_write_u8(gvnc, 0);
+		gvnc_buffered_write_u16(gvnc, down_flag);
+		gvnc_buffered_write_u32(gvnc, key);
+		gvnc_buffered_write_u32(gvnc, scancode);
+	} else {
+		gvnc_buffered_write_u8(gvnc, 4);
+		gvnc_buffered_write_u8(gvnc, down_flag);
+		gvnc_buffered_write(gvnc, pad, 2);
+		gvnc_buffered_write_u32(gvnc, key);
+	}
+
 	gvnc_buffered_flush(gvnc);
 	return !gvnc_has_error(gvnc);
 }
@@ -1883,6 +1907,9 @@ static void gvnc_framebuffer_update(struct gvnc *gvnc, int32_t etype,
 		break;
 	case GVNC_ENCODING_XCURSOR:
 		gvnc_xcursor(gvnc, x, y, width, height);
+		break;
+	case GVNC_ENCODING_EXT_KEY_EVENT:
+		gvnc->has_ext_key_event = TRUE;
 		break;
 	default:
 		GVNC_DEBUG("Received an unknown encoding type: %d\n", etype);
@@ -3019,6 +3046,11 @@ int gvnc_get_width(struct gvnc *gvnc)
 int gvnc_get_height(struct gvnc *gvnc)
 {
 	return gvnc->height;
+}
+
+gboolean gvnc_using_raw_keycodes(struct gvnc *gvnc)
+{
+	return gvnc->has_ext_key_event;
 }
 
 /*

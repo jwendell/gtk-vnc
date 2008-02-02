@@ -89,6 +89,7 @@ typedef enum {
 	GVNC_ENCODING_XCURSOR = -240,
 
 	GVNC_ENCODING_POINTER_CHANGE = -257,
+	GVNC_ENCODING_EXT_KEY_EVENT = -258,
 } gvnc_encoding;
 
 typedef enum {
@@ -149,7 +150,8 @@ gboolean gvnc_client_cut_text(struct gvnc *gvnc,
 gboolean gvnc_pointer_event(struct gvnc *gvnc, uint8_t button_mask,
 			    uint16_t x, uint16_t y);
 
-gboolean gvnc_key_event(struct gvnc *gvnc, uint8_t down_flag, uint32_t key);
+gboolean gvnc_key_event(struct gvnc *gvnc, uint8_t down_flag,
+			uint32_t key, uint16_t scancode);
 
 gboolean gvnc_framebuffer_update_request(struct gvnc *gvnc,
 					 uint8_t incremental,
@@ -170,6 +172,9 @@ gboolean gvnc_shared_memory_enabled(struct gvnc *gvnc);
 const char *gvnc_get_name(struct gvnc *gvnc);
 int gvnc_get_width(struct gvnc *gvnc);
 int gvnc_get_height(struct gvnc *gvnc);
+
+/* HACK this is temporary */
+gboolean gvnc_using_raw_keycodes(struct gvnc *gvnc);
 
 #endif
 /*
