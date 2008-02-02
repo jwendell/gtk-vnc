@@ -1,9 +1,198 @@
+2008-01-28  Atsushi SAKAI  <sakaia@jp.fujitsu.com>
+
+	* src/gvnc.c:
+	Fix ZRLE encoding where multiple palette sizes of different lengths
+	occur in a single update.
+	[3bf6fb00d105] [tip]
+
+2008-01-27  Anthony Liguori  <anthony@codemonkey.ws>
+
+	* src/vncdisplay.c:
+	Change vnc-auth-credentials to a POINTER instead of a PARAM.
+
+	Newer versions of gtk are enforcing that PARMs are actually PARAMs
+	so this was triggering an assert. We switch to POINTER to avoid
+	breaking the ABI.
+	[a720c8172a85]
+
+2008-01-25  Richard W.M. Jones  <rjones@redhat.com>
+
+	* plugin/README:
+	After some discussion here about plugin security, this documents
+	what we think are the potential vulnerabilities of letting an
+	unconstrained plugin live in your browser
+	[27e7004a3772]
+
+2008-01-21  Anthony Liguori  <anthony@codemonkey.ws>
+
+	* src/blt1.h, src/continuation.c, src/continuation.h, src/coroutine.h,
+	src/coroutine_gthread.c, src/coroutine_ucontext.c, src/gvnc.c,
+	src/utils.h, src/vncdisplay.c, src/vncdisplay.h, src/vncmodule.c:
+	Clarify license to be LGPLv2 or later.
+	[ec1859fcd58c]
+
+	* src/vncdisplay.c:
+	Make sure to free coroutine after it exits
+	[4fc4541f1ad7]
+
+2008-01-16  Jonh Wendell  <wendell@bani.com.br>
+
+	* src/gvnc.c:
+	Print a debug message when receive an unknown message
+	[3a0afe359edf]
+
+2008-01-15  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* examples/gvncviewer.c, plugin/gtk-vnc-plugin.c:
+	Hide password characters in auth text entry (Rich Jones)
+	[5912e584132d]
+
+2008-01-14  Anthony Liguori  <anthony@codemonkey.ws>
+
+	* src/blt.h, src/gvnc.c:
+	When doing pixel math, we have to take endianness into account.
+	This sucks for performance :-/
+	[0d49b73d662a]
+
+	* src/gvnc.c:
+	Fix case where client byte order != server byte order
+	[bfcbe9409fa5]
+
+2008-01-11  Richard W.M. Jones  <rjones@redhat.com>
+
+	* .hgignore, plugin/Makefile.am, plugin/gtk-vnc-plugin.c, plugin/gtk-
+	vnc-plugin.h, plugin/npshell.c, plugin/test.html:
+	This patch contains further fixes to the browser plugin:
+
+	(1) As Dan suggested, use -module -avoid-version. This still
+	installs a static library and the linker script, both of which are
+	unhelpful to have in the plugins directory, so I have to delete them
+	by hand. Couldn't see any option in the libtool info to not have it
+	build or install those.
+
+	(2) Use the global ENABLE_DEBUG setting to turn on/off debug
+	messages.
+
+	(3) Move the debug() function into a common header file.
+
+	(4) Include test.html, which I missed out from the first patch.
+
+	(5) Put #if 1 ... #endif around the Gtk toolkit test. I'll probably
+	remove this test altogether in future since (in theory) XEmbed
+	should let you embed a widget from any toolkit in any other toolkit,
+	so this test doesn't really matter.
+	[492cc3ad13a7]
+
+2008-01-11  Jonh Wendell  <wendell@bani.com.br>
+
+	* configure.ac:
+	Output configure summary
+	[77e5b2124839]
+
+2008-01-11  Anthony Liguori  <anthony@codemonkey.ws>
+
+	* plugin/Makefile.am, plugin/README, plugin/gtk-vnc-plugin.c, plugin
+	/gtk-vnc-plugin.h, plugin/npshell.c, plugin/npunix.c:
+	Add the files from the plugin patch. Sorry about that!
+	[1b674865392b]
+
+2008-01-11  Richard W.M. Jones  <rjones@redhat.com>
+
+	* .hgignore, Makefile.am, configure.ac:
+	Gtk-VNC browser plugin.
+	[7d2f6e449be6]
+
+2008-01-10  Richard W.M. Jones  <rjones@redhat.com>
+
+	* src/gvnc.c:
+	This patch detects if the server responds with (illegal) VNC
+	protocol version "3.6" and negotiates version 3.3.
+
+	(This fix actually supplied for me by Dan Berrange ...)
+	[4964aaeb8ccc]
+
+2008-01-10  Anthony Liguori  <anthony@codemonkey.ws>
+
+	* src/gvnc.c:
+	uint8_t's are always greater than 0 and less than 255. Removing
+	these checks keeps GCC happy.
+	[8b9c9e2afd99]
+
+2008-01-10  Halton Huo  <halton.huo@sun.com>
+
+	* src/gvnc.c:
+	suncc does not range case for swith statement.
+	[fbad115f06b9]
+
+2008-01-10  Richard W.M. Jones  <rjones@redhat.com>
+
+	* src/vncdisplay.c:
+	If you call one of the vnc_display_open* functions followed quickly
+	by vnc_display_close, then the library segfaults.
+
+	The reason is that the vnc_display_open* functions register an idle
+	callback to launch the coroutine, but if vnc_display_close is called
+	before the idle loop has had a moment to run, this idle callback
+	remains. The coroutine later runs - in my case, after the plugin
+	I'm writing has been unmapped from memory, with unhappy
+	consequences.
+
+	The attached patch fixes this by remembering the callback ID and
+	unregistering it if necessary.
+	[39b5a6c76599]
+
+2008-01-09  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* src/vncdisplay.c:
+	Track keystate & send fake events for GTK key-repeat flaw & to reset
+	state on focus out
+	[95f570fc49e1]
+
+2008-01-01  Anthony Liguori  <anthony@codemonkey.ws>
+
+	* src/vncdisplay.c:
+	Relax the jpeg compression a bit.
+	[73b4f4043cb5]
+
+	* NEWS, src/blt.h, src/gvnc.c, src/gvnc.h, src/libgtk-vnc_sym.version,
+	src/vncdisplay.c, src/vncdisplay.h:
+	Add support for Tight encoding. Also add an interface to enable the
+	use of lossy-encodings such as the Tight JPEG encoding.
+	[b5de4b4d2c9c]
+
+2007-12-30  Anthony Liguori  <anthony@codemonkey.ws>
+
+	* .hgtags:
+	Added tag release-0.3.2 for changeset 978cb4791ef2
+	[5f08494b222b]
+
 2007-12-28  Anthony Liguori  <anthony@codemonkey.ws>
+
+	* .hgtags:
+	Added tag release-0.3.2-rc0 for changeset ae93c84b5fc8
+	[978cb4791ef2] [release-0.3.2]
+
+	* src/gvnc.c:
+	Client cut text should used buffered writes to avoid race conditions
+	since it may be called while the coroutine is blocked on IO.
+	[ae93c84b5fc8] [release-0.3.2-rc0]
+
+	* .hgtags:
+	Added tag release-0.3.2-rc0 for changeset b4006353448c
+	[34ffaf166bfc]
+
+	* NEWS, configure.ac:
+	Update news and prepare for 0.3.2
+	[b4006353448c]
+
+	* ChangeLog:
+	Update ChangeLog
+	[02d63c1b0f4e]
 
 	* configure.ac, gtk-vnc.spec.in, src/blt.h, src/gvnc.c,
 	src/vncdisplay.c:
 	Add support for ZRLE encoding
-	[ad7c87b9d94a] [tip]
+	[ad7c87b9d94a]
 
 	* NEWS:
 	Update news
