@@ -145,6 +145,12 @@ static gboolean expose_event(GtkWidget *widget, GdkEventExpose *expose,
 	GdkRectangle drawn;
 	GdkRegion *clear, *copy;
 
+	GVNC_DEBUG("Expose %dx%d @ %d,%d\n",
+		   expose->area.x,
+		   expose->area.y,
+		   expose->area.width,
+		   expose->area.height);
+
 #if WITH_GTKGLEXT
 	if (priv->image == NULL && priv->gl_tex_data == NULL)
 		return TRUE;
@@ -207,6 +213,7 @@ static gboolean expose_event(GtkWidget *widget, GdkEventExpose *expose,
 		glTexCoord2f(rx,ry);  glVertex3f(wx+ww, wy, 0);
 		glEnd();
 		glDisable(GL_TEXTURE_2D);
+		glFlush();
 		gdk_gl_drawable_gl_end(priv->gl_drawable);
 	} else
 #endif
