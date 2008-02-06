@@ -111,7 +111,6 @@ void *coroutine_yieldto(struct coroutine *to, void *arg)
 		fprintf(stderr, "Co-routine is re-entering itself\n");
 		abort();
 	}
-	to->caller = coroutine_self();
 	return coroutine_swap(coroutine_self(), to, arg);
 }
 
