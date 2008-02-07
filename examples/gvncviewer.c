@@ -243,9 +243,9 @@ static gboolean window_state_event(GtkWidget *widget,
 
 	if (event->changed_mask & GDK_WINDOW_STATE_FULLSCREEN) {
 		if (event->new_window_state & GDK_WINDOW_STATE_FULLSCREEN)
-			ViewAutoDrawer_SetPinned(drawer, FALSE);
+			ViewAutoDrawer_SetActive(drawer, TRUE);
 		else
-			ViewAutoDrawer_SetPinned(drawer, TRUE);
+			ViewAutoDrawer_SetActive(drawer, FALSE);
 	}
 
 	return FALSE;
@@ -322,7 +322,7 @@ int main(int argc, char **argv)
 	gtk_menu_item_set_submenu(GTK_MENU_ITEM(view), submenu);
 
 #if WITH_LIBVIEW
-	ViewAutoDrawer_SetPinned(VIEW_AUTODRAWER(layout), TRUE);
+	ViewAutoDrawer_SetActive(VIEW_AUTODRAWER(layout), FALSE);
 	ViewOvBox_SetOver(VIEW_OV_BOX(layout), menubar);
 	ViewOvBox_SetUnder(VIEW_OV_BOX(layout), vnc);
 #else
