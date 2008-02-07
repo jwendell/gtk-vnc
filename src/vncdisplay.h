@@ -107,6 +107,8 @@ void		vnc_display_set_lossy_encoding(VncDisplay *obj, gboolean enable);
 
 gboolean	vnc_display_set_scaling(VncDisplay *obj, gboolean enable);
 
+void		vnc_display_force_grab(VncDisplay *obj, gboolean enable);
+
 G_END_DECLS
 
 #endif

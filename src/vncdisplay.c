@@ -346,6 +346,14 @@ static void do_pointer_ungrab(VncDisplay *obj, gboolean quiet)
 		g_signal_emit(obj, signals[VNC_POINTER_UNGRAB], 0);
 }
 
+void vnc_display_force_grab(VncDisplay *obj, gboolean enable)
+{
+	if (enable)
+		do_pointer_grab(obj, FALSE);
+	else
+		do_pointer_ungrab(obj, FALSE);
+}
+
 static void do_pointer_hide(VncDisplay *obj)
 {
 	VncDisplayPrivate *priv = obj->priv;

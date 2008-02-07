@@ -19,6 +19,8 @@
 #include <gtk/gtkgl.h>
 #endif
 
+static GtkWidget *vnc;
+
 static void set_title(VncDisplay *vnc, GtkWidget *window, gboolean grabbed)
 {
 	const char *name;
@@ -242,10 +244,13 @@ static gboolean window_state_event(GtkWidget *widget,
 	ViewAutoDrawer *drawer = VIEW_AUTODRAWER(data);
 
 	if (event->changed_mask & GDK_WINDOW_STATE_FULLSCREEN) {
-		if (event->new_window_state & GDK_WINDOW_STATE_FULLSCREEN)
+		if (event->new_window_state & GDK_WINDOW_STATE_FULLSCREEN) {
+			vnc_display_force_grab(VNC_DISPLAY(vnc), TRUE);
 			ViewAutoDrawer_SetActive(drawer, TRUE);
-		else
+		} else {
+			vnc_display_force_grab(VNC_DISPLAY(vnc), FALSE);
 			ViewAutoDrawer_SetActive(drawer, FALSE);
+		}
 	}
 
 	return FALSE;
@@ -257,7 +262,6 @@ int main(int argc, char **argv)
 	char port[1024], hostname[1024];
 	char *display;
 	GtkWidget *window;
-	GtkWidget *vnc;
 	GtkWidget *layout;
 	GtkWidget *menubar;
 	GtkWidget *sendkey, *view;
