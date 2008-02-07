@@ -871,7 +871,7 @@ static void emit_signal_delayed(VncDisplay *obj, int signum,
 	coroutine_yield(NULL);
 }
 
-static gboolean on_resize(void *opaque, int width, int height)
+static gboolean do_resize(void *opaque, int width, int height, gboolean quiet)
 {
 	VncDisplay *obj = VNC_DISPLAY(opaque);
 	VncDisplayPrivate *priv = obj->priv;
@@ -914,11 +914,18 @@ static gboolean on_resize(void *opaque, int width, int height)
 
 	gvnc_set_local(priv->gvnc, &priv->fb);
 
-	s.width = width;
-	s.height = height;
-	emit_signal_delayed(obj, VNC_DESKTOP_RESIZE, &s);
+	if (!quiet) {
+		s.width = width;
+		s.height = height;
+		emit_signal_delayed(obj, VNC_DESKTOP_RESIZE, &s);
+	}
 
 	return TRUE;
+}
+
+static gboolean on_resize(void *opaque, int width, int height)
+{
+	return do_resize(opaque, width, height, FALSE);
 }
 
 #if WITH_GTKGLEXT
@@ -1006,7 +1013,7 @@ static void scale_display(VncDisplay *obj, gint width, gint height)
 		image = priv->image;
 		priv->image = NULL;
 	
-		on_resize(obj, priv->fb.width, priv->fb.height);
+		do_resize(obj, priv->fb.width, priv->fb.height, TRUE);
 		build_gl_image_from_gdk((uint32_t *)priv->fb.data, image);
 
 		g_object_unref(image);
@@ -1049,7 +1056,7 @@ static void rescale_display(VncDisplay *obj, gint width, gint height)
 		data = priv->gl_tex_data;
 		priv->gl_tex_data = NULL;
 
-		on_resize(GTK_WIDGET(obj), priv->fb.width, priv->fb.height);
+		do_resize(GTK_WIDGET(obj), priv->fb.width, priv->fb.height, TRUE);
 
 		build_gdk_image_from_gl(priv->image, (uint32_t *)data);
 		gdk_gl_drawable_gl_begin(priv->gl_drawable,
