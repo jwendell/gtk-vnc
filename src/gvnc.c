@@ -953,7 +953,7 @@ static uint8_t gvnc_swap_8(struct gvnc *gvnc, uint8_t pixel)
 
 static uint16_t gvnc_swap_16(struct gvnc *gvnc, uint16_t pixel)
 {
-	if (gvnc->fmt.byte_order != __BYTE_ORDER)
+	if (gvnc->fmt.byte_order != gvnc->local.byte_order)
 		return  (((pixel >> 8) & 0xFF) << 0) |
 			(((pixel >> 0) & 0xFF) << 8);
 	else
@@ -962,7 +962,7 @@ static uint16_t gvnc_swap_16(struct gvnc *gvnc, uint16_t pixel)
 
 static uint32_t gvnc_swap_32(struct gvnc *gvnc, uint32_t pixel)
 {
-	if (gvnc->fmt.byte_order != __BYTE_ORDER)
+	if (gvnc->fmt.byte_order != gvnc->local.byte_order)
 		return  (((pixel >> 24) & 0xFF) <<  0) |
 			(((pixel >> 16) & 0xFF) <<  8) |
 			(((pixel >>  8) & 0xFF) << 16) |
@@ -2953,6 +2953,7 @@ gboolean gvnc_set_local(struct gvnc *gvnc, struct gvnc_framebuffer *fb)
 	    fb->red_shift == gvnc->fmt.red_shift &&
 	    fb->green_shift == gvnc->fmt.green_shift &&
 	    fb->blue_shift == gvnc->fmt.blue_shift &&
+	    fb->byte_order == gvnc->fmt.byte_order &&
 	    __BYTE_ORDER == gvnc->fmt.byte_order)
 		gvnc->perfect_match = TRUE;
 	else
@@ -3001,13 +3002,6 @@ gboolean gvnc_set_local(struct gvnc *gvnc, struct gvnc_framebuffer *fb)
 	for (n = gvnc->fmt.blue_max; n > gvnc->local.blue_mask ; n>>= 1)
 		gvnc->brs++;
 
-	/* This adjusts for remote having less bpp than remote */
-	for (n = gvnc->local.red_mask ; n > gvnc->fmt.red_max ; n>>= 1)
-		gvnc->rls++;
-	for (n = gvnc->local.green_mask ; n > gvnc->fmt.green_max ; n>>= 1)
-		gvnc->gls++;
-	for (n = gvnc->local.blue_mask ; n > gvnc->fmt.blue_max ; n>>= 1)
-		gvnc->bls++;
 	GVNC_DEBUG("Pixel shifts\n   right: %3d %3d %3d\n    left: %3d %3d %3d\n",
 		   gvnc->rrs, gvnc->grs, gvnc->brs,
 		   gvnc->rls, gvnc->gls, gvnc->bls);
