@@ -351,8 +351,7 @@ static gboolean button_event(GtkWidget *widget, GdkEventButton *button,
 	if (priv->read_only)
 		return FALSE;
 
-	if ((priv->grab_pointer || !priv->absolute) &&
-	    !priv->in_pointer_grab &&
+	if (priv->grab_pointer && !priv->absolute && !priv->in_pointer_grab &&
 	    button->button == 1 && button->type == GDK_BUTTON_PRESS)
 		do_pointer_grab(VNC_DISPLAY(widget), FALSE);
 
@@ -818,7 +817,7 @@ static gboolean on_resize(void *opaque, int width, int height)
 		priv->null_cursor = create_null_cursor();
 		if (priv->local_pointer)
 			do_pointer_show(obj);
-		else
+		else if (!priv->absolute)
 			do_pointer_hide(obj);
 		priv->gc = gdk_gc_new(GTK_WIDGET(obj)->window);
 	}
@@ -1810,7 +1809,7 @@ void vnc_display_set_pointer_local(VncDisplay *obj, gboolean enable)
 	if (obj->priv->gc) {
 		if (enable)
 			do_pointer_show(obj);
-		else
+		else if (obj->priv->in_pointer_grab || obj->priv->absolute)
 			do_pointer_hide(obj);
 	}
 	obj->priv->local_pointer = enable;
@@ -1823,8 +1822,6 @@ void vnc_display_set_pointer_grab(VncDisplay *obj, gboolean enable)
 	priv->grab_pointer = enable;
 	if (!enable && priv->absolute && priv->in_pointer_grab)
 		do_pointer_ungrab(obj, FALSE);
-	if (enable && priv->absolute && !priv->in_pointer_grab)
-		do_pointer_grab(obj, FALSE);
 }
 
 void vnc_display_set_keyboard_grab(VncDisplay *obj, gboolean enable)
@@ -1834,9 +1831,6 @@ void vnc_display_set_keyboard_grab(VncDisplay *obj, gboolean enable)
 	priv->grab_keyboard = enable;
 	if (!enable && priv->in_keyboard_grab && !priv->in_pointer_grab)
 		do_keyboard_ungrab(obj, FALSE);
-	if (enable && !priv->in_keyboard_grab)
-		do_keyboard_grab(obj, FALSE);
-
 }
 
 void vnc_display_set_read_only(VncDisplay *obj, gboolean enable)
