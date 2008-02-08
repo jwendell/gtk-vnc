@@ -381,6 +381,8 @@ static gboolean button_event(GtkWidget *widget, GdkEventButton *button,
 	if (priv->read_only)
 		return FALSE;
 
+	gtk_widget_grab_focus (widget);
+
 	if (priv->grab_pointer && !priv->absolute && !priv->in_pointer_grab &&
 	    button->button == 1 && button->type == GDK_BUTTON_PRESS)
 		do_pointer_grab(VNC_DISPLAY(widget), FALSE);
