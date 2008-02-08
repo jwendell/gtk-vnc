@@ -1476,17 +1476,44 @@ gboolean vnc_display_is_open(VncDisplay *obj)
 
 void vnc_display_close(VncDisplay *obj)
 {
-	if (obj->priv->open_id) {
-		g_source_remove (obj->priv->open_id);
+	VncDisplayPrivate *priv = obj->priv;
+	GtkWidget *widget = GTK_WIDGET(obj);
+
+	if (priv->open_id) {
+		g_source_remove(priv->open_id);
 		obj->priv->open_id = 0;
 	}
 
-	if (obj->priv->gvnc == NULL)
+	if (priv->gvnc == NULL)
 		return;
 
-	if (gvnc_is_open(obj->priv->gvnc)) {
+	if (gvnc_is_open(priv->gvnc)) {
 		GVNC_DEBUG("Requesting graceful shutdown of connection\n");
-		gvnc_shutdown(obj->priv->gvnc);
+		gvnc_shutdown(priv->gvnc);
+	}
+
+	if (priv->image) {
+		g_object_unref(priv->image);
+		priv->image = NULL;
+	}
+
+#if WITH_GTKGLEXT
+	if (priv->gl_tex_data) {
+		gdk_gl_drawable_gl_begin(priv->gl_drawable,
+					 priv->gl_context);
+		glDeleteTextures(1, &priv->gl_tex);
+		gdk_gl_drawable_gl_end(priv->gl_drawable);
+		g_free(priv->gl_tex_data);
+		priv->gl_tex_data = NULL;
+		priv->gl_enabled = 0;
+	}
+#endif
+
+	if (widget->window) {
+		gint width, height;
+
+		gdk_drawable_get_size(widget->window, &width, &height);
+		gtk_widget_queue_draw_area(widget, 0, 0, width, height);
 	}
 }
 
@@ -2040,7 +2067,7 @@ gboolean vnc_display_set_scaling(VncDisplay *obj, gboolean enable)
 
 	g_return_val_if_fail (VNC_IS_DISPLAY (obj), FALSE);
 	obj->priv->allow_scaling = enable;
-	if (widget->window) {
+	if (gvnc_is_open(obj->priv->gvnc) && widget->window) {
 		gdk_drawable_get_size(widget->window, &width, &height);
 		rescale_display(obj, width, height);
 		gtk_widget_queue_draw_area(widget, 0, 0, width, height);
