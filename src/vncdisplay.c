@@ -173,13 +173,20 @@ static gboolean expose_event(GtkWidget *widget, GdkEventExpose *expose,
 		   expose->area.width,
 		   expose->area.height);
 
+	if (priv->image == NULL) {
 #if WITH_GTKGLEXT
-	if (priv->image == NULL && priv->gl_tex_data == NULL)
-		return TRUE;
-#else
-	if (priv->image == NULL)
-		return TRUE;
+		if (priv->gl_tex_data == NULL)
 #endif
+		{
+			GdkGC *gc = gdk_gc_new(widget->window);
+			gdk_draw_rectangle(widget->window, gc, TRUE,
+					   expose->area.x, expose->area.y,
+					   expose->area.width,
+					   expose->area.height);
+			g_object_unref(gc);
+			return TRUE;
+		}
+	}
 
 #if WITH_GTKGLEXT
 	if (priv->gl_enabled) {
