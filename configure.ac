@@ -102,6 +102,11 @@ fi
 AC_DEFINE_UNQUOTED(WITH_GTKGLEXT,[$WITH_GTKGLEXT], [Whether to use gtkglext])
 AC_SUBST(GTKGLEXT_CFLAGS)
 AC_SUBST(GTKGLEXT_LIBS)
+if test $WITH_GTKGLEXT -eq 0; then
+  with_scaling="no"
+else
+  with_scaling="yes"
+fi
 
 AC_ARG_WITH(libview,
 [  --with-libview          enable libview support in gvncviewer],
@@ -239,4 +244,5 @@ Configure summary:
 	Install example programs ...:  ${WITH_EXAMPLES}
 	Browser plugin .............:  ${enable_plugin}
 	DEBUG messages..............:  ${enable_debug}
+	Scaling support.............:  ${with_scaling}
 "
