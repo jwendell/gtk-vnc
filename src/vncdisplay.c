@@ -83,6 +83,28 @@ struct _VncDisplayPrivate
 	gboolean allow_scaling;
 };
 
+/* Delayed signal emmission.
+ *
+ * We want signals to be delivered in the system coroutine.  This helps avoid
+ * confusing applications.  This is particularily important when using
+ * GThread based coroutines since GTK gets very upset if a signal handler is
+ * run in a different thread from the main loop if that signal handler isn't
+ * written to use explicit locking.
+ */
+struct signal_data
+{
+	VncDisplay *obj;
+	struct coroutine *caller;
+
+	int signum;
+	GValueArray *cred_list;
+	int width;
+	int height;
+	const char *msg;
+	unsigned int auth_type;
+	GString *str;
+};
+
 G_DEFINE_TYPE(VncDisplay, vnc_display, GTK_TYPE_DRAWING_AREA)
 
 /* Signals */
@@ -324,6 +346,14 @@ static void do_pointer_ungrab(VncDisplay *obj, gboolean quiet)
 		g_signal_emit(obj, signals[VNC_POINTER_UNGRAB], 0);
 }
 
+void vnc_display_force_grab(VncDisplay *obj, gboolean enable)
+{
+	if (enable)
+		do_pointer_grab(obj, FALSE);
+	else
+		do_pointer_ungrab(obj, FALSE);
+}
+
 static void do_pointer_hide(VncDisplay *obj)
 {
 	VncDisplayPrivate *priv = obj->priv;
@@ -351,8 +381,9 @@ static gboolean button_event(GtkWidget *widget, GdkEventButton *button,
 	if (priv->read_only)
 		return FALSE;
 
-	if ((priv->grab_pointer || !priv->absolute) &&
-	    !priv->in_pointer_grab &&
+	gtk_widget_grab_focus (widget);
+
+	if (priv->grab_pointer && !priv->absolute && !priv->in_pointer_grab &&
 	    button->button == 1 && button->type == GDK_BUTTON_PRESS)
 		do_pointer_grab(VNC_DISPLAY(widget), FALSE);
 
@@ -505,6 +536,15 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *key,
 		return FALSE;
 
 	if (gvnc_using_raw_keycodes(priv->gvnc)) {
+		if (key->type == GDK_KEY_PRESS &&
+		    ((key->keyval == GDK_Control_L && (key->state & GDK_MOD1_MASK)) ||
+		     (key->keyval == GDK_Alt_L && (key->state & GDK_CONTROL_MASK)))) {
+			if (priv->in_pointer_grab)
+				do_pointer_ungrab(VNC_DISPLAY(widget), FALSE);
+			else
+				do_pointer_grab(VNC_DISPLAY(widget), FALSE);
+		}
+
 		if (key->type == GDK_KEY_PRESS)
 			gvnc_key_event(priv->gvnc, 1,
 				       key->keyval, key->hardware_keycode);
@@ -735,7 +775,6 @@ static void setup_gdk_image(VncDisplay *obj, gint width, gint height)
 	priv->fb.height = priv->image->height;
 	priv->fb.linesize = priv->image->bpl;
 	priv->fb.data = (uint8_t *)priv->image->mem;
-	priv->fb.byte_order = priv->image->byte_order == GDK_LSB_FIRST ? __LITTLE_ENDIAN : __BIG_ENDIAN;
 
 	gtk_widget_set_size_request(GTK_WIDGET(obj), width, height);
 }
@@ -790,10 +829,72 @@ static void setup_gl_image(VncDisplay *obj, gint width, gint height)
 }
 #endif
 
-static gboolean on_resize(void *opaque, int width, int height)
+static gboolean emit_signal_auth_cred(gpointer opaque)
+{
+	struct signal_data *s = opaque;
+
+	switch (s->signum) {
+	case VNC_AUTH_CREDENTIAL:
+		g_signal_emit(G_OBJECT(s->obj),
+			      signals[VNC_AUTH_CREDENTIAL],
+			      0,
+			      s->cred_list);
+		break;
+	case VNC_DESKTOP_RESIZE:
+		g_signal_emit(G_OBJECT(s->obj),
+			      signals[VNC_DESKTOP_RESIZE],
+			      0,
+			      s->width, s->height);
+		break;
+	case VNC_AUTH_FAILURE:
+		g_signal_emit(G_OBJECT(s->obj),
+			      signals[VNC_AUTH_FAILURE],
+			      0,
+			      s->msg);
+		break;
+	case VNC_AUTH_UNSUPPORTED:
+		g_signal_emit(G_OBJECT(s->obj),
+			      signals[VNC_AUTH_UNSUPPORTED],
+			      0,
+			      s->auth_type);
+		break;
+	case VNC_SERVER_CUT_TEXT:
+		g_signal_emit(G_OBJECT(s->obj),
+			      signals[VNC_SERVER_CUT_TEXT],
+			      0,
+			      s->str->str);
+		break;
+	case VNC_BELL:
+	case VNC_CONNECTED:
+	case VNC_INITIALIZED:
+	case VNC_DISCONNECTED:
+		g_signal_emit(G_OBJECT(s->obj),
+			      signals[s->signum],
+			      0);
+		break;
+	}
+
+	coroutine_yieldto(s->caller, NULL);
+	
+	return FALSE;
+}
+
+/* This function should be used to emit signals from gvnc callbacks */
+static void emit_signal_delayed(VncDisplay *obj, int signum,
+				struct signal_data *data)
+{
+	data->obj = obj;
+	data->caller = coroutine_self();
+	data->signum = signum;
+	g_idle_add(emit_signal_auth_cred, data);
+	coroutine_yield(NULL);
+}
+
+static gboolean do_resize(void *opaque, int width, int height, gboolean quiet)
 {
 	VncDisplay *obj = VNC_DISPLAY(opaque);
 	VncDisplayPrivate *priv = obj->priv;
+	struct signal_data s;
 
 	if (priv->gvnc == NULL || !gvnc_is_initialized(priv->gvnc))
 		return TRUE;
@@ -818,7 +919,7 @@ static gboolean on_resize(void *opaque, int width, int height)
 		priv->null_cursor = create_null_cursor();
 		if (priv->local_pointer)
 			do_pointer_show(obj);
-		else
+		else if (!priv->absolute)
 			do_pointer_hide(obj);
 		priv->gc = gdk_gc_new(GTK_WIDGET(obj)->window);
 	}
@@ -832,12 +933,18 @@ static gboolean on_resize(void *opaque, int width, int height)
 
 	gvnc_set_local(priv->gvnc, &priv->fb);
 
-	g_signal_emit (G_OBJECT (obj),
-		       signals[VNC_DESKTOP_RESIZE],
-		       0,
-		       width, height);
+	if (!quiet) {
+		s.width = width;
+		s.height = height;
+		emit_signal_delayed(obj, VNC_DESKTOP_RESIZE, &s);
+	}
 
 	return TRUE;
+}
+
+static gboolean on_resize(void *opaque, int width, int height)
+{
+	return do_resize(opaque, width, height, FALSE);
 }
 
 #if WITH_GTKGLEXT
@@ -925,7 +1032,7 @@ static void scale_display(VncDisplay *obj, gint width, gint height)
 		image = priv->image;
 		priv->image = NULL;
 	
-		on_resize(obj, priv->fb.width, priv->fb.height);
+		do_resize(obj, priv->fb.width, priv->fb.height, TRUE);
 		build_gl_image_from_gdk((uint32_t *)priv->fb.data, image);
 
 		g_object_unref(image);
@@ -968,7 +1075,7 @@ static void rescale_display(VncDisplay *obj, gint width, gint height)
 		data = priv->gl_tex_data;
 		priv->gl_tex_data = NULL;
 
-		on_resize(GTK_WIDGET(obj), priv->fb.width, priv->fb.height);
+		do_resize(GTK_WIDGET(obj), priv->fb.width, priv->fb.height, TRUE);
 
 		build_gdk_image_from_gl(priv->image, (uint32_t *)data);
 		gdk_gl_drawable_gl_begin(priv->gl_drawable,
@@ -1006,6 +1113,7 @@ static gboolean on_auth_cred(void *opaque)
 	VncDisplay *obj = VNC_DISPLAY(opaque);
 	GValueArray *cred_list;
 	GValue username, password, clientname;
+	struct signal_data s;
 
 	memset(&username, 0, sizeof(username));
 	memset(&password, 0, sizeof(password));
@@ -1028,10 +1136,8 @@ static gboolean on_auth_cred(void *opaque)
 		cred_list = g_value_array_append(cred_list, &clientname);
 	}
 
-	g_signal_emit (G_OBJECT (obj),
-		       signals[VNC_AUTH_CREDENTIAL],
-		       0,
-		       cred_list);
+	s.cred_list = cred_list;
+	emit_signal_delayed(obj, VNC_AUTH_CREDENTIAL, &s);
 
 	g_value_array_free(cred_list);
 
@@ -1071,11 +1177,10 @@ static gboolean on_auth_subtype(void *opaque, unsigned int ntype, unsigned int *
 static gboolean on_auth_failure(void *opaque, const char *msg)
 {
 	VncDisplay *obj = VNC_DISPLAY(opaque);
+	struct signal_data s;
 
-	g_signal_emit (G_OBJECT (obj),
-		       signals[VNC_AUTH_FAILURE],
-		       0,
-		       msg);
+	s.msg = msg;
+	emit_signal_delayed(obj, VNC_AUTH_FAILURE, &s);
 
 	return TRUE;
 }
@@ -1083,11 +1188,10 @@ static gboolean on_auth_failure(void *opaque, const char *msg)
 static gboolean on_auth_unsupported(void *opaque, unsigned int auth_type)
 {
 	VncDisplay *obj = VNC_DISPLAY(opaque);
+	struct signal_data s;
 
-	g_signal_emit (G_OBJECT (obj),
-		       signals[VNC_AUTH_UNSUPPORTED],
-		       0,
-		       auth_type);
+	s.auth_type = auth_type;
+	emit_signal_delayed(obj, VNC_AUTH_UNSUPPORTED, &s);
 
 	return TRUE;
 }
@@ -1096,11 +1200,10 @@ static gboolean on_server_cut_text(void *opaque, const void* text, size_t len)
 {
 	VncDisplay *obj = VNC_DISPLAY(opaque);
 	GString *str = g_string_new_len ((const gchar *)text, len);
+	struct signal_data s;
 
-	g_signal_emit (G_OBJECT (obj),
-		       signals[VNC_SERVER_CUT_TEXT],
-		       0,
-		       str->str);
+	s.str = str;
+	emit_signal_delayed(obj, VNC_SERVER_CUT_TEXT, &s);
 
 	g_string_free (str, TRUE);
 	return TRUE;
@@ -1109,10 +1212,9 @@ static gboolean on_server_cut_text(void *opaque, const void* text, size_t len)
 static gboolean on_bell(void *opaque)
 {
 	VncDisplay *obj = VNC_DISPLAY(opaque);
+	struct signal_data s;
 
-	g_signal_emit (G_OBJECT (obj),
-		       signals[VNC_BELL],
-		       0);
+	emit_signal_delayed(obj, VNC_BELL, &s);
 
 	return TRUE;
 }
@@ -1239,8 +1341,8 @@ static void *vnc_coroutine(void *opaque)
 				GVNC_ENCODING_RAW };
 	int32_t *encodingsp;
 	int n_encodings;
-
 	int ret;
+	struct signal_data s;
 
 	if (priv->gvnc == NULL || gvnc_is_open(priv->gvnc)) {
 		g_idle_add(delayed_unref_object, obj);
@@ -1256,17 +1358,13 @@ static void *vnc_coroutine(void *opaque)
 			goto cleanup;
 	}
 
-	g_signal_emit (G_OBJECT (obj),
-		       signals[VNC_CONNECTED],
-		       0);
+	emit_signal_delayed(obj, VNC_CONNECTED, &s);
 
 	GVNC_DEBUG("Protocol initialization\n");
 	if (!gvnc_initialize(priv->gvnc, FALSE))
 		goto cleanup;
 
-	g_signal_emit (G_OBJECT (obj),
-		       signals[VNC_INITIALIZED],
-		       0);
+	emit_signal_delayed(obj, VNC_INITIALIZED, &s);
 
 	encodingsp = encodings;
 	n_encodings = ARRAY_SIZE(encodings);
@@ -1297,9 +1395,7 @@ static void *vnc_coroutine(void *opaque)
  cleanup:
 	GVNC_DEBUG("Doing final VNC cleanup\n");
 	gvnc_close(priv->gvnc);
-	g_signal_emit (G_OBJECT (obj),
-		       signals[VNC_DISCONNECTED],
-		       0);
+	emit_signal_delayed(obj, VNC_DISCONNECTED, &s);
 	g_idle_add(delayed_unref_object, obj);
 	/* Co-routine exits now - the VncDisplay object may no longer exist,
 	   so don't do anything else now unless you like SEGVs */
@@ -1810,7 +1906,7 @@ void vnc_display_set_pointer_local(VncDisplay *obj, gboolean enable)
 	if (obj->priv->gc) {
 		if (enable)
 			do_pointer_show(obj);
-		else
+		else if (obj->priv->in_pointer_grab || obj->priv->absolute)
 			do_pointer_hide(obj);
 	}
 	obj->priv->local_pointer = enable;
@@ -1823,8 +1919,6 @@ void vnc_display_set_pointer_grab(VncDisplay *obj, gboolean enable)
 	priv->grab_pointer = enable;
 	if (!enable && priv->absolute && priv->in_pointer_grab)
 		do_pointer_ungrab(obj, FALSE);
-	if (enable && priv->absolute && !priv->in_pointer_grab)
-		do_pointer_grab(obj, FALSE);
 }
 
 void vnc_display_set_keyboard_grab(VncDisplay *obj, gboolean enable)
@@ -1834,9 +1928,6 @@ void vnc_display_set_keyboard_grab(VncDisplay *obj, gboolean enable)
 	priv->grab_keyboard = enable;
 	if (!enable && priv->in_keyboard_grab && !priv->in_pointer_grab)
 		do_keyboard_ungrab(obj, FALSE);
-	if (enable && !priv->in_keyboard_grab)
-		do_keyboard_grab(obj, FALSE);
-
 }
 
 void vnc_display_set_read_only(VncDisplay *obj, gboolean enable)

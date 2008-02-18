@@ -49,7 +49,6 @@ struct gvnc_framebuffer
 
 	int linesize;
 
-	uint16_t byte_order;
 	int depth;
 	int bpp;
 

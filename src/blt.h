@@ -16,7 +16,7 @@
 #define RGB24_BLIT SPLICE(gvnc_rgb24_blt_, SUFFIX())
 #define TIGHT_COMPUTE_PREDICTED SPLICE(gvnc_tight_compute_predicted_, SUFFIX())
 #define TIGHT_SUM_PIXEL SPLICE(gvnc_tight_sum_pixel_, SUFFIX())
-#define SWAP(gvnc, pixel) SPLICE(gvnc_swap_, DST)(gvnc, pixel)
+#define SWAP(gvnc, pixel) SPLICE(gvnc_swap_, SRC)(gvnc, pixel)
 #define COMPONENT(color, pixel) ((SWAP(gvnc, pixel) >> gvnc->fmt.SPLICE(color, _shift) & gvnc->fmt.SPLICE(color, _max)))
 
 static void FAST_FILL(struct gvnc *gvnc, src_pixel_t *sp,
@@ -43,9 +43,9 @@ static void FAST_FILL(struct gvnc *gvnc, src_pixel_t *sp,
 
 static void SET_PIXEL(struct gvnc *gvnc, dst_pixel_t *dp, src_pixel_t *sp)
 {
-	*dp = SWAP(gvnc, ((*sp >> gvnc->rrs) & gvnc->rm) << gvnc->rls
+	*dp = ((*sp >> gvnc->rrs) & gvnc->rm) << gvnc->rls
 		| ((*sp >> gvnc->grs) & gvnc->gm) << gvnc->gls
-		| ((*sp >> gvnc->brs) & gvnc->bm) << gvnc->bls);
+		| ((*sp >> gvnc->brs) & gvnc->bm) << gvnc->bls;
 }
 
 static void SET_PIXEL_AT(struct gvnc *gvnc, int x, int y, src_pixel_t *sp)

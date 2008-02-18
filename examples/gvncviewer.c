@@ -19,6 +19,8 @@
 #include <gtk/gtkgl.h>
 #endif
 
+static GtkWidget *vnc;
+
 static void set_title(VncDisplay *vnc, GtkWidget *window, gboolean grabbed)
 {
 	const char *name;
@@ -242,10 +244,13 @@ static gboolean window_state_event(GtkWidget *widget,
 	ViewAutoDrawer *drawer = VIEW_AUTODRAWER(data);
 
 	if (event->changed_mask & GDK_WINDOW_STATE_FULLSCREEN) {
-		if (event->new_window_state & GDK_WINDOW_STATE_FULLSCREEN)
-			ViewAutoDrawer_SetPinned(drawer, FALSE);
-		else
-			ViewAutoDrawer_SetPinned(drawer, TRUE);
+		if (event->new_window_state & GDK_WINDOW_STATE_FULLSCREEN) {
+			vnc_display_force_grab(VNC_DISPLAY(vnc), TRUE);
+			ViewAutoDrawer_SetActive(drawer, TRUE);
+		} else {
+			vnc_display_force_grab(VNC_DISPLAY(vnc), FALSE);
+			ViewAutoDrawer_SetActive(drawer, FALSE);
+		}
 	}
 
 	return FALSE;
@@ -257,7 +262,6 @@ int main(int argc, char **argv)
 	char port[1024], hostname[1024];
 	char *display;
 	GtkWidget *window;
-	GtkWidget *vnc;
 	GtkWidget *layout;
 	GtkWidget *menubar;
 	GtkWidget *sendkey, *view;
@@ -322,7 +326,7 @@ int main(int argc, char **argv)
 	gtk_menu_item_set_submenu(GTK_MENU_ITEM(view), submenu);
 
 #if WITH_LIBVIEW
-	ViewAutoDrawer_SetPinned(VIEW_AUTODRAWER(layout), TRUE);
+	ViewAutoDrawer_SetActive(VIEW_AUTODRAWER(layout), FALSE);
 	ViewOvBox_SetOver(VIEW_OV_BOX(layout), menubar);
 	ViewOvBox_SetUnder(VIEW_OV_BOX(layout), vnc);
 #else
