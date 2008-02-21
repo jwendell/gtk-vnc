@@ -1753,6 +1753,14 @@ static void gvnc_resize(struct gvnc *gvnc, int width, int height)
 		gvnc->has_error = TRUE;
 }
 
+static void gvnc_pixel_format(struct gvnc *gvnc)
+{
+        if (gvnc->has_error || !gvnc->ops.pixel_format)
+                return;
+        if (!gvnc->ops.pixel_format(gvnc->ops_data, &gvnc->fmt))
+                gvnc->has_error = TRUE;
+}
+
 static void gvnc_pointer_type_change(struct gvnc *gvnc, int absolute)
 {
 	if (gvnc->has_error || !gvnc->ops.pointer_type_change)
@@ -1902,6 +1910,10 @@ static void gvnc_framebuffer_update(struct gvnc *gvnc, int32_t etype,
 	case GVNC_ENCODING_POINTER_CHANGE:
 		gvnc_pointer_type_change(gvnc, x);
 		break;
+        case GVNC_ENCODING_WMVi:
+                gvnc_read_pixel_format(gvnc, &gvnc->fmt);
+                gvnc_pixel_format(gvnc);
+                break;
 	case GVNC_ENCODING_RICH_CURSOR:
 		gvnc_rich_cursor(gvnc, x, y, width, height);
 		break;

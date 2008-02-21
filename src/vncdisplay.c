@@ -952,6 +952,14 @@ static gboolean on_resize(void *opaque, int width, int height)
 	return do_resize(opaque, width, height, FALSE);
 }
 
+static gboolean on_pixel_format(void *opaque, struct gvnc_pixel_format *fmt)
+{
+        VncDisplay *obj = VNC_DISPLAY(opaque);
+        VncDisplayPrivate *priv = obj->priv;
+
+        do_resize(opaque, priv->fb.width, priv->fb.height, TRUE);
+}
+
 #if WITH_GTKGLEXT
 static void build_gl_image_from_gdk(uint32_t *data, GdkImage *image)
 {
@@ -1307,6 +1315,7 @@ static const struct gvnc_ops vnc_display_ops = {
 	.auth_failure = on_auth_failure,
 	.update = on_update,
 	.resize = on_resize,
+        .pixel_format = on_pixel_format,
 	.pointer_type_change = on_pointer_type_change,
 	.local_cursor = on_local_cursor,
 	.auth_unsupported = on_auth_unsupported,
@@ -1336,6 +1345,7 @@ static void *vnc_coroutine(void *opaque)
 				GVNC_ENCODING_TIGHT,
 				GVNC_ENCODING_EXT_KEY_EVENT,
 				GVNC_ENCODING_DESKTOP_RESIZE,
+                                GVNC_ENCODING_WMVi,
 				GVNC_ENCODING_RICH_CURSOR,
 				GVNC_ENCODING_XCURSOR,
 				GVNC_ENCODING_POINTER_CHANGE,

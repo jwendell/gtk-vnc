@@ -19,6 +19,7 @@ struct gvnc_ops
 	gboolean (*bell)(void *);
 	gboolean (*server_cut_text)(void *, const void *, size_t);
 	gboolean (*resize)(void *, int, int);
+        gboolean (*pixel_format)(void *, struct gvnc_pixel_format *);
 	gboolean (*pointer_type_change)(void *, int);
 	gboolean (*local_cursor)(void *, int, int, int, int, uint8_t *);
 	gboolean (*auth_unsupported)(void *, unsigned int);
@@ -84,6 +85,8 @@ typedef enum {
 
 	/* Pseudo encodings */
 	GVNC_ENCODING_DESKTOP_RESIZE = -223,
+        GVNC_ENCODING_WMVi = 0x574D5669,
+
 	GVNC_ENCODING_CURSOR_POS = -232,
 	GVNC_ENCODING_RICH_CURSOR = -239,
 	GVNC_ENCODING_XCURSOR = -240,
