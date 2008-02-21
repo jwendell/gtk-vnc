@@ -6,6 +6,8 @@
 
 struct gvnc;
 
+struct gvnc_pixel_format;
+
 typedef void (rgb24_render_func)(void *, int, int, int, int, uint8_t *, int);
 
 struct gvnc_ops
