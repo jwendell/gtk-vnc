@@ -841,6 +841,8 @@ static gboolean emit_signal_auth_cred(gpointer opaque)
 {
 	struct signal_data *s = opaque;
 
+	printf("emitting signal %d\n", s->signum);
+
 	switch (s->signum) {
 	case VNC_AUTH_CREDENTIAL:
 		g_signal_emit(G_OBJECT(s->obj),
@@ -1688,7 +1690,7 @@ static void vnc_display_class_init(VncDisplayClass *klass)
 			      g_cclosure_marshal_VOID__POINTER,
 			      G_TYPE_NONE,
 			      1,
-			      G_TYPE_POINTER);
+			      G_TYPE_VALUE_ARRAY);
 
 
 	signals[VNC_POINTER_GRAB] =
