@@ -1285,7 +1285,7 @@ static gboolean check_pixbuf_support(const char *name)
 	return !!(i);
 }
 
-static gboolean on_render_jpeg(void *opaque,
+static gboolean on_render_jpeg(void *opaque G_GNUC_UNUSED,
 			       rgb24_render_func *render, void *render_opaque,
 			       int x, int y, int w, int h,
 			       uint8_t *data, int size)
@@ -2091,7 +2091,8 @@ gboolean vnc_display_set_scaling(VncDisplay *obj, gboolean enable)
 	return TRUE;
 }
 #else
-gboolean vnc_display_set_scaling(VncDisplay *obj, gboolean enable)
+gboolean vnc_display_set_scaling(VncDisplay *obj G_GNUC_UNUSED,
+	gboolean enable G_GNUC_UNUSED)
 {
 	return FALSE;
 }

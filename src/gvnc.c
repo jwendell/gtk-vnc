@@ -951,7 +951,7 @@ static inline uint8_t *gvnc_get_local(struct gvnc *gvnc, int x, int y)
 		(x * gvnc->local.bpp);
 }
 
-static uint8_t gvnc_swap_8(struct gvnc *gvnc, uint8_t pixel)
+static uint8_t gvnc_swap_8(struct gvnc *gvnc G_GNUC_UNUSED, uint8_t pixel)
 {
 	return pixel;
 }
@@ -1627,9 +1627,9 @@ static void gvnc_tight_update(struct gvnc *gvnc,
 		/* basic */
 		uint8_t filter_id = 0;
 		uint32_t data_size, zlib_length;
-		uint8_t *zlib_data;
+		uint8_t *zlib_data = NULL;
 		uint8_t palette[256][4];
-		int palette_size;
+		int palette_size = 0;
 
 		if (ccontrol & 0x04)
 			filter_id = gvnc_read_u8(gvnc);
