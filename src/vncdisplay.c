@@ -388,6 +388,8 @@ static gboolean button_event(GtkWidget *widget, GdkEventButton *button,
 	if (priv->read_only)
 		return FALSE;
 
+	gtk_widget_grab_focus (widget);
+
 	if (priv->grab_pointer && !priv->absolute && !priv->in_pointer_grab &&
 	    button->button == 1 && button->type == GDK_BUTTON_PRESS)
 		do_pointer_grab(VNC_DISPLAY(widget), FALSE);
@@ -780,6 +782,7 @@ static void setup_gdk_image(VncDisplay *obj, gint width, gint height)
 	priv->fb.height = priv->image->height;
 	priv->fb.linesize = priv->image->bpl;
 	priv->fb.data = (uint8_t *)priv->image->mem;
+	priv->fb.byte_order = priv->image->byte_order == GDK_LSB_FIRST ? __LITTLE_ENDIAN : __BIG_ENDIAN;
 
 	gtk_widget_set_size_request(GTK_WIDGET(obj), width, height);
 }
