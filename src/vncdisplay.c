@@ -542,25 +542,6 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *key,
 	if (priv->read_only)
 		return FALSE;
 
-	if (gvnc_using_raw_keycodes(priv->gvnc)) {
-		if (key->type == GDK_KEY_PRESS &&
-		    ((key->keyval == GDK_Control_L && (key->state & GDK_MOD1_MASK)) ||
-		     (key->keyval == GDK_Alt_L && (key->state & GDK_CONTROL_MASK)))) {
-			if (priv->in_pointer_grab)
-				do_pointer_ungrab(VNC_DISPLAY(widget), FALSE);
-			else
-				do_pointer_grab(VNC_DISPLAY(widget), FALSE);
-		}
-
-		if (key->type == GDK_KEY_PRESS)
-			gvnc_key_event(priv->gvnc, 1,
-				       key->keyval, key->hardware_keycode);
-		else
-			gvnc_key_event(priv->gvnc, 0,
-				       key->keyval, key->hardware_keycode);
-		return TRUE;
-	}
-
 	/*
 	 * Key handling in VNC is screwy. The event.keyval from GTK is
 	 * interpreted relative to modifier state. This really messes
@@ -606,13 +587,13 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *key,
 	if (key->type == GDK_KEY_PRESS) {
 		int i;
 		for (i = 0 ; i < (int)(sizeof(priv->down_keyval)/sizeof(priv->down_keyval[0])) ; i++) {
-			if (priv->down_keyval[i] == 0) {
+			if (priv->down_scancode[i] == 0) {
 				priv->down_keyval[i] = keyval;
 				priv->down_scancode[i] = key->hardware_keycode;
 				/* Send the actual key event we're dealing with */
 				gvnc_key_event(priv->gvnc, 1, keyval, key->hardware_keycode);
 				break;
-			} else if (priv->down_keyval[i] == keyval) {
+			} else if (priv->down_scancode[i] == key->hardware_keycode) {
 				/* Got an press when we're already pressed ! Why ... ?
 				 *
 				 * Well, GTK merges sequential press+release pairs of the same
@@ -631,7 +612,7 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *key,
 		int i;
 		for (i = 0 ; i < (int)(sizeof(priv->down_keyval)/sizeof(priv->down_keyval[0])) ; i++) {
 			/* We were pressed, and now we're released, so... */
-			if (priv->down_keyval[i] == keyval) {
+			if (priv->down_scancode[i] == key->hardware_keycode) {
 				priv->down_keyval[i] = 0;
 				priv->down_scancode[i] = 0;
 				/* ..send the key releae event we're dealing with */
@@ -699,7 +680,7 @@ static gboolean focus_event(GtkWidget *widget, GdkEventFocus *focus G_GNUC_UNUSE
 
 	for (i = 0 ; i < (int)(sizeof(priv->down_keyval)/sizeof(priv->down_keyval[0])) ; i++) {
 		/* We are currently pressed so... */
-		if (priv->down_keyval[i] != 0) {
+		if (priv->down_scancode[i] != 0) {
 			/* ..send the fake key releae event to match */
 			gvnc_key_event(priv->gvnc, 0,
 				       priv->down_keyval[i], priv->down_scancode[i]);
