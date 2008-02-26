@@ -957,12 +957,13 @@ static gboolean on_resize(void *opaque, int width, int height)
 	return do_resize(opaque, width, height, FALSE);
 }
 
-static gboolean on_pixel_format(void *opaque, struct gvnc_pixel_format *fmt)
+static gboolean on_pixel_format(void *opaque, 
+	struct gvnc_pixel_format *fmt G_GNUC_UNUSED)
 {
         VncDisplay *obj = VNC_DISPLAY(opaque);
         VncDisplayPrivate *priv = obj->priv;
 
-        do_resize(opaque, priv->fb.width, priv->fb.height, TRUE);
+        return do_resize(opaque, priv->fb.width, priv->fb.height, TRUE);
 }
 
 #if WITH_GTKGLEXT
