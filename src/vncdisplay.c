@@ -1054,11 +1054,6 @@ static void scale_display(VncDisplay *obj, gint width, gint height)
 	gdk_gl_drawable_gl_end(priv->gl_drawable);
 }
 
-static int absi(int value)
-{
-	return (value < 0) ? -value : value;
-}
-
 static void rescale_display(VncDisplay *obj, gint width, gint height)
 {
 	VncDisplayPrivate *priv = obj->priv;
