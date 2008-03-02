@@ -10,10 +10,6 @@
 #include <libview/autoDrawer.h>
 #endif
 
-#if WITH_GTKGLEXT
-#include <gtk/gtkgl.h>
-#endif
-
 static GtkWidget *vnc;
 
 static void set_title(VncDisplay *vncdisplay, GtkWidget *window,
@@ -283,9 +279,6 @@ int main(int argc, char **argv)
 	}
 
 	gtk_init(&argc, &argv);
-#if WITH_GTKGLEXT
-	gtk_gl_init(&argc, &argv);
-#endif
 
 	vnc = vnc_display_new();
 	window = gtk_window_new(GTK_WINDOW_TOPLEVEL);

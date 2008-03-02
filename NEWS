@@ -1,8 +1,31 @@
     GTK VNC News
     ============
 
-Jan 2, 2008: Release 0.3.3
-===========================
+Mar 2, 2008: Release 0.3.4
+==========================
+
+Bug fixes:
+
+ o Fix cursor visibility when in relative pointer mode (Anthony Liguori)
+ o Fix vnc_auth_credential signal marshalling (Anthony Liguori, Saori Fukuta)
+ o Add missing break in key event handling (Marton Balint)
+ o Various build cleanups (Atsushi SAKAI)
+ o Fix key event tracking (Daniel Berrange)
+ o Fix big endian color conversion (Hiroyuki Kaguchi)
+ o More debug messages (Jonh Wendell)
+ o Add interface to explicitly force pointer grab (Anthony Liguori)
+ o Always emit signals from system coroutine (Anthony Liguori)
+ o Revert to 0.3.3 set_pointer_grab behavior (Anthony Liguori)
+
+New features:
+
+ o Focus widget on mouse click (Jonh Wendell)
+ o WMVi support (Stefano Stabellini)
+ o OpenGL based scaling (Anthony Liguori, Daniel Berrange)
+ o VNC scancode extension (Anthony Liguori)
+
+Feb 2, 2008: Release 0.3.3
+==========================
 
 Bug fixes:
 

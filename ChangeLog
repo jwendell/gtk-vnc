@@ -1,9 +1,271 @@
+2008-03-02  Anthony Liguori  <anthony@codemonkey.ws>
+
+	* .hgtags:
+	Added tag release-0.3.4 for changeset 09836ab4d17a
+	[7ea3a341f452] [tip]
+
+	* src/vncdisplay.c:
+	Fixup cursor grab so that it works properly in relative mode.
+	[09836ab4d17a] [release-0.3.4]
+
+	* src/vncdisplay.c:
+	For the Hardy release cycle, Ubuntu seems to be building some
+	versions of GTK with G_ENABLE_DEBUG. When G_ENABLE_DEBUG is set,
+	the marshal functions use g_value_get_XXX() instead of directly
+	accessing the members. This function will validate that the
+	parameter holds the exact type of value being requested. Without
+	G_ENABLE_DEBUG set, no parameter type checking is done.
+
+	After writing a marshaling function from scratch, I discovered that
+	what we really need to use is the BOXED marshaling type as this is
+	the GValue type that a GValueArray will be set to. This should
+	hopefully fix this problem once and for all.
+	[f1dc570dcab7]
+
+	* src/vncdisplay.c:
+	Remove unused function
+	[5134a95f2d9d]
+
+	* src/vncdisplay.c:
+	Remove debug printf.
+	[4e1aee06d5b1]
+
+2008-03-02  Marton Balint  <cus@fazekas.hu>
+
+	* src/vncdisplay.c:
+	A break statement is missing from the key event handler, where the
+	keypress event of an already pressed key is sent as a key release
+	and a key press event.
+
+	Without this patch, the effect of the normal auto-repeat is
+	multiplied, and if you hold down the backspace key for a long time
+	and then release it, you won't be able to press a key before
+	releasing the previously pressed key.
+	[72516595e925]
+
+2008-03-02  Atsushi SAKAI  <sakaia@jp.fujitsu.com>
+
+	* examples/gvncviewer.c:
+	This patch removes redundunt headers from examples/gvncviewer.c.
+	Currently network is handled on src/gvnc.c
+	[fe461ca5c9d7]
+
+2008-02-25  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* src/vncdisplay.c:
+	Do key event tracking based on scancode instead of keyval to ensure
+	matching press & release events
+	[a8cd8a224a10]
+
+2008-02-25  Atsushi SAKAI  <sakaia@jp.fujitsu.com>
+
+	* src/vncdisplay.c:
+	This is compilation warning fix for Cset153.
+	[c1008eaca3a5]
+
+2008-02-22  Atsushi SAKAI  <sakaia@jp.fujitsu.com>
+
+	* examples/gvncviewer.c, src/gvnc.c, src/vncdisplay.c:
+	This patch clean up all compilation warning except vncmarshal.c
+	[7ae474a63a25]
+
+2008-02-22  Saori Fukuta  <fukuta.saori@jp.fujitsu.com>
+
+	* src/vncdisplay.c:
+	At Cset:127, Anthony changed the c_marshaller of vnc-auth-
+	credentials from PARAM to POINTER, and also the parameter types
+	changed from G_TYPE_VALUE_ARRAY to G_TYPE_POINTER. http://gtk-
+	vnc.codemonkey.ws/hg/outgoing.hg/rev/a720c8172a85 Do we need to
+	change the parameter type ?
+
+	AL: this fixes not only Python, but more recent versions of GTK that
+	are very strict about enforcing the type of the signal parameter.
+	[a5f3cb589f54]
+
+2008-02-22  Anthony Liguori  <anthony@codemonkey.ws>
+
+	* src/gvnc.c, src/gvnc.h, src/vncdisplay.c:
+	Branch merge
+	[13d193fa92bd]
+
+2008-02-19  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* src/blt.h, src/vncdisplay.c:
+	Re-add bits of big endian fix which got lost in merge
+	[127004e2ede0]
+
+2008-02-18  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* src/gvnc.h:
+	Added missing variable
+	[7165509e1b39]
+
+	* src/gvnc.c:
+	Merge heads
+	[aaaaa7173d47]
+
+	* AUTHORS, src/blt.h, src/gvnc.c, src/gvnc.h, src/vncdisplay.c:
+	Fix big endian color conversion (Hiroyuki Kaguchi)
+	[01b34fbc6e99]
+
+2008-02-18  Jonh Wendell  <wendell@bani.com.br>
+
+	* src/gvnc.c:
+	Added lots of debug messages where we set the flag has_error to TRUE
+	[28eab97c0d35]
+
+2008-02-08  Jonh Wendell  <wendell@bani.com.br>
+
+	* configure.ac:
+	Show 'support scaling?' in configure summary
+	[777ee6d6a72d]
+
+	* src/vncdisplay.c:
+	Focus the widget on mouse click
+	[bb6581a609b3]
+
+2008-02-20  Anthony Liguori  <anthony@codemonkey.ws>
+
+	* src/gvnc.h:
+	Fix compile warnings introduced by previous commit.
+	[61704bd7bb0d]
+
+2008-02-20  Stefano Stabellini  <stefano.stabellini@eu.citrix.com>
+
+	* src/gvnc.c, src/gvnc.h, src/vncdisplay.c:
+	Hi all, I am attaching a simple patch to add support for WMVi in
+	gtk-vnc. Seems to work well with xen-unstable.
+	[4c14d08521a7]
+
+2008-02-08  Anthony Liguori  <anthony@codemonkey.ws>
+
+	* src/vncdisplay.c:
+	Make sure to free image data on close.
+	[037c694d8865]
+
+	* src/vncdisplay.c:
+	Make sure to draw something to the widget even when not connected.
+	[6310faba0111]
+
+2008-02-06  Anthony Liguori  <anthony@codemonkey.ws>
+
+	* examples/gvncviewer.c, src/libgtk-vnc_sym.version, src/vncdisplay.c,
+	src/vncdisplay.h:
+	Add interface to force pointer grab.
+	[1e6a5272ef00]
+
+	* src/vncdisplay.c:
+	Make sure to support key break when using raw keycodes
+	[a6afe49858ba]
+
+	* src/vncdisplay.c:
+	on_resize() is called based on some events which aren't in a
+	coroutine. So we need to supress the signals when called like this
+	to avoid yielding to a non-existent coroutine.
+	[1b11c4627311]
+
+	* src/vncdisplay.c:
+	Always emit signals from system coroutine.
+
+	When using threads to simulate coroutines, GTK gets very confused as
+	signal handlers are run in a different thread than the main loop
+	when the signal handlers aren't expecting it.
+
+	This patch changes all of the signals emitted from the VNC coroutine
+	to use a delay function to actually issue the signals. This appears
+	to fix the GThread coroutine issue.
+	[0639b5d4ae89]
+
+	* src/blt.h, src/gvnc.c, src/gvnc.h, src/vncdisplay.c:
+	Revert e65d8e4758b3eed4ae7b3a225c2d5a35d9de146b until we figure out
+	what the regression it introduced with UltraVNC.
+	[e270ad1c2736]
+
+	* examples/gvncviewer.c:
+	SetActive has the behavior we want so let's use that.
+	[74c5f106e11e]
+
+	* src/vncdisplay.c:
+	Update cursor grab to have the following behavior:
+
+	For normal VNC servers, keyboard/mouse grab should only be activated
+	when ctrl-alt is clicked. If the server is doing cursor offloading,
+	we should use that cursor.
+
+	For servers supporting PointerTypeChange, when in absolute mode,
+	they should behave as above. When in relative mode, pointer grab
+	should also be activated on the first left-click in the window. The
+	cursor should *not* be hidden when cursor grab is not activated.
+	[2dcbedc3a39b]
+
+2008-02-06  Hiroyuki Kaguchi  <fj7025cf@aa.jp.fujitsu.com>
+
+	* src/blt.h, src/gvnc.c, src/gvnc.h, src/vncdisplay.c:
+	When the endian between VNC server and X server is different, the
+	displayed color is abnormal. This is because the endian conversion
+	of the pixel data is not done .
+
+	X server that uses big endian cannot be used. The reason is that
+	most Linux vncserver sends data by little endian.
+
+	Of course, Fedora8(Linux) and Windows(Xming) works fine, since it
+	uses little endian for X protocol.
+
+	This patch applies follows: (a)The endian conversion function is
+	called by the SET_PIXEL function. (b)It is checked whether there is
+	difference in endian between X server and VNC Server. (c)The
+	byte_order variable is added to the gvnc_framebuffer structure.
+
+	Sign-off-by: Hiroyuki Kaguchi <fj7025cf@aa.jp.fujitsu.com>
+	[e65d8e4758b3]
+
+2008-02-06  Atsushi SAKAI  <sakaia@jp.fujitsu.com>
+
+	* src/coroutine_gthread.c:
+	Just remove redundunt code. (same action is doing on
+	coroutine_swap())
+	[2846d5236152]
+
+2008-02-04  Anthony Liguori  <anthony@codemonkey.ws>
+
+	* src/vncdisplay.c:
+	Make sure to flush the gl buffer. This fixes updates on some
+	graphics cards. This patch was originally from Dan Berrange.
+	[c008e589a12b]
+
+2008-02-03  Anthony Liguori  <anthony@codemonkey.ws>
+
+	* src/libgtk-vnc_sym.version:
+	Add the new symbol
+	[bb20869010d4]
+
+2008-02-02  Anthony Liguori  <anthony@codemonkey.ws>
+
+	* src/Makefile.am, src/gvnc.c, src/gvnc.h, src/vnc_keycodes.h,
+	src/vncdisplay.c, src/x_keymap.c, src/x_keymap.h:
+	Support VNC Scancode extension.
+	[2d87caab4637]
+
+	* configure.ac, examples/Makefile.am, examples/gvncviewer.c,
+	plugin/Makefile.am, src/Makefile.am, src/vncdisplay.c,
+	src/vncdisplay.h:
+	Support for OpenGL scaling
+	[a3bcd91c40e8]
+
+	* .hgtags:
+	Added tag release-0.3.3 for changeset 784fc0419a5e
+	[a01e9f1fa9ab]
+
+	* ChangeLog, NEWS, configure.ac:
+	Prepare for 0.3.3 release
+	[784fc0419a5e] [release-0.3.3]
+
 2008-01-28  Atsushi SAKAI  <sakaia@jp.fujitsu.com>
 
 	* src/gvnc.c:
 	Fix ZRLE encoding where multiple palette sizes of different lengths
 	occur in a single update.
-	[3bf6fb00d105] [tip]
+	[3bf6fb00d105]
 
 2008-01-27  Anthony Liguori  <anthony@codemonkey.ws>
 

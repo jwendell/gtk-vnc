@@ -700,6 +700,9 @@ static void realize_event(GtkWidget *widget, gpointer data G_GNUC_UNUSED)
 {
 	VncDisplayPrivate *priv = VNC_DISPLAY(widget)->priv;
 
+	if (priv->gl_config == NULL)
+		return;
+
 	priv->gl_drawable = gtk_widget_get_gl_drawable(widget);
 	priv->gl_context = gtk_widget_get_gl_context(widget);
 
@@ -1843,16 +1846,19 @@ static void vnc_display_init(VncDisplay *display)
 	priv->fd = -1;
 
 #if WITH_GTKGLEXT
-	priv->gl_config = gdk_gl_config_new(attrib);
-	if (!gtk_widget_set_gl_capability(widget,
-					  priv->gl_config,
-					  NULL,
-					  TRUE,
-					  GDK_GL_RGBA_TYPE)) {
-		g_warning("Could not enable OpenGL");
-		g_object_unref(G_OBJECT(priv->gl_config));
+	if (gtk_gl_init_check(NULL, NULL)) {
+		priv->gl_config = gdk_gl_config_new(attrib);
+		if (!gtk_widget_set_gl_capability(widget,
+						  priv->gl_config,
+						  NULL,
+						  TRUE,
+						  GDK_GL_RGBA_TYPE)) {
+			g_warning("Could not enable OpenGL");
+			g_object_unref(G_OBJECT(priv->gl_config));
+			priv->gl_config = NULL;
+		}
+	} else
 		priv->gl_config = NULL;
-	}
 #endif
 
 	priv->gvnc = gvnc_new(&vnc_display_ops, obj);
@@ -2063,6 +2069,9 @@ gboolean vnc_display_set_scaling(VncDisplay *obj, gboolean enable)
 	gint width, height;
 
 	g_return_val_if_fail (VNC_IS_DISPLAY (obj), FALSE);
+	if (obj->priv->gl_config == NULL)
+		return FALSE;
+	
 	obj->priv->allow_scaling = enable;
 	if (gvnc_is_open(obj->priv->gvnc) && widget->window) {
 		gdk_drawable_get_size(widget->window, &width, &height);
