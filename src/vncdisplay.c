@@ -48,7 +48,6 @@ struct _VncDisplayPrivate
 	GdkGLConfig *gl_config;
 	GdkGLDrawable *gl_drawable;
 	GdkGLContext *gl_context;
-	int gl_tex_max;
 	uint8_t *gl_tex_data;
 	int gl_texture_width;
 	int gl_texture_height;
@@ -705,9 +704,6 @@ static void realize_event(GtkWidget *widget, gpointer data G_GNUC_UNUSED)
 
 	priv->gl_drawable = gtk_widget_get_gl_drawable(widget);
 	priv->gl_context = gtk_widget_get_gl_context(widget);
-
-	gdk_gl_drawable_make_current(priv->gl_drawable, priv->gl_context);
-	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &priv->gl_tex_max);
 }
 #endif
 
