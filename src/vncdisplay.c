@@ -606,6 +606,7 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *key,
 				gvnc_key_event(priv->gvnc, 0, keyval, key->hardware_keycode);
 				/* Now send our actual ldown event */
 				gvnc_key_event(priv->gvnc, 1, keyval, key->hardware_keycode);
+				break;
 			}
 		}
 	} else {
