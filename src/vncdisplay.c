@@ -1663,7 +1663,7 @@ static void vnc_display_class_init(VncDisplayClass *klass)
 			      G_SIGNAL_RUN_FIRST,
 			      G_STRUCT_OFFSET (VncDisplayClass, vnc_auth_credential),
 			      NULL, NULL,
-			      g_cclosure_marshal_VOID__POINTER,
+			      g_cclosure_marshal_VOID__BOXED,
 			      G_TYPE_NONE,
 			      1,
 			      G_TYPE_VALUE_ARRAY);
