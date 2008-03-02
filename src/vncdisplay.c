@@ -315,6 +315,19 @@ static void do_keyboard_ungrab(VncDisplay *obj, gboolean quiet)
 		g_signal_emit(obj, signals[VNC_KEYBOARD_UNGRAB], 0);
 }
 
+static void do_pointer_hide(VncDisplay *obj)
+{
+	VncDisplayPrivate *priv = obj->priv;
+	gdk_window_set_cursor(GTK_WIDGET(obj)->window,
+			      priv->remote_cursor ? priv->remote_cursor : priv->null_cursor);
+}
+
+static void do_pointer_show(VncDisplay *obj)
+{
+	VncDisplayPrivate *priv = obj->priv;
+	gdk_window_set_cursor(GTK_WIDGET(obj)->window,
+			      priv->remote_cursor);
+}
 
 static void do_pointer_grab(VncDisplay *obj, gboolean quiet)
 {
@@ -349,6 +362,10 @@ static void do_pointer_ungrab(VncDisplay *obj, gboolean quiet)
 
 	gdk_pointer_ungrab(GDK_CURRENT_TIME);
 	priv->in_pointer_grab = FALSE;
+
+	if (priv->absolute)
+		do_pointer_hide(obj);
+
 	if (!quiet)
 		g_signal_emit(obj, signals[VNC_POINTER_UNGRAB], 0);
 }
@@ -360,21 +377,6 @@ void vnc_display_force_grab(VncDisplay *obj, gboolean enable)
 	else
 		do_pointer_ungrab(obj, FALSE);
 }
-
-static void do_pointer_hide(VncDisplay *obj)
-{
-	VncDisplayPrivate *priv = obj->priv;
-	gdk_window_set_cursor(GTK_WIDGET(obj)->window,
-			      priv->remote_cursor ? priv->remote_cursor : priv->null_cursor);
-}
-
-static void do_pointer_show(VncDisplay *obj)
-{
-	VncDisplayPrivate *priv = obj->priv;
-	gdk_window_set_cursor(GTK_WIDGET(obj)->window,
-			      priv->remote_cursor);
-}
-
 
 static gboolean button_event(GtkWidget *widget, GdkEventButton *button,
 			     gpointer data G_GNUC_UNUSED)
@@ -909,7 +911,7 @@ static gboolean do_resize(void *opaque, int width, int height, gboolean quiet)
 		priv->null_cursor = create_null_cursor();
 		if (priv->local_pointer)
 			do_pointer_show(obj);
-		else if (!priv->absolute)
+		else if (priv->in_pointer_grab || priv->absolute)
 			do_pointer_hide(obj);
 		priv->gc = gdk_gc_new(GTK_WIDGET(obj)->window);
 	}
@@ -1099,6 +1101,10 @@ static gboolean on_pointer_type_change(void *opaque, int absolute)
 		do_pointer_ungrab(obj, FALSE);
 
 	priv->absolute = absolute;
+
+	if (!priv->in_pointer_grab && !priv->absolute)
+		do_pointer_show(obj);
+
 	return TRUE;
 }
 
@@ -1237,7 +1243,7 @@ static gboolean on_local_cursor(void *opaque, int x, int y, int width, int heigh
 	if (priv->in_pointer_grab) {
 		do_pointer_ungrab(obj, TRUE);
 		do_pointer_grab(obj, TRUE);
-	} else {
+	} else if (priv->absolute) {
 		do_pointer_hide(obj);
 	}
 
