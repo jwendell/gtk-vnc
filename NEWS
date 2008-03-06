@@ -1,7 +1,7 @@
     GTK VNC News
     ============
 
-Mar 2, 2008: Release 0.3.4
+Mar 5, 2008: Release 0.3.4
 ==========================
 
 Bug fixes:
@@ -16,6 +16,7 @@ Bug fixes:
  o Add interface to explicitly force pointer grab (Anthony Liguori)
  o Always emit signals from system coroutine (Anthony Liguori)
  o Revert to 0.3.3 set_pointer_grab behavior (Anthony Liguori)
+ o spec file updates and configure support for Fedora 9 (Dan Berrange)
 
 New features:
 
