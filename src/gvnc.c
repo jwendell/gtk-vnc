@@ -26,7 +26,6 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <endian.h>
 
 #include "coroutine.h"
 #include "d3des.h"
@@ -767,7 +766,7 @@ static void gvnc_read_pixel_format(struct gvnc *gvnc, struct gvnc_pixel_format *
 
 	fmt->bits_per_pixel  = gvnc_read_u8(gvnc);
 	fmt->depth           = gvnc_read_u8(gvnc);
-	fmt->byte_order      = gvnc_read_u8(gvnc) ? __BIG_ENDIAN : __LITTLE_ENDIAN;
+	fmt->byte_order      = gvnc_read_u8(gvnc) ? G_BIG_ENDIAN : G_LITTLE_ENDIAN;
 	fmt->true_color_flag = gvnc_read_u8(gvnc);
 
 	fmt->red_max         = gvnc_read_u16(gvnc);
@@ -805,7 +804,7 @@ gboolean gvnc_set_pixel_format(struct gvnc *gvnc,
 
 	gvnc_write_u8(gvnc, fmt->bits_per_pixel);
 	gvnc_write_u8(gvnc, fmt->depth);
-	gvnc_write_u8(gvnc, fmt->byte_order == __BIG_ENDIAN ? 1 : 0);
+	gvnc_write_u8(gvnc, fmt->byte_order == G_BIG_ENDIAN ? 1 : 0);
 	gvnc_write_u8(gvnc, fmt->true_color_flag);
 
 	gvnc_write_u16(gvnc, fmt->red_max);
@@ -1208,7 +1207,7 @@ static void gvnc_read_cpixel(struct gvnc *gvnc, uint8_t *pixel)
 
 	if (bpp == 4 && gvnc->fmt.true_color_flag && gvnc->fmt.depth == 24) {
 		bpp = 3;
-		if (gvnc->fmt.byte_order == __BIG_ENDIAN)
+		if (gvnc->fmt.byte_order == G_BIG_ENDIAN)
 			pixel += 1;
 	}
 
@@ -1456,7 +1455,7 @@ static void gvnc_read_tpixel(struct gvnc *gvnc, uint8_t *pixel)
 			| (pixel[1] << gvnc->fmt.green_shift)
 			| (pixel[2] << gvnc->fmt.blue_shift);
 
-		if (gvnc->fmt.byte_order != __BYTE_ORDER)
+		if (gvnc->fmt.byte_order != G_BYTE_ORDER)
 			val =   (((val >>  0) & 0xFF) << 24) |
 				(((val >>  8) & 0xFF) << 16) |
 				(((val >> 16) & 0xFF) << 8) |
@@ -3025,7 +3024,7 @@ gboolean gvnc_set_local(struct gvnc *gvnc, struct gvnc_framebuffer *fb)
 
 
 	/* This adjusts for server/client endianness mismatch */
-	if (__BYTE_ORDER != gvnc->fmt.byte_order) {
+	if (G_BYTE_ORDER != gvnc->fmt.byte_order) {
 		gvnc->rrs = gvnc->fmt.bits_per_pixel - gvnc->rrs - (gvnc->fmt.bits_per_pixel - gvnc->fmt.depth);
 		gvnc->grs = gvnc->fmt.bits_per_pixel - gvnc->grs - (gvnc->fmt.bits_per_pixel - gvnc->fmt.depth);
 		gvnc->brs = gvnc->fmt.bits_per_pixel - gvnc->brs - (gvnc->fmt.bits_per_pixel - gvnc->fmt.depth);
