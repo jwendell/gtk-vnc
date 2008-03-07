@@ -1084,6 +1084,12 @@ static void rescale_display(VncDisplay *obj, gint width, gint height)
 static gboolean configure_event(GtkWidget *widget, GdkEventConfigure *configure,
 				gpointer data G_GNUC_UNUSED)
 {
+	VncDisplay *obj = VNC_DISPLAY(widget);
+	VncDisplayPrivate *priv = obj->priv;
+
+	if (priv->fb.data == NULL)
+		return FALSE;
+
 	rescale_display(VNC_DISPLAY(widget),
 			configure->width, configure->height);
 	
