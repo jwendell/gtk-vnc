@@ -82,10 +82,10 @@ struct _VncDisplayPrivate
 	gboolean allow_scaling;
 };
 
-/* Delayed signal emmission.
+/* Delayed signal emission.
  *
  * We want signals to be delivered in the system coroutine.  This helps avoid
- * confusing applications.  This is particularily important when using
+ * confusing applications.  This is particularly important when using
  * GThread based coroutines since GTK gets very upset if a signal handler is
  * run in a different thread from the main loop if that signal handler isn't
  * written to use explicit locking.
@@ -355,7 +355,7 @@ static void do_pointer_ungrab(VncDisplay *obj, gboolean quiet)
 {
 	VncDisplayPrivate *priv = obj->priv;
 
-	/* If we grabed keyboard upon pointer grab, then ungrab it now */
+	/* If we grabbed keyboard upon pointer grab, then ungrab it now */
 	if (!priv->grab_keyboard)
 		do_keyboard_ungrab(obj, quiet);
 
@@ -617,7 +617,7 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *key,
 			if (priv->down_scancode[i] == key->hardware_keycode) {
 				priv->down_keyval[i] = 0;
 				priv->down_scancode[i] = 0;
-				/* ..send the key releae event we're dealing with */
+				/* ..send the key release event we're dealing with */
 				gvnc_key_event(priv->gvnc, 0, keyval, key->hardware_keycode);
 				break;
 			}
@@ -683,7 +683,7 @@ static gboolean focus_event(GtkWidget *widget, GdkEventFocus *focus G_GNUC_UNUSE
 	for (i = 0 ; i < (int)(sizeof(priv->down_keyval)/sizeof(priv->down_keyval[0])) ; i++) {
 		/* We are currently pressed so... */
 		if (priv->down_scancode[i] != 0) {
-			/* ..send the fake key releae event to match */
+			/* ..send the fake key release event to match */
 			gvnc_key_event(priv->gvnc, 0,
 				       priv->down_keyval[i], priv->down_scancode[i]);
 			priv->down_keyval[i] = 0;

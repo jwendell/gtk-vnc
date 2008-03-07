@@ -75,9 +75,9 @@ typedef void gvnc_tight_sum_pixel_func(struct gvnc *, uint8_t *, uint8_t *);
 
 /*
  * A special GSource impl which allows us to wait on a certain
- * condition to be satisified. This is effectively a boolean test
+ * condition to be satisfied. This is effectively a boolean test
  * run on each iteration of the main loop. So whenever a file has
- * new I/O, or a timer occurrs, etc we'll do the check. This is
+ * new I/O, or a timer occurs, etc we'll do the check. This is
  * pretty efficient compared to a normal GLib Idle func which has
  * to busy wait on a timeout, since our condition is only checked
  * when some other source's state changes
@@ -3014,7 +3014,7 @@ gboolean gvnc_set_local(struct gvnc *gvnc, struct gvnc_framebuffer *fb)
 		   gvnc->fmt.red_max, gvnc->fmt.green_max, gvnc->fmt.blue_max,
 		   gvnc->rm, gvnc->gm, gvnc->bm);
 
-	/* Setup shifts assuming matched bpp (but not neccessarily match rgb order)*/
+	/* Setup shifts assuming matched bpp (but not necessarily match rgb order)*/
 	gvnc->rrs = gvnc->fmt.red_shift;
 	gvnc->grs = gvnc->fmt.green_shift;
 	gvnc->brs = gvnc->fmt.blue_shift;
