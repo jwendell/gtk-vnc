@@ -2091,6 +2091,11 @@ gboolean vnc_display_set_scaling(VncDisplay *obj G_GNUC_UNUSED,
 }
 #endif
 
+gboolean vnc_display_is_pointer_absolute(VncDisplay *obj)
+{
+	return obj->priv->absolute;
+}
+
 /*
  * Local variables:
  *  c-indent-level: 8

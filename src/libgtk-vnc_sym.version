@@ -32,6 +32,7 @@
     vnc_display_set_lossy_encoding;
     vnc_display_set_scaling;
     vnc_display_force_grab;
+    vnc_display_is_pointer_absolute;
 
   local:
       *;
