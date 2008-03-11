@@ -538,7 +538,7 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *key,
 	GdkModifierType consumed;
 
 	if (priv->gvnc == NULL || !gvnc_is_initialized(priv->gvnc))
-		return TRUE;
+		return FALSE;
 
 	if (priv->read_only)
 		return FALSE;
@@ -633,7 +633,7 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *key,
 			do_pointer_grab(VNC_DISPLAY(widget), FALSE);
 	}
 
-	return TRUE;
+	return FALSE;
 }
 
 static gboolean enter_event(GtkWidget *widget, GdkEventCrossing *crossing,
