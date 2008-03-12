@@ -568,6 +568,8 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *key,
 					    &level,
 					    &consumed);
 
+	keyval = x_keymap_get_keyval_from_keycode(key->hardware_keycode, keyval);
+
 	/*
 	 * More VNC suckiness with key state & modifiers in particular
 	 *
@@ -1357,6 +1359,8 @@ static void *vnc_coroutine(void *opaque)
 	}
 
 	GVNC_DEBUG("Started background coroutine\n");
+	x_keymap_set_keymap_entries();
+
 	if (priv->fd != -1) {
 		if (!gvnc_open_fd(priv->gvnc, priv->fd))
 			goto cleanup;
@@ -1404,6 +1408,7 @@ static void *vnc_coroutine(void *opaque)
 	gvnc_close(priv->gvnc);
 	emit_signal_delayed(obj, VNC_DISCONNECTED, &s);
 	g_idle_add(delayed_unref_object, obj);
+	x_keymap_free_keymap_entries();
 	/* Co-routine exits now - the VncDisplay object may no longer exist,
 	   so don't do anything else now unless you like SEGVs */
 	return NULL;

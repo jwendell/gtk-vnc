@@ -33,6 +33,7 @@
  */
 
 #include "x_keymap.h"
+#include <gdk/gdkkeysyms.h>
 
 static const uint8_t x_keycode_to_pc_keycode_table[115] = {
    0xc7,      /*  97  Home   */
@@ -116,6 +117,17 @@ static const uint8_t x_keycode_to_pc_keycode_table[115] = {
    0x73,         /* 211 backslash */
 };
 
+/* keycode translation for sending ISO_Left_Send
+ * to vncserver
+ */
+static struct {
+	GdkKeymapKey *keys;
+	gint n_keys;
+	guint keyval;
+} untranslated_keys[] = {{NULL, 0, GDK_Tab}};
+
+static unsigned int ref_count_for_untranslated_keys = 0;
+
 /* FIXME N.B. on Windows, gtk probably returns PC scan codes */
 
 uint8_t x_keycode_to_pc_keycode(int keycode)
@@ -130,4 +142,45 @@ uint8_t x_keycode_to_pc_keycode(int keycode)
 		keycode = 0;
 
 	return keycode;
+}
+
+/* Set the keymap entries */
+void x_keymap_set_keymap_entries()
+{
+	int i;
+	if (ref_count_for_untranslated_keys == 0)
+		for (i = 0; i < sizeof(untranslated_keys) / sizeof(untranslated_keys[0]); i++)
+			gdk_keymap_get_entries_for_keyval(gdk_keymap_get_default(),
+							  untranslated_keys[i].keyval,
+							  &untranslated_keys[i].keys,
+							  &untranslated_keys[i].n_keys);
+	ref_count_for_untranslated_keys++;
+}
+
+/* Free the keymap entries */
+void x_keymap_free_keymap_entries()
+{
+	int i;
+
+	if (ref_count_for_untranslated_keys == 0)
+		return;
+
+	ref_count_for_untranslated_keys--;
+	if (ref_count_for_untranslated_keys == 0)
+		for (i = 0; i < sizeof(untranslated_keys) / sizeof(untranslated_keys[0]); i++)
+			g_free(untranslated_keys[i].keys);
+
+}
+
+/* Get the keyval from the keycode without the level. */
+guint x_keymap_get_keyval_from_keycode(guint keycode, guint keyval)
+{
+	int i, k;
+	for (i = 0; i < sizeof(untranslated_keys) / sizeof(untranslated_keys[0]); i++) {
+		if (keycode == untranslated_keys[i].keys[0].keycode) {
+			return untranslated_keys[i].keyval;
+		}
+	}
+
+	return keyval;
 }
