@@ -147,7 +147,7 @@ uint8_t x_keycode_to_pc_keycode(int keycode)
 /* Set the keymap entries */
 void x_keymap_set_keymap_entries()
 {
-	int i;
+	size_t i;
 	if (ref_count_for_untranslated_keys == 0)
 		for (i = 0; i < sizeof(untranslated_keys) / sizeof(untranslated_keys[0]); i++)
 			gdk_keymap_get_entries_for_keyval(gdk_keymap_get_default(),
@@ -160,7 +160,7 @@ void x_keymap_set_keymap_entries()
 /* Free the keymap entries */
 void x_keymap_free_keymap_entries()
 {
-	int i;
+	size_t i;
 
 	if (ref_count_for_untranslated_keys == 0)
 		return;
@@ -175,7 +175,7 @@ void x_keymap_free_keymap_entries()
 /* Get the keyval from the keycode without the level. */
 guint x_keymap_get_keyval_from_keycode(guint keycode, guint keyval)
 {
-	int i, k;
+	size_t i;
 	for (i = 0; i < sizeof(untranslated_keys) / sizeof(untranslated_keys[0]); i++) {
 		if (keycode == untranslated_keys[i].keys[0].keycode) {
 			return untranslated_keys[i].keyval;

@@ -14,6 +14,7 @@
 #include "utils.h"
 #include "vncmarshal.h"
 #include "config.h"
+#include "x_keymap.h"
 
 #include <gtk/gtk.h>
 #include <string.h>
