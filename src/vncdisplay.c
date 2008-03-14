@@ -1851,6 +1851,12 @@ static void vnc_display_init(VncDisplay *display)
 	priv->last_y = -1;
 	priv->absolute = 1;
 	priv->fd = -1;
+	priv->read_only = FALSE;
+	priv->allow_lossy = FALSE;
+	priv->allow_scaling = FALSE;
+	priv->grab_pointer = FALSE;
+	priv->grab_keyboard = FALSE;
+	priv->local_pointer = FALSE;
 
 #if WITH_GTKGLEXT
 	if (gtk_gl_init_check(NULL, NULL)) {
@@ -2095,6 +2101,42 @@ gboolean vnc_display_set_scaling(VncDisplay *obj G_GNUC_UNUSED,
 	return FALSE;
 }
 #endif
+
+gboolean vnc_display_get_scaling(VncDisplay *obj) {
+	g_return_val_if_fail (VNC_IS_DISPLAY (obj), FALSE);
+
+	return obj->priv->allow_scaling;
+}
+
+gboolean vnc_display_get_lossy_encoding(VncDisplay *obj) {
+	g_return_val_if_fail (VNC_IS_DISPLAY (obj), FALSE);
+
+	return obj->priv->allow_lossy;
+}
+
+gboolean vnc_display_get_pointer_local(VncDisplay *obj) {
+	g_return_val_if_fail (VNC_IS_DISPLAY (obj), FALSE);
+
+	return obj->priv->local_pointer;
+}
+
+gboolean vnc_display_get_pointer_grab(VncDisplay *obj) {
+	g_return_val_if_fail (VNC_IS_DISPLAY (obj), FALSE);
+
+	return obj->priv->grab_pointer;
+}
+
+gboolean vnc_display_get_keyboard_grab(VncDisplay *obj) {
+	g_return_val_if_fail (VNC_IS_DISPLAY (obj), FALSE);
+
+	return obj->priv->grab_keyboard;
+}
+
+gboolean vnc_display_get_read_only(VncDisplay *obj) {
+	g_return_val_if_fail (VNC_IS_DISPLAY (obj), FALSE);
+
+	return obj->priv->read_only;
+}
 
 gboolean vnc_display_is_pointer_absolute(VncDisplay *obj)
 {
