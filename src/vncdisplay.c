@@ -1600,7 +1600,7 @@ static void vnc_display_finalize (GObject *obj)
 
 	GVNC_DEBUG("Releasing VNC widget\n");
 	if (gvnc_is_open(priv->gvnc)) {
-		g_warning("VNC widget finalized before the connection finished shutting down");
+		g_warning("VNC widget finalized before the connection finished shutting down\n");
 	}
 	gvnc_free(priv->gvnc);
 	display->priv->gvnc = NULL;

@@ -2778,18 +2778,26 @@ gboolean gvnc_initialize(struct gvnc *gvnc, gboolean shared_flag)
 gboolean gvnc_open_fd(struct gvnc *gvnc, int fd)
 {
 	int flags;
-	if (gvnc_is_open(gvnc))
+	if (gvnc_is_open(gvnc)) {
+		GVNC_DEBUG ("Error: already connected?\n");
 		return FALSE;
+	}
 
 	GVNC_DEBUG("Connecting to FD %d\n", fd);
-	if ((flags = fcntl(fd, F_GETFL)) < 0)
+	if ((flags = fcntl(fd, F_GETFL)) < 0) {
+		GVNC_DEBUG ("Failed to fcntl()\n");
 		return FALSE;
+	}
 	flags |= O_NONBLOCK;
-	if (fcntl(fd, F_SETFL, flags) < 0)
+	if (fcntl(fd, F_SETFL, flags) < 0) {
+		GVNC_DEBUG ("Failed to fcntl()\n");
 		return FALSE;
+	}
 
-	if (!(gvnc->channel = g_io_channel_unix_new(fd)))
+	if (!(gvnc->channel = g_io_channel_unix_new(fd))) {
+		GVNC_DEBUG ("Failed to g_io_channel_unix_new()\n");
 		return FALSE;
+	}
 	gvnc->fd = fd;
 
 	return !gvnc_has_error(gvnc);
@@ -2811,31 +2819,38 @@ gboolean gvnc_open_host(struct gvnc *gvnc, const char *host, const char *port)
         hints.ai_socktype = SOCK_STREAM;
         hints.ai_protocol = IPPROTO_TCP;
 
-        if ((ret = getaddrinfo(host, port, &hints, &ai)) != 0)
+        if ((ret = getaddrinfo(host, port, &hints, &ai)) != 0) {
+		GVNC_DEBUG ("Failed to resolve hostname\n");
 		return FALSE;
+	}
 
         runp = ai;
         while (runp != NULL) {
                 int flags, fd;
                 GIOChannel *chan;
 
-                if ((fd = socket(runp->ai_family, runp->ai_socktype,
-                                 runp->ai_protocol)) < 0)
-                        break;
+		if ((fd = socket(runp->ai_family, runp->ai_socktype,
+			runp->ai_protocol)) < 0) {
+			GVNC_DEBUG ("Failed to socket()\n");
+			break;
+		}
 
                 GVNC_DEBUG("Trying socket %d\n", fd);
                 if ((flags = fcntl(fd, F_GETFL)) < 0) {
                         close(fd);
+                        GVNC_DEBUG ("Failed to fcntl()\n");
                         break;
                 }
                 flags |= O_NONBLOCK;
                 if (fcntl(fd, F_SETFL, flags) < 0) {
                         close(fd);
+                        GVNC_DEBUG ("Failed to fcntl()\n");
                         break;
                 }
 
                 if (!(chan = g_io_channel_unix_new(fd))) {
                         close(fd);
+                        GVNC_DEBUG ("Failed to g_io_channel_unix_new()\n");
                         break;
                 }
 
@@ -2856,6 +2871,7 @@ gboolean gvnc_open_host(struct gvnc *gvnc, const char *host, const char *port)
                            errno != EHOSTUNREACH) {
                         g_io_channel_unref(chan);
                         close(fd);
+                        GVNC_DEBUG ("Failed with errno = %d\n", errno);
                         break;
                 }
                 close(fd);
