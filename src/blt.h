@@ -16,7 +16,7 @@
 #define RGB24_BLIT SPLICE(gvnc_rgb24_blt_, SUFFIX())
 #define TIGHT_COMPUTE_PREDICTED SPLICE(gvnc_tight_compute_predicted_, SUFFIX())
 #define TIGHT_SUM_PIXEL SPLICE(gvnc_tight_sum_pixel_, SUFFIX())
-#define SWAP(gvnc, pixel) SPLICE(gvnc_swap_, DST)(gvnc, pixel)
+#define SWAP(gvnc, pixel) SPLICE(gvnc_swap_, SRC)(gvnc, pixel)
 #define COMPONENT(color, pixel) ((SWAP(gvnc, pixel) >> gvnc->fmt.SPLICE(color, _shift) & gvnc->fmt.SPLICE(color, _max)))
 
 static void FAST_FILL(struct gvnc *gvnc, src_pixel_t *sp,
@@ -41,18 +41,18 @@ static void FAST_FILL(struct gvnc *gvnc, src_pixel_t *sp,
 	}
 }
 
-static void SET_PIXEL(struct gvnc *gvnc, dst_pixel_t *dp, src_pixel_t *sp)
+static void SET_PIXEL(struct gvnc *gvnc, dst_pixel_t *dp, src_pixel_t sp)
 {
-	*dp = SWAP(gvnc, ((*sp >> gvnc->rrs) & gvnc->rm) << gvnc->rls
-		| ((*sp >> gvnc->grs) & gvnc->gm) << gvnc->gls
-		| ((*sp >> gvnc->brs) & gvnc->bm) << gvnc->bls);
+	*dp = ((sp >> gvnc->rrs) & gvnc->rm) << gvnc->rls
+		| ((sp >> gvnc->grs) & gvnc->gm) << gvnc->gls
+		| ((sp >> gvnc->brs) & gvnc->bm) << gvnc->bls;
 }
 
 static void SET_PIXEL_AT(struct gvnc *gvnc, int x, int y, src_pixel_t *sp)
 {
 	dst_pixel_t *dp = (dst_pixel_t *)gvnc_get_local(gvnc, x, y);
 
-	SET_PIXEL(gvnc, dp, sp);
+	SET_PIXEL(gvnc, dp, SWAP(gvnc, *sp));
 }
 
 static void FILL(struct gvnc *gvnc, src_pixel_t *sp,
@@ -66,7 +66,7 @@ static void FILL(struct gvnc *gvnc, src_pixel_t *sp,
 		int j;
 
 		for (j = 0; j < width; j++) {
-			SET_PIXEL(gvnc, dp, sp);
+			SET_PIXEL(gvnc, dp, SWAP(gvnc, *sp));
 			dp++;
 		}
 		dst += gvnc->local.linesize;
@@ -88,7 +88,7 @@ static void BLIT(struct gvnc *gvnc, uint8_t *src, int pitch, int x, int y, int w
 		int j;
 
 		for (j = 0; j < w; j++) {
-			SET_PIXEL(gvnc, dp, sp);
+			SET_PIXEL(gvnc, dp, SWAP(gvnc, *sp));
 			dp++;
 			sp++;
 		}
@@ -171,11 +171,36 @@ static void RICH_CURSOR_BLIT(struct gvnc *gvnc, uint8_t *pixbuf,
 	uint32_t *dst = (uint32_t *)pixbuf;
 	uint8_t *src = image;
 	uint8_t *alpha = mask;
-	int rs, gs, bs;
+	int as, rs, gs, bs, n;
 
-	rs = 24 - ((sizeof(src_pixel_t) * 8) - gvnc->fmt.red_shift);
-	gs = 16 - (gvnc->fmt.red_shift - gvnc->fmt.green_shift);
-	bs = 8 - (gvnc->fmt.green_shift - gvnc->fmt.blue_shift);
+	/*
+	 * GdkPixbuf is always 32-bit RGB, so we can't use the precomputed
+	 * left / right shift data from gvnc->{r,g,b}{r,l}s. The latter
+	 * is set for the local display depth, which may be different
+	 * to GdkPixbuf's fixed 32-bit RGBA
+	 *
+	 * This function isn't called often, so just re-compute them now
+	 */
+
+#if G_BYTE_ORDER == G_BIG_ENDIAN
+	as = 0;
+	rs = 8;
+	gs = 16;
+	bs = 24;
+#else
+	as = 24;
+	rs = 16;
+	gs = 8;
+	bs = 0;
+#endif
+
+	/* Then this adjusts for remote having less bpp than 32 */
+	for (n = 255 ; n > gvnc->fmt.red_max ; n>>= 1)
+		rs++;
+	for (n = 255 ; n > gvnc->fmt.green_max ; n>>= 1)
+		gs++;
+	for (n = 255 ; n > gvnc->fmt.blue_max ; n>>= 1)
+		bs++;
 
 	for (y1 = 0; y1 < height; y1++) {
 		src_pixel_t *sp = (src_pixel_t *)src;
@@ -186,7 +211,7 @@ static void RICH_CURSOR_BLIT(struct gvnc *gvnc, uint8_t *pixbuf,
 				| (COMPONENT(blue, *sp) << bs);
 
 			if ((mp[x1 / 8] >> (7 - (x1 % 8))) & 1)
-				*dst |= 0xFF000000;
+				*dst |= (0xFF << as);
 
 			dst++;
 			sp++;
@@ -209,6 +234,11 @@ static void RGB24_BLIT(struct gvnc *gvnc, int x, int y, int width, int height,
 		uint8_t *sp = data;
 
 		for (i = 0; i < width; i++) {
+			/*
+			 * We use gvnc->fmt.XXX_shift instead of usual gvnc->Xls
+			 * because the source pixel component is a full 8 bits in
+			 * size, and so doesn't need the adjusted shift
+			 */
 			*dp = (((sp[0] * gvnc->fmt.red_max) / 255) << gvnc->fmt.red_shift) |
 				(((sp[1] * gvnc->fmt.green_max) / 255) << gvnc->fmt.green_shift) |
 				(((sp[2] * gvnc->fmt.blue_max) / 255) << gvnc->fmt.blue_shift);

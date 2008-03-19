@@ -753,9 +753,17 @@ static void setup_gdk_image(VncDisplay *obj, gint width, gint height)
 	VncDisplayPrivate *priv = obj->priv;
 	GdkVisual *visual;
 
-	visual = gdk_drawable_get_visual(GTK_WIDGET(obj)->window);
+	visual = gdk_screen_get_system_visual(gdk_screen_get_default());
 	
 	priv->image = gdk_image_new(GDK_IMAGE_FASTEST, visual, width, height);
+	GVNC_DEBUG("Visual mask: %3d %3d %3d\n      shift: %3d %3d %3d\n",
+		   visual->red_mask,
+		   visual->green_mask,
+		   visual->blue_mask,
+		   visual->red_shift,
+		   visual->green_shift,
+		   visual->blue_shift);
+
 	priv->fb.red_mask = visual->red_mask >> visual->red_shift;
 	priv->fb.green_mask = visual->green_mask >> visual->green_shift;
 	priv->fb.blue_mask = visual->blue_mask >> visual->blue_shift;

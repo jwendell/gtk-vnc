@@ -3040,18 +3040,6 @@ gboolean gvnc_set_local(struct gvnc *gvnc, struct gvnc_framebuffer *fb)
 	gvnc->gls = gvnc->local.green_shift;
 	gvnc->bls = gvnc->local.blue_shift;
 
-
-	/* This adjusts for server/client endianness mismatch */
-	if (G_BYTE_ORDER != gvnc->fmt.byte_order) {
-		gvnc->rrs = gvnc->fmt.bits_per_pixel - gvnc->rrs - (gvnc->fmt.bits_per_pixel - gvnc->fmt.depth);
-		gvnc->grs = gvnc->fmt.bits_per_pixel - gvnc->grs - (gvnc->fmt.bits_per_pixel - gvnc->fmt.depth);
-		gvnc->brs = gvnc->fmt.bits_per_pixel - gvnc->brs - (gvnc->fmt.bits_per_pixel - gvnc->fmt.depth);
-
-		GVNC_DEBUG("Flipped shifts red: %3d, green: %3d, blue: %3d\n",
-			   gvnc->rrs, gvnc->grs, gvnc->brs);
-	}
-
-
 	/* This adjusts for remote having more bpp than local */
 	for (n = gvnc->fmt.red_max; n > gvnc->local.red_mask ; n>>= 1)
 		gvnc->rrs++;
