@@ -2103,37 +2103,43 @@ gboolean vnc_display_set_scaling(VncDisplay *obj G_GNUC_UNUSED,
 }
 #endif
 
-gboolean vnc_display_get_scaling(VncDisplay *obj) {
+gboolean vnc_display_get_scaling(VncDisplay *obj)
+{
 	g_return_val_if_fail (VNC_IS_DISPLAY (obj), FALSE);
 
 	return obj->priv->allow_scaling;
 }
 
-gboolean vnc_display_get_lossy_encoding(VncDisplay *obj) {
+gboolean vnc_display_get_lossy_encoding(VncDisplay *obj)
+{
 	g_return_val_if_fail (VNC_IS_DISPLAY (obj), FALSE);
 
 	return obj->priv->allow_lossy;
 }
 
-gboolean vnc_display_get_pointer_local(VncDisplay *obj) {
+gboolean vnc_display_get_pointer_local(VncDisplay *obj)
+{
 	g_return_val_if_fail (VNC_IS_DISPLAY (obj), FALSE);
 
 	return obj->priv->local_pointer;
 }
 
-gboolean vnc_display_get_pointer_grab(VncDisplay *obj) {
+gboolean vnc_display_get_pointer_grab(VncDisplay *obj)
+{
 	g_return_val_if_fail (VNC_IS_DISPLAY (obj), FALSE);
 
 	return obj->priv->grab_pointer;
 }
 
-gboolean vnc_display_get_keyboard_grab(VncDisplay *obj) {
+gboolean vnc_display_get_keyboard_grab(VncDisplay *obj)
+{
 	g_return_val_if_fail (VNC_IS_DISPLAY (obj), FALSE);
 
 	return obj->priv->grab_keyboard;
 }
 
-gboolean vnc_display_get_read_only(VncDisplay *obj) {
+gboolean vnc_display_get_read_only(VncDisplay *obj)
+{
 	g_return_val_if_fail (VNC_IS_DISPLAY (obj), FALSE);
 
 	return obj->priv->read_only;

@@ -234,7 +234,8 @@ static gboolean g_condition_wait_prepare(GSource *src,
  * Call immediately after the main loop does an iteration. Returns
  * true if the condition we're checking is ready for dispatch
  */
-static gboolean g_condition_wait_check(GSource *src) {
+static gboolean g_condition_wait_check(GSource *src)
+{
         struct g_condition_wait_source *vsrc = (struct g_condition_wait_source *)src;
         return vsrc->func(vsrc->data);
 }
@@ -2114,7 +2115,8 @@ static gboolean gvnc_perform_auth_vnc(struct gvnc *gvnc)
 }
 
 
-static gboolean gvnc_start_tls(struct gvnc *gvnc, int anonTLS) {
+static gboolean gvnc_start_tls(struct gvnc *gvnc, int anonTLS)
+{
 	static const int cert_type_priority[] = { GNUTLS_CRT_X509, 0 };
 	static const int protocol_priority[]= { GNUTLS_TLS1_1, GNUTLS_TLS1_0, GNUTLS_SSL3, 0 };
 	static const int kx_priority[] = {GNUTLS_KX_DHE_DSS, GNUTLS_KX_RSA, GNUTLS_KX_DHE_RSA, GNUTLS_KX_SRP, 0};
