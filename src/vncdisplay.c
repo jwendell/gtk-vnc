@@ -107,6 +107,21 @@ struct signal_data
 
 G_DEFINE_TYPE(VncDisplay, vnc_display, GTK_TYPE_DRAWING_AREA)
 
+/* Properties */
+enum
+{
+  PROP_0,
+  PROP_POINTER_LOCAL,
+  PROP_POINTER_GRAB,
+  PROP_KEYBOARD_GRAB,
+  PROP_READ_ONLY,
+  PROP_WIDTH,
+  PROP_HEIGHT,
+  PROP_NAME,
+  PROP_LOSSY_ENCODING,
+  PROP_SCALING
+};
+
 /* Signals */
 typedef enum
 {
@@ -135,6 +150,83 @@ static guint signals[LAST_SIGNAL] = { 0, 0, 0, 0,
 				      0, 0, 0, 0,
 				      0, 0, 0, 0, 0,};
 static GParamSpec *signalCredParam;
+
+static void
+vnc_display_get_property (GObject    *object,
+			  guint       prop_id,
+			  GValue     *value,
+			  GParamSpec *pspec)
+{
+  VncDisplay *vnc = VNC_DISPLAY (object);
+
+  switch (prop_id)
+    {
+      case PROP_POINTER_LOCAL:
+        g_value_set_boolean (value, vnc->priv->local_pointer);
+	break;
+      case PROP_POINTER_GRAB:
+        g_value_set_boolean (value, vnc->priv->grab_pointer);
+	break;
+      case PROP_KEYBOARD_GRAB:
+        g_value_set_boolean (value, vnc->priv->grab_keyboard);
+	break;
+      case PROP_READ_ONLY:
+        g_value_set_boolean (value, vnc->priv->read_only);
+	break;
+      case PROP_WIDTH:
+        g_value_set_int (value, vnc_display_get_width (vnc));
+	break;
+      case PROP_HEIGHT:
+        g_value_set_int (value, vnc_display_get_height (vnc));
+	break;
+      case PROP_NAME:
+        g_value_set_string (value, vnc_display_get_name (vnc));
+	break;
+      case PROP_LOSSY_ENCODING:
+        g_value_set_boolean (value, vnc->priv->allow_lossy);
+	break;
+      case PROP_SCALING:
+        g_value_set_boolean (value, vnc->priv->allow_scaling);
+	break;
+      default:
+	G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+	break;			
+    }
+}
+
+static void
+vnc_display_set_property (GObject      *object,
+			  guint         prop_id,
+			  const GValue *value,
+			  GParamSpec   *pspec)
+{
+  VncDisplay *vnc = VNC_DISPLAY (object);
+
+  switch (prop_id)
+    {
+      case PROP_POINTER_LOCAL:
+        vnc_display_set_pointer_local (vnc, g_value_get_boolean (value));
+        break;
+      case PROP_POINTER_GRAB:
+        vnc_display_set_pointer_grab (vnc, g_value_get_boolean (value));
+        break;
+      case PROP_KEYBOARD_GRAB:
+        vnc_display_set_keyboard_grab (vnc, g_value_get_boolean (value));
+        break;
+      case PROP_READ_ONLY:
+        vnc_display_set_read_only (vnc, g_value_get_boolean (value));
+        break;
+      case PROP_LOSSY_ENCODING:
+        vnc_display_set_lossy_encoding (vnc, g_value_get_boolean (value));
+        break;
+      case PROP_SCALING:
+        vnc_display_set_scaling (vnc, g_value_get_boolean (value));
+        break;
+      default:
+        G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+        break;			
+    }
+}
 
 GtkWidget *vnc_display_new(void)
 {
@@ -1643,7 +1735,111 @@ static void vnc_display_class_init(VncDisplayClass *klass)
 	GtkObjectClass *gtkobject_class = GTK_OBJECT_CLASS (klass);
 
 	object_class->finalize = vnc_display_finalize;
+	object_class->get_property = vnc_display_get_property;
+	object_class->set_property = vnc_display_set_property;
+
 	gtkobject_class->destroy = vnc_display_destroy;
+
+	g_object_class_install_property (object_class,
+					 PROP_POINTER_LOCAL,
+					 g_param_spec_boolean ( "local-pointer",
+								"Local Pointer",
+								"Whether we should use the local pointer",
+								FALSE,
+								G_PARAM_READWRITE |
+								G_PARAM_CONSTRUCT |
+								G_PARAM_STATIC_NAME |
+								G_PARAM_STATIC_NICK |
+								G_PARAM_STATIC_BLURB));
+	g_object_class_install_property (object_class,
+					 PROP_POINTER_GRAB,
+					 g_param_spec_boolean ( "grab-pointer",
+								"Grab Pointer",
+								"Whether we should grab the pointer",
+								FALSE,
+								G_PARAM_READWRITE |
+								G_PARAM_CONSTRUCT |
+								G_PARAM_STATIC_NAME |
+								G_PARAM_STATIC_NICK |
+								G_PARAM_STATIC_BLURB));
+	g_object_class_install_property (object_class,
+					 PROP_KEYBOARD_GRAB,
+					 g_param_spec_boolean ( "grab-keyboard",
+								"Grab Keyboard",
+								"Whether we should grab the keyboard",
+								FALSE,
+								G_PARAM_READWRITE |
+								G_PARAM_CONSTRUCT |
+								G_PARAM_STATIC_NAME |
+								G_PARAM_STATIC_NICK |
+								G_PARAM_STATIC_BLURB));
+	g_object_class_install_property (object_class,
+					 PROP_READ_ONLY,
+					 g_param_spec_boolean ( "read-only",
+								"Read Only",
+								"Whether this connection is read-only mode",
+								FALSE,
+								G_PARAM_READWRITE |
+								G_PARAM_CONSTRUCT |
+								G_PARAM_STATIC_NAME |
+								G_PARAM_STATIC_NICK |
+								G_PARAM_STATIC_BLURB));
+	g_object_class_install_property (object_class,
+					 PROP_WIDTH,
+					 g_param_spec_int     ( "width",
+								"Width",
+								"The width of the remote screen",
+								0,
+								G_MAXINT,
+								0,
+								G_PARAM_READABLE |
+								G_PARAM_STATIC_NAME |
+								G_PARAM_STATIC_NICK |
+								G_PARAM_STATIC_BLURB));
+	g_object_class_install_property (object_class,
+					 PROP_HEIGHT,
+					 g_param_spec_int     ( "height",
+								"Height",
+								"The height of the remote screen",
+								0,
+								G_MAXINT,
+								0,
+								G_PARAM_READABLE |
+								G_PARAM_STATIC_NAME |
+								G_PARAM_STATIC_NICK |
+								G_PARAM_STATIC_BLURB));
+	g_object_class_install_property (object_class,
+					 PROP_NAME,
+					 g_param_spec_string  ( "name",
+								"Name",
+								"The screen name of the remote connection",
+								NULL,
+								G_PARAM_READABLE |
+								G_PARAM_STATIC_NAME |
+								G_PARAM_STATIC_NICK |
+								G_PARAM_STATIC_BLURB));
+	g_object_class_install_property (object_class,
+					 PROP_LOSSY_ENCODING,
+					 g_param_spec_boolean ( "lossy-encoding",
+								"Lossy Encoding",
+								"Whether we should use a lossy encoding",
+								FALSE,
+								G_PARAM_READWRITE |
+								G_PARAM_CONSTRUCT |
+								G_PARAM_STATIC_NAME |
+								G_PARAM_STATIC_NICK |
+								G_PARAM_STATIC_BLURB));
+	g_object_class_install_property (object_class,
+					 PROP_SCALING,
+					 g_param_spec_boolean ( "scaling",
+								"Scaling",
+								"Whether we should use scaling",
+								FALSE,
+								G_PARAM_READWRITE |
+								G_PARAM_CONSTRUCT |
+								G_PARAM_STATIC_NAME |
+								G_PARAM_STATIC_NICK |
+								G_PARAM_STATIC_BLURB));
 
 	signalCredParam = g_param_spec_enum("credential",
 					    "credential",
