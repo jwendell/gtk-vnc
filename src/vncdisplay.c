@@ -1479,7 +1479,7 @@ static void *vnc_coroutine(void *opaque)
 	emit_signal_delayed(obj, VNC_INITIALIZED, &s);
 
 	encodingsp = encodings;
-	n_encodings = ARRAY_SIZE(encodings);
+	n_encodings = G_N_ELEMENTS(encodings);
 
 	if (check_pixbuf_support("jpeg")) {
 		if (!priv->allow_lossy) {

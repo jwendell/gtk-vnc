@@ -17,6 +17,4 @@
 #define GVNC_DEBUG(fmt, ...) do { } while (0)
 #endif
 
-#define ARRAY_SIZE(array) (sizeof((array)) / sizeof((array)[0]))
-
 #endif
