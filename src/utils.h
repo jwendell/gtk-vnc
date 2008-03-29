@@ -11,10 +11,10 @@
 #ifndef _UTILS_H
 #define _UTILS_H
 
-#ifdef ENABLE_DEBUG
-#define GVNC_DEBUG(fmt, ...) do { fprintf(stderr, fmt, ## __VA_ARGS__); } while (0)
-#else
-#define GVNC_DEBUG(fmt, ...) do { } while (0)
-#endif
+#include <glib.h>
+
+extern gboolean debug_enabled;
+
+#define GVNC_DEBUG(fmt, ...) do { if (G_UNLIKELY(debug_enabled)) g_debug(fmt, ## __VA_ARGS__); } while (0)
 
 #endif

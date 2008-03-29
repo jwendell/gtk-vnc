@@ -196,15 +196,6 @@ if test "$WITH_PYTHON" = "yes"; then
   fi
 fi
 
-dnl --enable-debug=(yes|no)
-AC_ARG_ENABLE(debug, [  --enable-debug=[no/yes] turn on debugging [default=no]],,enable_debug=no)
-if test "$enable_debug" = "yes"; then
-  DEBUG_CFLAGS="-DENABLE_DEBUG"
-else
-  DEBUG_CFLAGS=""
-fi
-AC_SUBST(DEBUG_CFLAGS)
-
 dnl --enable-plugin to enable the browser plugin.
 AC_ARG_ENABLE(plugin,
 	[  --enable-plugin=[no/yes] enable browser plugin [default=no]],,
@@ -251,6 +242,5 @@ Configure summary:
 	Python biding ..............:  ${WITH_PYTHON}
 	Install example programs ...:  ${WITH_EXAMPLES}
 	Browser plugin .............:  ${enable_plugin}
-	DEBUG messages..............:  ${enable_debug}
 	Scaling support.............:  ${with_scaling}
 "

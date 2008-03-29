@@ -8,7 +8,7 @@ libgtk_vnc_1_0_la_LIBADD = @GTK_LIBS@ @GTKGLEXT_LIBS@ @GNUTLS_LIBS@ \
 libgtk_vnc_1_0_la_CFLAGS = @GTK_CFLAGS@ @GTKGLEXT_CFLAGS@ @GNUTLS_CFLAGS@ \
 			   @GTHREAD_CFLAGS@ @WARNING_CFLAGS@ \
 			   -DSYSCONFDIR=\""$(sysconfdir)"\" \
-                           @DEBUG_CFLAGS@
+                           -DG_LOG_DOMAIN=\"gtk-vnc\"
 libgtk_vnc_1_0_la_LDFLAGS = -Wl,--version-script=$(srcdir)/libgtk-vnc_sym.version \
                             -version-info 0:1:0
 
@@ -49,7 +49,7 @@ gtkvnc_la_LIBADD = libgtk-vnc-1.0.la @PYGTK_LIBS@
 # Auto-generated C code for Python binding is full of compiler warnings :-(
 #gtkvnc_la_CFLAGS = @GTK_CFLAGS@ @WARNING_CFLAGS@ @PYTHON_INCLUDES@ @PYGTK_CFLAGS@
 gtkvnc_la_CFLAGS = @GTK_CFLAGS@ @GTKGLEXT_CFLAGS@ @PYTHON_INCLUDES@ \
-		   @PYGTK_CFLAGS@ @DEBUG_CFLAGS@
+		   @PYGTK_CFLAGS@
 gtkvnc_la_LDFLAGS = -module -avoid-version -fPIC
 gtkvnc_la_SOURCES = vncmodule.c vncmodule.defs.c
 

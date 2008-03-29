@@ -3,12 +3,24 @@
 #include <gdk/gdkkeysyms.h>
 #include <stdlib.h>
 #include <string.h>
+#include <glib.h>
 
 #include "config.h"
 
 #if WITH_LIBVIEW
 #include <libview/autoDrawer.h>
 #endif
+
+static gchar **args = NULL;
+static const GOptionEntry options [] =
+{
+  { 
+    G_OPTION_REMAINING, '\0', 0, G_OPTION_ARG_STRING_ARRAY, &args,
+    NULL, "hostname[:display]" },
+
+  { NULL }
+};
+
 
 static GtkWidget *vnc;
 
@@ -258,6 +270,8 @@ static gboolean window_state_event(GtkWidget *widget,
 
 int main(int argc, char **argv)
 {
+	GOptionContext *context;
+	GError *error = NULL;
 	char port[1024], hostname[1024];
 	char *display;
 	GtkWidget *window;
@@ -271,16 +285,28 @@ int main(int argc, char **argv)
 	GtkWidget *cab;
 	GtkWidget *fullscreen;
 	GtkWidget *scaling;
+	const char *help_msg = "Run 'gvncviewer --help' to see a full list of available command line options";
 
-	if (argc != 2 && argc != 3) {
-		fprintf(stderr, "Usage: %s hostname[:display] [password]\n",
-			argv[0]);
+	/* Setup command line options */
+	context = g_option_context_new ("- Simple VNC Client");
+	g_option_context_add_main_entries (context, options, NULL);
+	g_option_context_add_group (context, gtk_get_option_group (TRUE));
+	g_option_context_add_group (context, vnc_display_get_option_group ());
+	g_option_context_parse (context, &argc, &argv, &error);
+	if (error) {
+		g_print ("%s\n%s\n",
+			 error->message,
+			help_msg);
+		g_error_free (error);
+		return 1;
+	}
+	if (!args || (g_strv_length(args) != 1)) {
+		fprintf(stderr, "Usage: gvncviewer hostname[:display]\n%s\n", help_msg);
 		return 1;
 	}
 
-	gtk_init(&argc, &argv);
-
 	vnc = vnc_display_new();
+
 	window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 #if WITH_LIBVIEW
 	layout = ViewAutoDrawer_New();
@@ -332,10 +358,7 @@ int main(int argc, char **argv)
 	gtk_container_add(GTK_CONTAINER(window), layout);
 	gtk_widget_realize(vnc);
 
-	if (argc == 3)
-		vnc_display_set_credential(VNC_DISPLAY(vnc), VNC_DISPLAY_CREDENTIAL_PASSWORD, argv[2]);
-
-	snprintf(hostname, sizeof(hostname), "%s", argv[1]);
+	snprintf(hostname, sizeof(hostname), "%s", args[0]);
 	display = strchr(hostname, ':');
 
 	if (display) {
@@ -347,7 +370,6 @@ int main(int argc, char **argv)
 	vnc_display_open_host(VNC_DISPLAY(vnc), hostname, port);
 	vnc_display_set_keyboard_grab(VNC_DISPLAY(vnc), TRUE);
 	vnc_display_set_pointer_grab(VNC_DISPLAY(vnc), TRUE);
-	//vnc_display_set_pointer_local(VNC_DISPLAY(vnc), TRUE);
 
 	gtk_signal_connect(GTK_OBJECT(window), "delete-event",
 			   GTK_SIGNAL_FUNC(gtk_main_quit), NULL);

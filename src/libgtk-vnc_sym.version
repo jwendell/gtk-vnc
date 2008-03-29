@@ -45,6 +45,8 @@
     vnc_display_force_grab;
     vnc_display_is_pointer_absolute;
 
+    vnc_display_get_option_group;
+
   local:
       *;
 };

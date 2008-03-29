@@ -120,6 +120,8 @@ void		vnc_display_force_grab(VncDisplay *obj, gboolean enable);
 
 gboolean	vnc_display_is_pointer_absolute(VncDisplay *obj);
 
+GOptionGroup *  vnc_display_get_option_group(void);
+
 G_END_DECLS
 
 #endif

@@ -150,6 +150,14 @@ static guint signals[LAST_SIGNAL] = { 0, 0, 0, 0,
 				      0, 0, 0, 0,
 				      0, 0, 0, 0, 0,};
 static GParamSpec *signalCredParam;
+gboolean debug_enabled = FALSE;
+
+static const GOptionEntry gtk_vnc_args[] =
+{
+  { "gtk-vnc-debug", 0, 0, G_OPTION_ARG_NONE, &debug_enabled, "Enables debug output", 0 },
+  { NULL }
+};
+
 
 static void
 vnc_display_get_property (GObject    *object,
@@ -2352,6 +2360,18 @@ gboolean vnc_display_get_read_only(VncDisplay *obj)
 gboolean vnc_display_is_pointer_absolute(VncDisplay *obj)
 {
 	return obj->priv->absolute;
+}
+
+GOptionGroup *
+vnc_display_get_option_group (void)
+{
+  GOptionGroup *group;
+
+  group = g_option_group_new ("gtk-vnc", "GTK-VNC Options", "Show GTK-VNC Options", NULL, NULL);
+
+  g_option_group_add_entries (group, gtk_vnc_args);
+  
+  return group;
 }
 
 /*
