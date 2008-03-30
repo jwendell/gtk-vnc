@@ -2721,23 +2721,24 @@ gboolean gvnc_initialize(struct gvnc *gvnc, gboolean shared_flag)
 	if (ret != 2)
 		goto fail;
 
-	if (gvnc->major != 3)
+	if (gvnc->major != 3) {
+		GVNC_DEBUG("Major server version not supported (%d)\n", gvnc->major);
 		goto fail;
-	if (gvnc->minor != 3 &&
-	    gvnc->minor != 4 &&
-	    gvnc->minor != 5 &&
-	    gvnc->minor != 6 &&
-	    gvnc->minor != 7 &&
-	    gvnc->minor != 8)
+	}
+	if (gvnc->minor < 3 || gvnc->minor > 8) {
+		GVNC_DEBUG("Server version not supported (%d.%d)\n", gvnc->major, gvnc->minor);
 		goto fail;
+	}
+	GVNC_DEBUG("Server version: %d.%d\n", gvnc->major, gvnc->minor);
 
 	/* For UltraVNC ... */
-	if  (gvnc->minor > 3 && gvnc->minor < 7) gvnc->minor = 3;
+	if  (gvnc->minor > 3 && gvnc->minor < 7)
+		gvnc->minor = 3;
 
 	snprintf(version, 12, "RFB %03d.%03d\n", gvnc->major, gvnc->minor);
 	gvnc_write(gvnc, version, 12);
 	gvnc_flush(gvnc);
-	GVNC_DEBUG("Negotiated protocol %d %d\n", gvnc->major, gvnc->minor);
+	GVNC_DEBUG("Using version: %d.%d\n", gvnc->major, gvnc->minor);
 
 	if (!gvnc_perform_auth(gvnc)) {
 		GVNC_DEBUG("Auth failed\n");
