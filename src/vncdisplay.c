@@ -155,7 +155,7 @@ gboolean debug_enabled = FALSE;
 static const GOptionEntry gtk_vnc_args[] =
 {
   { "gtk-vnc-debug", 0, 0, G_OPTION_ARG_NONE, &debug_enabled, "Enables debug output", 0 },
-  { NULL }
+  { NULL, 0, 0, G_OPTION_ARG_NONE, NULL, NULL, 0 }
 };
 
 

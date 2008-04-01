@@ -17,8 +17,7 @@ static const GOptionEntry options [] =
   { 
     G_OPTION_REMAINING, '\0', 0, G_OPTION_ARG_STRING_ARRAY, &args,
     NULL, "hostname[:display]" },
-
-  { NULL }
+  { NULL, 0, 0, G_OPTION_ARG_NONE, NULL, NULL, 0 }
 };
 
 
