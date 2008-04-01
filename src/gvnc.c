@@ -2718,8 +2718,20 @@ gboolean gvnc_initialize(struct gvnc *gvnc, gboolean shared_flag)
 	version[12] = 0;
 
  	ret = sscanf(version, "RFB %03d.%03d\n", &gvnc->major, &gvnc->minor);
-	if (ret != 2)
+	if (ret != 2) {
+		GVNC_DEBUG("Error while getting server version\n");
 		goto fail;
+	}
+
+	GVNC_DEBUG("Server version: %d.%d\n", gvnc->major, gvnc->minor);
+
+	/* For UltraVNC */
+	if  (gvnc->minor > 3 && gvnc->minor < 7)
+		gvnc->minor = 3;
+
+	/* For AppleVNCServer */
+	if (gvnc->minor == 889)
+		gvnc->minor = 3;
 
 	if (gvnc->major != 3) {
 		GVNC_DEBUG("Major server version not supported (%d)\n", gvnc->major);
@@ -2729,11 +2741,6 @@ gboolean gvnc_initialize(struct gvnc *gvnc, gboolean shared_flag)
 		GVNC_DEBUG("Server version not supported (%d.%d)\n", gvnc->major, gvnc->minor);
 		goto fail;
 	}
-	GVNC_DEBUG("Server version: %d.%d\n", gvnc->major, gvnc->minor);
-
-	/* For UltraVNC ... */
-	if  (gvnc->minor > 3 && gvnc->minor < 7)
-		gvnc->minor = 3;
 
 	snprintf(version, 12, "RFB %03d.%03d\n", gvnc->major, gvnc->minor);
 	gvnc_write(gvnc, version, 12);
