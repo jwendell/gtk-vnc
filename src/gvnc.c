@@ -2706,6 +2706,13 @@ gboolean gvnc_is_initialized(struct gvnc *gvnc)
 	return FALSE;
 }
 
+static gboolean gvnc_before_version (struct gvnc *gvnc, int major, int minor) {
+	return (gvnc->major < major) || (gvnc->major == major && gvnc->minor < minor);
+}
+static gboolean gvnc_after_version (struct gvnc *gvnc, int major, int minor) {
+	return !gvnc_before_version (gvnc, major, minor+1);
+}
+
 gboolean gvnc_initialize(struct gvnc *gvnc, gboolean shared_flag)
 {
 	int ret, i;
@@ -2725,21 +2732,14 @@ gboolean gvnc_initialize(struct gvnc *gvnc, gboolean shared_flag)
 
 	GVNC_DEBUG("Server version: %d.%d\n", gvnc->major, gvnc->minor);
 
-	/* For UltraVNC */
-	if  (gvnc->minor > 3 && gvnc->minor < 7)
-		gvnc->minor = 3;
-
-	/* For AppleVNCServer */
-	if (gvnc->minor == 889)
-		gvnc->minor = 3;
-
-	if (gvnc->major != 3) {
-		GVNC_DEBUG("Major server version not supported (%d)\n", gvnc->major);
+	if (gvnc_before_version(gvnc, 3, 3)) {
+		GVNC_DEBUG("Server version is not supported (%d.%d)\n", gvnc->major, gvnc->minor);
 		goto fail;
-	}
-	if (gvnc->minor < 3 || gvnc->minor > 8) {
-		GVNC_DEBUG("Server version not supported (%d.%d)\n", gvnc->major, gvnc->minor);
-		goto fail;
+	} else if (gvnc_before_version(gvnc, 3, 7)) {
+		gvnc->minor = 3;
+	} else if (gvnc_after_version(gvnc, 3, 8)) {
+		gvnc->major = 3;
+		gvnc->minor = 8;
 	}
 
 	snprintf(version, 12, "RFB %03d.%03d\n", gvnc->major, gvnc->minor);
