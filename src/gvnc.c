@@ -826,14 +826,39 @@ gboolean gvnc_set_pixel_format(struct gvnc *gvnc,
 gboolean gvnc_set_encodings(struct gvnc *gvnc, int n_encoding, int32_t *encoding)
 {
 	uint8_t pad[1] = {0};
-	int i;
+	int i, skip_zrle=0;
+
+	/*
+	 * RealVNC server is broken for ZRLE in some pixel formats.
+	 * Specifically if you have a format with either R, G or B
+	 * components with a max value > 255, it still uses a CPIXEL
+	 * of 3 bytes, even though the colour requirs 4 bytes. It
+	 * thus messes up the colours of the server in a way we can't
+	 * recover from on the client. Most VNC clients don't see this
+	 * problem since they send a 'set pixel format' message instead
+	 * of running with the server's default format.
+	 *
+	 * So we kill off ZRLE encoding for problematic pixel formats
+	 */
+	for (i = 0; i < n_encoding; i++)
+		if (gvnc->fmt.depth == 32 &&
+		    (gvnc->fmt.red_max > 255 ||
+		     gvnc->fmt.blue_max > 255 ||
+		     gvnc->fmt.green_max > 255) &&
+		    encoding[i] == GVNC_ENCODING_ZRLE) {
+			GVNC_DEBUG("Dropping ZRLE encoding for broken pixel format\n");
+			skip_zrle++;
+		}
 
 	gvnc->has_ext_key_event = FALSE;
 	gvnc_write_u8(gvnc, 2);
 	gvnc_write(gvnc, pad, 1);
-	gvnc_write_u16(gvnc, n_encoding);
-	for (i = 0; i < n_encoding; i++)
+	gvnc_write_u16(gvnc, n_encoding - skip_zrle);
+	for (i = 0; i < n_encoding; i++) {
+		if (skip_zrle && encoding[i] == GVNC_ENCODING_ZRLE)
+			continue;
 		gvnc_write_s32(gvnc, encoding[i]);
+	}
 	gvnc_flush(gvnc);
 	return !gvnc_has_error(gvnc);
 }
@@ -951,23 +976,52 @@ static inline uint8_t *gvnc_get_local(struct gvnc *gvnc, int x, int y)
 		(x * gvnc->local.bpp);
 }
 
-static uint8_t gvnc_swap_8(struct gvnc *gvnc G_GNUC_UNUSED, uint8_t pixel)
+static uint8_t gvnc_swap_img_8(struct gvnc *gvnc G_GNUC_UNUSED, uint8_t pixel)
 {
 	return pixel;
 }
 
-static uint16_t gvnc_swap_16(struct gvnc *gvnc, uint16_t pixel)
+static uint8_t gvnc_swap_rfb_8(struct gvnc *gvnc G_GNUC_UNUSED, uint8_t pixel)
 {
-	if (gvnc->fmt.byte_order != gvnc->local.byte_order)
+	return pixel;
+}
+
+/* local host native format -> X server image format */
+static uint16_t gvnc_swap_img_16(struct gvnc *gvnc, uint16_t pixel)
+{
+	if (G_BYTE_ORDER != gvnc->local.byte_order)
 		return  (((pixel >> 8) & 0xFF) << 0) |
 			(((pixel >> 0) & 0xFF) << 8);
 	else
 		return pixel;
 }
 
-static uint32_t gvnc_swap_32(struct gvnc *gvnc, uint32_t pixel)
+/* VNC server RFB  format ->  local host native format */
+static uint16_t gvnc_swap_rfb_16(struct gvnc *gvnc, uint16_t pixel)
 {
-	if (gvnc->fmt.byte_order != gvnc->local.byte_order)
+	if (gvnc->fmt.byte_order != G_BYTE_ORDER)
+		return  (((pixel >> 8) & 0xFF) << 0) |
+			(((pixel >> 0) & 0xFF) << 8);
+	else
+		return pixel;
+}
+
+/* local host native format -> X server image format */
+static uint32_t gvnc_swap_img_32(struct gvnc *gvnc, uint32_t pixel)
+{
+	if (G_BYTE_ORDER != gvnc->local.byte_order)
+		return  (((pixel >> 24) & 0xFF) <<  0) |
+			(((pixel >> 16) & 0xFF) <<  8) |
+			(((pixel >>  8) & 0xFF) << 16) |
+			(((pixel >>  0) & 0xFF) << 24);			
+	else
+		return pixel;
+}
+
+/* VNC server RFB  format ->  local host native format */
+static uint32_t gvnc_swap_rfb_32(struct gvnc *gvnc, uint32_t pixel)
+{
+	if (gvnc->fmt.byte_order != G_BYTE_ORDER)
 		return  (((pixel >> 24) & 0xFF) <<  0) |
 			(((pixel >> 16) & 0xFF) <<  8) |
 			(((pixel >>  8) & 0xFF) << 16) |
@@ -1206,10 +1260,26 @@ static void gvnc_read_cpixel(struct gvnc *gvnc, uint8_t *pixel)
 
 	memset(pixel, 0, bpp);
 
-	if (bpp == 4 && gvnc->fmt.true_color_flag && gvnc->fmt.depth == 24) {
-		bpp = 3;
-		if (gvnc->fmt.byte_order == G_BIG_ENDIAN)
-			pixel += 1;
+	if (bpp == 4 && gvnc->fmt.true_color_flag) {
+		int fitsInMSB = ((gvnc->fmt.red_shift > 7) &&
+				 (gvnc->fmt.green_shift > 7) &&
+				 (gvnc->fmt.blue_shift > 7));
+		int fitsInLSB = (((gvnc->fmt.red_max << gvnc->fmt.red_shift) < (1 << 24)) &&
+				 ((gvnc->fmt.green_max << gvnc->fmt.green_shift) < (1 << 24)) &&
+				 ((gvnc->fmt.blue_max << gvnc->fmt.blue_shift) < (1 << 24)));
+
+		/* 
+		 * We need to analyse the shifts to see if they fit in 3 bytes,
+		 * rather than looking at the declared  'depth' for the format
+		 * because despite what the RFB spec says, this is what RealVNC
+		 * server actually does in practice.
+		 */
+		if (fitsInMSB || fitsInLSB) {
+			bpp = 3;
+			if (gvnc->fmt.depth == 24 &&
+			    gvnc->fmt.byte_order == G_BIG_ENDIAN)
+				pixel++;
+		}
 	}
 
 	gvnc_read(gvnc, pixel, bpp);
@@ -3020,7 +3090,8 @@ gboolean gvnc_set_local(struct gvnc *gvnc, struct gvnc_framebuffer *fb)
 	    fb->red_shift == gvnc->fmt.red_shift &&
 	    fb->green_shift == gvnc->fmt.green_shift &&
 	    fb->blue_shift == gvnc->fmt.blue_shift &&
-	    fb->byte_order == gvnc->fmt.byte_order)
+	    fb->byte_order == G_BYTE_ORDER &&
+	    gvnc->fmt.byte_order == G_BYTE_ORDER)
 		gvnc->perfect_match = TRUE;
 	else
 		gvnc->perfect_match = FALSE;
