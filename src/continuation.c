@@ -10,8 +10,31 @@
 
 #include "continuation.h"
 
+/*
+ * va_args to makecontext() must be type 'int', so passing
+ * the pointer we need may require several int args. This
+ * union is a quick hack to let us do that
+ */
+union cc_arg {
+	void *p;
+	int i[2];
+};
+
+static void continuation_trampoline(int i0, int i1)
+{
+	union cc_arg arg;
+	struct continuation *cc;
+	arg.i[0] = i0;
+	arg.i[1] = i1;
+	cc = arg.p;
+
+	cc->entry(cc);
+}
+
 int cc_init(struct continuation *cc)
 {
+	union cc_arg arg;
+	arg.p = cc;
 	if (getcontext(&cc->uc) == -1)
 		return -1;
 
@@ -20,7 +43,7 @@ int cc_init(struct continuation *cc)
 	cc->uc.uc_stack.ss_size = cc->stack_size;
 	cc->uc.uc_stack.ss_flags = 0;
 
-	makecontext(&cc->uc, (void *)cc->entry, 1, cc);
+	makecontext(&cc->uc, (void *)continuation_trampoline, 2, arg.i[0], arg.i[1]);
 
 	return 0;
 }
