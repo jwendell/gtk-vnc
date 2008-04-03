@@ -12,7 +12,7 @@ gtk_vnc_plugin_la_LDFLAGS = \
 	-module -avoid-version
 gtk_vnc_plugin_la_CFLAGS = \
 	-I$(top_srcdir)/src @GTK_CFLAGS@ @GTKGLEXT_CFLAGS@ \
-	@FIREFOX_PLUGIN_CFLAGS@ @WARNING_CFLAGS@ @WERROR_CFLAGS@ @DEBUG_CFLAGS@
+	@FIREFOX_PLUGIN_CFLAGS@ @WARNING_CFLAGS@ @WERROR_CFLAGS@
 
 all-local: gtk-vnc-plugin.so
 
