@@ -1567,13 +1567,13 @@ gboolean vnc_display_open_host(VncDisplay *obj, const char *host, const char *po
 	if (obj->priv->gvnc == NULL || gvnc_is_open(obj->priv->gvnc))
 		return FALSE;
 
-	obj->priv->host = strdup(host);
+	obj->priv->host = g_strdup(host);
 	if (!obj->priv->host) {
 		return FALSE;
 	}
-	obj->priv->port = strdup(port);
+	obj->priv->port = g_strdup(port);
 	if (!obj->priv->port) {
-		free(obj->priv->host);
+		g_free(obj->priv->host);
 		obj->priv->host = NULL;
 		return FALSE;
 	}
