@@ -2696,12 +2696,12 @@ void gvnc_close(struct gvnc *gvnc)
 	}
 
 	if (gvnc->host) {
-		free(gvnc->host);
+		g_free(gvnc->host);
 		gvnc->host = NULL;
 	}
 
 	if (gvnc->port) {
-		free(gvnc->port);
+		g_free(gvnc->port);
 		gvnc->port = NULL;
 	}
 
@@ -2711,28 +2711,28 @@ void gvnc_close(struct gvnc *gvnc)
 	}
 
 	if (gvnc->cred_username) {
-		free(gvnc->cred_username);
+		g_free(gvnc->cred_username);
 		gvnc->cred_username = NULL;
 	}
 	if (gvnc->cred_password) {
-		free(gvnc->cred_password);
+		g_free(gvnc->cred_password);
 		gvnc->cred_password = NULL;
 	}
 
 	if (gvnc->cred_x509_cacert) {
-		free(gvnc->cred_x509_cacert);
+		g_free(gvnc->cred_x509_cacert);
 		gvnc->cred_x509_cacert = NULL;
 	}
 	if (gvnc->cred_x509_cacrl) {
-		free(gvnc->cred_x509_cacrl);
+		g_free(gvnc->cred_x509_cacrl);
 		gvnc->cred_x509_cacrl = NULL;
 	}
 	if (gvnc->cred_x509_cert) {
-		free(gvnc->cred_x509_cert);
+		g_free(gvnc->cred_x509_cert);
 		gvnc->cred_x509_cert = NULL;
 	}
 	if (gvnc->cred_x509_key) {
-		free(gvnc->cred_x509_key);
+		g_free(gvnc->cred_x509_key);
 		gvnc->cred_x509_key = NULL;
 	}
 
@@ -3007,8 +3007,8 @@ gboolean gvnc_set_credential_password(struct gvnc *gvnc, const char *password)
 {
         GVNC_DEBUG("Set password credential\n");
         if (gvnc->cred_password)
-                free(gvnc->cred_password);
-        if (!(gvnc->cred_password = strdup(password))) {
+                g_free(gvnc->cred_password);
+        if (!(gvnc->cred_password = g_strdup(password))) {
                 gvnc->has_error = TRUE;
                 return FALSE;
         }
@@ -3019,8 +3019,8 @@ gboolean gvnc_set_credential_username(struct gvnc *gvnc, const char *username)
 {
         GVNC_DEBUG("Set username credential %s\n", username);
         if (gvnc->cred_username)
-                free(gvnc->cred_username);
-        if (!(gvnc->cred_username = strdup(username))) {
+                g_free(gvnc->cred_username);
+        if (!(gvnc->cred_username = g_strdup(username))) {
                 gvnc->has_error = TRUE;
                 return FALSE;
         }
@@ -3031,8 +3031,8 @@ gboolean gvnc_set_credential_x509_cacert(struct gvnc *gvnc, const char *file)
 {
         GVNC_DEBUG("Set x509 cacert %s\n", file);
         if (gvnc->cred_x509_cacert)
-                free(gvnc->cred_x509_cacert);
-        if (!(gvnc->cred_x509_cacert = strdup(file))) {
+                g_free(gvnc->cred_x509_cacert);
+        if (!(gvnc->cred_x509_cacert = g_strdup(file))) {
                 gvnc->has_error = TRUE;
                 return FALSE;
         }
@@ -3043,8 +3043,8 @@ gboolean gvnc_set_credential_x509_cacrl(struct gvnc *gvnc, const char *file)
 {
         GVNC_DEBUG("Set x509 cacrl %s\n", file);
         if (gvnc->cred_x509_cacrl)
-                free(gvnc->cred_x509_cacrl);
-        if (!(gvnc->cred_x509_cacrl = strdup(file))) {
+                g_free(gvnc->cred_x509_cacrl);
+        if (!(gvnc->cred_x509_cacrl = g_strdup(file))) {
                 gvnc->has_error = TRUE;
                 return FALSE;
         }
@@ -3055,8 +3055,8 @@ gboolean gvnc_set_credential_x509_key(struct gvnc *gvnc, const char *file)
 {
         GVNC_DEBUG("Set x509 key %s\n", file);
         if (gvnc->cred_x509_key)
-                free(gvnc->cred_x509_key);
-        if (!(gvnc->cred_x509_key = strdup(file))) {
+                g_free(gvnc->cred_x509_key);
+        if (!(gvnc->cred_x509_key = g_strdup(file))) {
                 gvnc->has_error = TRUE;
                 return FALSE;
         }
@@ -3067,8 +3067,8 @@ gboolean gvnc_set_credential_x509_cert(struct gvnc *gvnc, const char *file)
 {
         GVNC_DEBUG("Set x509 cert %s\n", file);
         if (gvnc->cred_x509_cert)
-                free(gvnc->cred_x509_cert);
-        if (!(gvnc->cred_x509_cert = strdup(file))) {
+                g_free(gvnc->cred_x509_cert);
+        if (!(gvnc->cred_x509_cert = g_strdup(file))) {
                 gvnc->has_error = TRUE;
                 return FALSE;
         }
