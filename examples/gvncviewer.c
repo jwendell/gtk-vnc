@@ -339,7 +339,7 @@ int main(int argc, char **argv)
 	submenu = gtk_menu_new();
 
 	fullscreen = gtk_check_menu_item_new_with_mnemonic("_Full Screen");
-	scaling = gtk_check_menu_item_new_with_mnemonic("OpenGL _Scaling");
+	scaling = gtk_check_menu_item_new_with_mnemonic("Scaled display");
 
 	gtk_menu_append(GTK_MENU(submenu), fullscreen);
 	gtk_menu_append(GTK_MENU(submenu), scaling);
@@ -369,6 +369,11 @@ int main(int argc, char **argv)
 	vnc_display_open_host(VNC_DISPLAY(vnc), hostname, port);
 	vnc_display_set_keyboard_grab(VNC_DISPLAY(vnc), TRUE);
 	vnc_display_set_pointer_grab(VNC_DISPLAY(vnc), TRUE);
+
+	if (!gtk_widget_is_composited(window)) {
+		vnc_display_set_scaling(VNC_DISPLAY(vnc), TRUE);
+		gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(scaling), TRUE);
+	}
 
 	gtk_signal_connect(GTK_OBJECT(window), "delete-event",
 			   GTK_SIGNAL_FUNC(gtk_main_quit), NULL);

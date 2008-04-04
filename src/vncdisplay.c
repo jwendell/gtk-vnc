@@ -325,7 +325,7 @@ static gboolean expose_event(GtkWidget *widget, GdkEventExpose *expose,
 		glPixelStorei(GL_UNPACK_ROW_LENGTH, priv->fb.width);
 		glTexSubImage2D(GL_TEXTURE_2D, 0,
 				x, y, w, h,
-				GL_BGRA_EXT /* GL_RGB */,
+				GL_BGRA_EXT,
 				GL_UNSIGNED_BYTE,
 				priv->gl_tex_data +
 				y * 4 * priv->fb.width +
@@ -340,7 +340,7 @@ static gboolean expose_event(GtkWidget *widget, GdkEventExpose *expose,
 		glTexCoord2f(0,0);  glVertex3f(wx, wy+wh, 0);
 		glTexCoord2f(rx,0);  glVertex3f(wx+ww, wy+wh, 0);
 		glTexCoord2f(rx,ry);  glVertex3f(wx+ww, wy, 0);
-		glEnd();
+		glEnd();		
 		glDisable(GL_TEXTURE_2D);
 		glFlush();
 		gdk_gl_drawable_gl_end(priv->gl_drawable);
@@ -853,8 +853,8 @@ static void setup_gdk_image(VncDisplay *obj, gint width, gint height)
 	VncDisplayPrivate *priv = obj->priv;
 	GdkVisual *visual;
 
-	visual = gdk_screen_get_system_visual(gdk_screen_get_default());
-	
+	visual = gdk_drawable_get_visual(GTK_WIDGET(obj)->window);
+
 	priv->image = gdk_image_new(GDK_IMAGE_FASTEST, visual, width, height);
 	GVNC_DEBUG("Visual mask: %3d %3d %3d\n      shift: %3d %3d %3d\n",
 		   visual->red_mask,
@@ -1170,8 +1170,8 @@ static void rescale_display(VncDisplay *obj, gint width, gint height)
 {
 	VncDisplayPrivate *priv = obj->priv;
 
-	if (priv->allow_scaling &&
-	    (priv->fb.height != width ||
+	if (priv->allow_scaling && 
+	    (priv->fb.width != width ||
 	     priv->fb.height != height))
 		scale_display(obj, width, height);
 	else if (priv->gl_enabled) {
@@ -2010,13 +2010,6 @@ static void vnc_display_init(VncDisplay *display)
 	GtkObject *obj = GTK_OBJECT(display);
 	GtkWidget *widget = GTK_WIDGET(display);
 	VncDisplayPrivate *priv;
-#if WITH_GTKGLEXT
-	static const int attrib[] = { GDK_GL_RGBA,
-				      GDK_GL_RED_SIZE, 1,
-				      GDK_GL_GREEN_SIZE, 1,
-				      GDK_GL_BLUE_SIZE, 1,
-				      GDK_GL_ATTRIB_LIST_NONE };
-#endif
 
 	g_signal_connect(obj, "expose-event",
 			 G_CALLBACK(expose_event), NULL);
@@ -2073,7 +2066,8 @@ static void vnc_display_init(VncDisplay *display)
 
 #if WITH_GTKGLEXT
 	if (gtk_gl_init_check(NULL, NULL)) {
-		priv->gl_config = gdk_gl_config_new(attrib);
+		priv->gl_config = gdk_gl_config_new_by_mode(GDK_GL_MODE_RGB |
+							    GDK_GL_MODE_DEPTH);
 		if (!gtk_widget_set_gl_capability(widget,
 						  priv->gl_config,
 						  NULL,
