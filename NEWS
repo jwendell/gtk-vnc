@@ -1,6 +1,27 @@
     GTK VNC News
     ============
 
+Apr 6, 2008: Release 0.3.5
+==========================
+
+Bug fixes:
+
+ o Use g_malloc/g_strdup/g_free (Jonh Wendell)
+ o Fix z-buffer depth when using scaling (Dan Berrange)
+ o Fix makecontext() for 64-bit hosts (Dan Berrange)
+ o Fix more endianness issues (Dan Berrange)
+ o Fix various compile warnings (Atsushi SAKAI)
+ o Be more flexible in protocol version negotation (Jonh Wendell, Jin Choi)
+ o Work-arounds for ISO_Left_Tab (Hiroyuki Kaguchi)
+ o Propagate ke press events (Anthony Liguori)
+
+New features:
+
+ o Use glib for debugging and always enable it (Jonh Wendell)
+ o GObject properties (Jonh Wendell)
+ o Accessor to determine if we're in absolute mode (Anthony Liguori)
+
+
 Mar 5, 2008: Release 0.3.4
 ==========================
 

@@ -1,12 +1,246 @@
+2008-04-04  Jonh Wendell  <wendell@bani.com.br>
+
+	* src/gvnc.c:
+	Maintain the consistency: create with g_strdup, free with g_free
+	[c7ef79a435a6] [tip]
+
+2008-04-03  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* configure.ac, examples/gvncviewer.c, src/vncdisplay.c:
+	Fixed z-buffer depth to avoid rendering ontop of other windows.
+	Enable scaling in gvncviewer if not composited
+	[107a30ef75c3]
+
+2008-04-03  Jonh Wendell  <wendell@bani.com.br>
+
+	* plugin/Makefile.am:
+	Dropped DEBUG_CFLAGS from plugin/Makefile.am, noticed by Richard
+	W.M. Jones
+	[6f18ca44fbe3]
+
+	* src/vncdisplay.c:
+	Use g_strdup() instead of strdup() in vnc_display_open_host(): It
+	doesn't crash if we pass NULL as argument.
+	[976c3dcbd0ee]
+
+2008-04-02  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* src/continuation.c:
+	Fix makecontext() for 64-bit args
+	[d2f49ba72d0b]
+
+	* src/blt.h, src/gvnc.c:
+	Fixed endianness conversions. Disable ZRLE for broken pixel depths.
+	Fix CPIXEL size calculations
+	[b28dadb1f19b]
+
+2008-04-02  Atsushi SAKAI  <sakaia@jp.fujitsu.com>
+
+	* src/x_keymap.h:
+	This fixes following warnings about x_keymap. x_keymap.c:149:
+	warning: no previous prototype for 'x_keymap_set_keymap_entries'
+	x_keymap.c:162: warning: no previous prototype for
+	'x_keymap_free_keymap_entries'
+
+	At this moment, all compile warnings are cleanuped by this patch.
+	[2ca361cd74cd]
+
+2008-04-01  Jonh Wendell  <wendell@bani.com.br>
+
+	* src/gvnc.c:
+	Re-checked protocol version negotiation
+	[5a24f51d9c27]
+
+	* src/gvnc.c:
+	Added a workaround to work with AppleVNCServer, based on patch from
+	Jin Choi
+	[e40d5019d77e]
+
+	* examples/gvncviewer.c, src/vncdisplay.c:
+	Fix some warnings, patch from Atsushi SAKAI
+	[e26b129b1c9e]
+
+2008-03-30  Jonh Wendell  <wendell@bani.com.br>
+
+	* src/gvnc.c:
+	Changed debug output in protocol initialization
+	[ed430aa8ee39]
+
+2008-03-29  Jonh Wendell  <wendell@bani.com.br>
+
+	* configure.ac, examples/gvncviewer.c, src/Makefile.am, src/libgtk-
+	vnc_sym.version, src/utils.h, src/vncdisplay.c, src/vncdisplay.h:
+	Changed debug behavior.
+
+	Dropped --enable-debug flag in configure stage. We always build with
+	debug framework.
+
+	Also, we use GLib to generate debug messages, through g_debug()
+	function, and we provide a new public symbol,
+	vnc_display_get_option_group(), to be used with the GLib's command
+	line parser, GOptionContext.
+	[159641abed96]
+
+2008-03-25  Jonh Wendell  <wendell@bani.com.br>
+
+	* src/utils.h, src/vncdisplay.c:
+	Use GLib's G_N_ELEMENTS instead of our ARRAY_SIZE macro
+	[15d01d93a5fe]
+
+	* src/vncdisplay.c:
+	Added GObject properties
+	[ded3f3d05205]
+
+2008-03-19  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* src/blt.h, src/gvnc.c, src/vncdisplay.c:
+	Fix multiple big-endian conversion bugs
+	[767a847dbdc9]
+
+2008-03-19  Atsushi SAKAI  <sakaia@jp.fujitsu.com>
+
+	* src/gvnc.c, src/vncdisplay.c:
+	This is code clean up of "{" location.
+	[7fd767383ac8]
+
+2008-03-15  Jonh Wendell  <wendell@bani.com.br>
+
+	* src/gvnc.c, src/vncdisplay.c:
+	Put more debug output
+	[a0c03e9f8ec1]
+
+2008-03-14  Jonh Wendell  <wendell@bani.com.br>
+
+	* src/vncdisplay.c:
+	branches merged
+	[a9ba1443ca64]
+
+	* src/libgtk-vnc_sym.version, src/vncdisplay.c, src/vncdisplay.h:
+	Added _get() for various properties
+	[6622091a310a]
+
+2008-03-14  Hiroyuki Kaguchi  <fj7025cf@aa.jp.fujitsu.com>
+
+	* src/vncdisplay.c, src/x_keymap.c:
+	This patch fixes compilation warnings for ISO_Left_Tab feature.
+	[e25d2b6ae9c6]
+
+2008-03-12  Hiroyuki Kaguchi  <fj7025cf@aa.jp.fujitsu.com>
+
+	* src/vncdisplay.c, src/x_keymap.c, src/x_keymap.h:
+	I make the patch that applied your two indications. Moreover, this
+	patch contains the fix of two bugs and a modification besides the
+	indications.
+
+	The change points from the last patch:
+
+	1)Use GDK key symbols instead of X11 key symbols.
+
+	2)Remove CR characters.
+
+	3)Make keycode conversion function.
+	  - I make the keycode conversion function on "x_keymap.c".
+
+	4)Modify structure used for keycode conversion.
+	  - The type of the keycodes member variable is changed from "guint*"
+	to "GdkKeymapKey*".
+
+	5)Modify getting timing and release timing of keymap entries.
+	  - Because "g_free" function is not called on the last patch, the
+	memory leak is done.
+	[f7fc5cf7bef0]
+
+2008-03-11  Anthony Liguori  <anthony@codemonkey.ws>
+
+	* src/vncdisplay.c:
+	Propagate key press events. This is needed for kvm-test.
+	[3b33ba158827]
+
+	* src/libgtk-vnc_sym.version, src/vncdisplay.c, src/vncdisplay.h:
+	Add accessor to determine if widget is in absolute mode. This is
+	needed by kvm-test.
+	[f825091e3cf0]
+
+2008-03-07  Anthony Liguori  <anthony@codemonkey.ws>
+
+	* src/vncdisplay.c:
+	branch merge
+	[fb8ab9818527]
+
+2008-03-07  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* src/vncdisplay.c:
+	Don't setup gl textures if display isn't active
+	[5ac8330e0e24]
+
+2008-03-06  Atsushi SAKAI  <sakaia@jp.fujitsu.com>
+
+	* src/gvnc.c, src/vncdisplay.c:
+	This patch changes endian definition from endian.h to gtypes.h.
+
+	A.L. also remove endian.h include
+	[6ba972d14002]
+
+	* src/gvnc.c, src/vncdisplay.c:
+	fix typos
+	[9888e1ab15c2]
+
+2008-03-05  Anthony Liguori  <anthony@codemonkey.ws>
+
+	* .hgtags:
+	Added tag release-0.3.4 for changeset 313620c58d69
+	[02bc30c3e8f6]
+
+	* NEWS:
+	Update news for release
+	[313620c58d69] [release-0.3.4]
+
+	* .hgtags:
+	Added tag release-0.3.4 for changeset a1fb42cb7694
+	[6afaff3cf087]
+
+2008-03-05  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* gtk-vnc.spec.in:
+	Add missing BuildRequires for gnutls/gtkglext. Add sub-package for
+	mozilla plugin (disabled by default)
+	[a1fb42cb7694]
+
+	* configure.ac:
+	Make configure.ac check for mozilla-plugin pkgconfig file for
+	Firefox 3 build compatabiltiy
+	[a140d11707c3]
+
 2008-03-02  Anthony Liguori  <anthony@codemonkey.ws>
 
 	* .hgtags:
+	Added tag release-0.3.4 for changeset 96433efe0e7d
+	[f0782ebb4c1c]
+
+	* src/vncdisplay.c:
+	We don't use tex_max so let's not query it for now.
+	[96433efe0e7d]
+
+	* .hgtags:
+	Added tag release-0.3.4 for changeset fa6db40bad43
+	[fcf63ccb7def]
+
+	* ChangeLog, NEWS, configure.ac, examples/gvncviewer.c,
+	src/vncdisplay.c:
+	Prepare for release and also make gtkgl usage transparent.
+	[fa6db40bad43]
+
+	* .hgtags:
+	Added tag release-0.3.4 for changeset 7ea3a341f452
+	[3e21784ecf23]
+
+	* .hgtags:
 	Added tag release-0.3.4 for changeset 09836ab4d17a
-	[7ea3a341f452] [tip]
+	[7ea3a341f452]
 
 	* src/vncdisplay.c:
 	Fixup cursor grab so that it works properly in relative mode.
-	[09836ab4d17a] [release-0.3.4]
+	[09836ab4d17a]
 
 	* src/vncdisplay.c:
 	For the Hardy release cycle, Ubuntu seems to be building some
