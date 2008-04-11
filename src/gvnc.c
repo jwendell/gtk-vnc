@@ -16,7 +16,6 @@
 
 #include <netdb.h>
 #include <string.h>
-#include <malloc.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <errno.h>
@@ -1151,19 +1150,12 @@ static void gvnc_raw_update(struct gvnc *gvnc,
 		return;
 	}
 
-	dst = malloc(width * (gvnc->fmt.bits_per_pixel / 8));
-	if (dst == NULL) {
-		GVNC_DEBUG("Closing the connection: gvnc_raw_update\n");
-		gvnc->has_error = TRUE;
-		return;
-	}
-	
+	dst = g_malloc(width * (gvnc->fmt.bits_per_pixel / 8));
 	for (i = 0; i < height; i++) {
 		gvnc_read(gvnc, dst, width * (gvnc->fmt.bits_per_pixel / 8));
 		gvnc_blt(gvnc, dst, 0, x, y + i, width, 1);
 	}
-	
-	free(dst);
+	g_free(dst);
 }
 
 static void gvnc_copyrect_update(struct gvnc *gvnc,
@@ -1449,13 +1441,7 @@ static void gvnc_zrle_update(struct gvnc *gvnc,
 	uint8_t *zlib_data;
 
 	length = gvnc_read_u32(gvnc);
-	zlib_data = malloc(length);
-	if (zlib_data == NULL) {
-		GVNC_DEBUG("Closing the connection: gvnc_zrle_update\n");
-		gvnc->has_error = TRUE;
-		return;
-	}
-
+	zlib_data = g_malloc(length);
 	gvnc_read(gvnc, zlib_data, length);
 
 	/* setup subsequent calls to gvnc_read*() to use the compressed data */
@@ -1480,7 +1466,7 @@ static void gvnc_zrle_update(struct gvnc *gvnc,
 	gvnc->compressed_length = 0;
 	gvnc->compressed_buffer = NULL;
 
-	free(zlib_data);
+	g_free(zlib_data);
 }
 
 static void gvnc_rgb24_blt(struct gvnc *gvnc, int x, int y,
@@ -1876,27 +1862,10 @@ static void gvnc_rich_cursor(struct gvnc *gvnc, int x, int y, int width, int hei
 		imagelen = width * height * (gvnc->fmt.bits_per_pixel / 8);
 		masklen = ((width + 7)/8) * height;
 
-		image = malloc(imagelen);
-		if (!image) {
-			GVNC_DEBUG("Closing the connection: gvnc_rich_cursor() - !image \n");
-			gvnc->has_error = TRUE;
-			return;
-		}
-		mask = malloc(masklen);
-		if (!mask) {
-			free(image);
-			GVNC_DEBUG("Closing the connection: gvnc_rich_cursor() - !mask \n");
-			gvnc->has_error = TRUE;
-			return;
-		}
-		pixbuf = malloc(width * height * 4); /* RGB-A 8bit */
-		if (!pixbuf) {
-			free(mask);
-			free(image);
-			GVNC_DEBUG("Closing the connection: gvnc_rich_cursor() - !pixbuf \n");
-			gvnc->has_error = TRUE;
-			return;
-		}
+		image = g_malloc(imagelen);
+		mask = g_malloc(masklen);
+		pixbuf = g_malloc(width * height * 4); /* RGB-A 8bit */
+
 		gvnc_read(gvnc, image, imagelen);
 		gvnc_read(gvnc, mask, masklen);
 
@@ -1904,8 +1873,8 @@ static void gvnc_rich_cursor(struct gvnc *gvnc, int x, int y, int width, int hei
 				     width * (gvnc->fmt.bits_per_pixel/8),
 				     width, height);
 
-		free(image);
-		free(mask);
+		g_free(image);
+		g_free(mask);
 	}
 
 	if (gvnc->has_error || !gvnc->ops.local_cursor)
@@ -1915,9 +1884,8 @@ static void gvnc_rich_cursor(struct gvnc *gvnc, int x, int y, int width, int hei
 		gvnc->has_error = TRUE;
 	}
 
-	free(pixbuf);
+	g_free(pixbuf);
 }
-
 
 static void gvnc_xcursor(struct gvnc *gvnc, int x, int y, int width, int height)
 {
@@ -1936,18 +1904,10 @@ static void gvnc_xcursor(struct gvnc *gvnc, int x, int y, int width, int height)
 		bg = (255 << 24) | (bgrgb[0] << 16) | (bgrgb[1] << 8) | bgrgb[2];
 
 		rowlen = ((width + 7)/8);
-		if (!(data = malloc(rowlen*height))) {
-			GVNC_DEBUG("Closing the connection: gvnc_xcursor() - !data \n");
-			gvnc->has_error = TRUE;
-			return;
-		}
-		if (!(mask = malloc(rowlen*height))) {
-			free(data);
-			GVNC_DEBUG("Closing the connection: gvnc_xcursor() - !mask \n");
-			gvnc->has_error = TRUE;
-			return;
-		}
-		pixbuf = malloc(width * height * 4); /* RGB-A 8bit */
+		data = g_malloc(rowlen*height);
+		mask = g_malloc(rowlen*height);
+		pixbuf = g_malloc(width * height * 4); /* RGB-A 8bit */
+
 		gvnc_read(gvnc, data, rowlen*height);
 		gvnc_read(gvnc, mask, rowlen*height);
 		datap = data;
@@ -1961,8 +1921,8 @@ static void gvnc_xcursor(struct gvnc *gvnc, int x, int y, int width, int height)
 			datap += rowlen;
 			maskp += rowlen;
 		}
-		free(data);
-		free(mask);
+		g_free(data);
+		g_free(mask);
 	}
 
 	if (gvnc->has_error || !gvnc->ops.local_cursor)
@@ -1972,7 +1932,7 @@ static void gvnc_xcursor(struct gvnc *gvnc, int x, int y, int width, int height)
 		gvnc->has_error = TRUE;
 	}
 
-	free(pixbuf);
+	g_free(pixbuf);
 }
 
 
@@ -2110,7 +2070,7 @@ gboolean gvnc_server_message(struct gvnc *gvnc)
 			break;
 		}
 
-		data = malloc(n_text + 1);
+		data = g_new(char, n_text + 1);
 		if (data == NULL) {
 			GVNC_DEBUG("Closing the connection: gvnc_server_message() - cutText - !data \n");
 			gvnc->has_error = TRUE;
@@ -2121,7 +2081,7 @@ gboolean gvnc_server_message(struct gvnc *gvnc)
 		data[n_text] = 0;
 
 		gvnc_server_cut_text(gvnc, data, n_text);
-		free(data);
+		g_free(data);
 	}	break;
 	default:
 		GVNC_DEBUG("Received an unknown message: %u\n", msg);
@@ -2651,11 +2611,8 @@ static gboolean gvnc_perform_auth(struct gvnc *gvnc)
 
 struct gvnc *gvnc_new(const struct gvnc_ops *ops, gpointer ops_data)
 {
-	struct gvnc *gvnc = malloc(sizeof(*gvnc));
-	if (gvnc == NULL)
-		return NULL;
+	struct gvnc *gvnc = g_malloc0(sizeof(*gvnc));
 
-	memset(gvnc, 0, sizeof(*gvnc));
 	gvnc->fd = -1;
 
 	memcpy(&gvnc->ops, ops, sizeof(*ops));
@@ -2674,7 +2631,7 @@ void gvnc_free(struct gvnc *gvnc)
 	if (gvnc_is_open(gvnc))
 		gvnc_close(gvnc);
 
-	free(gvnc);
+	g_free(gvnc);
 	gvnc = NULL;
 }
 
@@ -2706,7 +2663,7 @@ void gvnc_close(struct gvnc *gvnc)
 	}
 
 	if (gvnc->name) {
-		free(gvnc->name);
+		g_free(gvnc->name);
 		gvnc->name = NULL;
 	}
 
@@ -2833,9 +2790,7 @@ gboolean gvnc_initialize(struct gvnc *gvnc, gboolean shared_flag)
 	if (n_name > 4096)
 		goto fail;
 
-	gvnc->name = malloc(n_name + 1);
-	if (gvnc->name == NULL)
-		goto fail;
+	gvnc->name = g_new(char, n_name + 1);
 
 	gvnc_read(gvnc, gvnc->name, n_name);
 	gvnc->name[n_name] = 0;
