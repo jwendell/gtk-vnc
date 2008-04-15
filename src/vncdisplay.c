@@ -1434,6 +1434,19 @@ static gboolean delayed_unref_object(gpointer data)
 	VncDisplay *obj = VNC_DISPLAY(data);
 
 	g_assert(obj->priv->coroutine.exited == TRUE);
+
+	if (obj->priv->image) {
+		g_object_unref(obj->priv->image);
+		obj->priv->image = NULL;
+	}
+
+#if WITH_GTKGLEXT
+	if (obj->priv->gl_tex_data)
+		g_free(obj->priv->gl_tex_data);
+	obj->priv->gl_tex_data = NULL;
+	obj->priv->gl_enabled = 0;
+#endif
+
 	g_object_unref(G_OBJECT(data));
 	return FALSE;
 }
@@ -1608,20 +1621,12 @@ void vnc_display_close(VncDisplay *obj)
 		gvnc_shutdown(priv->gvnc);
 	}
 
-	if (priv->image) {
-		g_object_unref(priv->image);
-		priv->image = NULL;
-	}
-
 #if WITH_GTKGLEXT
 	if (priv->gl_tex_data) {
 		gdk_gl_drawable_gl_begin(priv->gl_drawable,
 					 priv->gl_context);
 		glDeleteTextures(1, &priv->gl_tex);
 		gdk_gl_drawable_gl_end(priv->gl_drawable);
-		g_free(priv->gl_tex_data);
-		priv->gl_tex_data = NULL;
-		priv->gl_enabled = 0;
 	}
 #endif
 
@@ -1719,8 +1724,10 @@ static void vnc_display_finalize (GObject *obj)
 					 priv->gl_context);
 		glDeleteTextures(1, &priv->gl_tex);
 		gdk_gl_drawable_gl_end(priv->gl_drawable);
-		g_free(priv->gl_tex_data);
-		priv->gl_tex_data = NULL;
+		if (priv->gl_tex_data) {
+			g_free(priv->gl_tex_data);
+			priv->gl_tex_data = NULL;
+		}
 	}
 
 	if (priv->gl_config) {
