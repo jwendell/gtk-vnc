@@ -88,6 +88,17 @@ AC_ARG_WITH(examples,
  esac],[withval=no])
 WITH_EXAMPLES=$withval
 
+ 
+dnl check ld support --version-script
+ld --help>/tmp/$$ 2>&1
+if `cat /tmp/$$|grep version-script>/dev/null 2>&1`; then
+LD_VERSION_SCRIPT_SUPPORT='--version-script=$(srcdir)/libgtk-vnc_sym.version'
+else
+LD_VERSION_SCRIPT_SUPPORT="export-symbols-regex 'vnc_'"
+fi
+rm /tmp/$$
+AC_SUBST(LD_VERSION_SCRIPT_SUPPORT)
+
 PKG_CHECK_MODULES(GTK, gtk+-2.0 >= $GTK_REQUIRED)
 AC_SUBST(GTK_CFLAGS)
 AC_SUBST(GTK_LIBS)

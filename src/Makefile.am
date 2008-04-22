@@ -9,7 +9,7 @@ libgtk_vnc_1_0_la_CFLAGS = @GTK_CFLAGS@ @GTKGLEXT_CFLAGS@ @GNUTLS_CFLAGS@ \
 			   @GTHREAD_CFLAGS@ @WARNING_CFLAGS@ \
 			   -DSYSCONFDIR=\""$(sysconfdir)"\" \
                            -DG_LOG_DOMAIN=\"gtk-vnc\"
-libgtk_vnc_1_0_la_LDFLAGS = -Wl,--version-script=$(srcdir)/libgtk-vnc_sym.version \
+libgtk_vnc_1_0_la_LDFLAGS = -Wl, @LD_VERSION_SCRIPT_SUPPORT@ \
                             -version-info 0:1:0
 
 gtk_vnc_includedir = $(includedir)/gtk-vnc-1.0/
