@@ -33,7 +33,7 @@ static void continuation_trampoline(int i0, int i1)
 
 int cc_init(struct continuation *cc)
 {
-	union cc_arg arg;
+	volatile union cc_arg arg;
 	arg.p = cc;
 	if (getcontext(&cc->uc) == -1)
 		return -1;
