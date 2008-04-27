@@ -81,6 +81,8 @@ struct _VncDisplayPrivate
 	gboolean read_only;
 	gboolean allow_lossy;
 	gboolean allow_scaling;
+
+	GSList *preferable_auths;
 };
 
 /* Delayed signal emission.
@@ -1264,14 +1266,24 @@ static gboolean on_auth_type(void *opaque, unsigned int ntype, unsigned int *typ
 {
 	VncDisplay *obj = VNC_DISPLAY(opaque);
 	VncDisplayPrivate *priv = obj->priv;
+	GSList *l;
+	guint i;
 
-	/*
-	 * XXX lame - we should have some prioritization. That
-	 * said most servers only support 1 auth type at any time
-	 */
-	if (ntype)
-		gvnc_set_auth_type(priv->gvnc, types[0]);
+	if (!ntype)
+		return TRUE;
 
+	for (l = priv->preferable_auths; l; l=l->next) {
+		gvnc_auth pref = GPOINTER_TO_UINT (l->data);
+
+		for (i=0; i<ntype; i++) {
+			if (pref == types[i]) {
+				gvnc_set_auth_type(priv->gvnc, types[i]);
+				return TRUE;
+			}
+		}
+	}
+	
+	gvnc_set_auth_type(priv->gvnc, types[0]);
 	return TRUE;
 }
 
@@ -1280,13 +1292,24 @@ static gboolean on_auth_subtype(void *opaque, unsigned int ntype, unsigned int *
 	VncDisplay *obj = VNC_DISPLAY(opaque);
 	VncDisplayPrivate *priv = obj->priv;
 
-	/*
-	 * XXX lame - we should have some prioritization. That
-	 * said most servers only support 1 auth type at any time
-	 */
-	if (ntype)
-		gvnc_set_auth_subtype(priv->gvnc, types[0]);
+	GSList *l;
+	guint i;
 
+	if (!ntype)
+		return TRUE;
+
+	for (l = priv->preferable_auths; l; l=l->next) {
+		gvnc_auth pref = GPOINTER_TO_UINT (l->data);
+
+		for (i=0; i<ntype; i++) {
+			if (pref == types[i]) {
+				gvnc_set_auth_subtype(priv->gvnc, types[i]);
+				return TRUE;
+			}
+		}
+	}
+	
+	gvnc_set_auth_subtype(priv->gvnc, types[0]);
 	return TRUE;
 }
 
@@ -1741,6 +1764,8 @@ static void vnc_display_finalize (GObject *obj)
 		priv->image = NULL;
 	}
 
+	g_slist_free (priv->preferable_auths);
+
 	G_OBJECT_CLASS (vnc_display_parent_class)->finalize (obj);
 }
 
@@ -2070,6 +2095,11 @@ static void vnc_display_init(VncDisplay *display)
 	priv->grab_pointer = FALSE;
 	priv->grab_keyboard = FALSE;
 	priv->local_pointer = FALSE;
+
+	priv->preferable_auths = g_slist_append (priv->preferable_auths, GUINT_TO_POINTER (GVNC_AUTH_VENCRYPT));
+	priv->preferable_auths = g_slist_append (priv->preferable_auths, GUINT_TO_POINTER (GVNC_AUTH_TLS));
+	priv->preferable_auths = g_slist_append (priv->preferable_auths, GUINT_TO_POINTER (GVNC_AUTH_VNC));
+	priv->preferable_auths = g_slist_append (priv->preferable_auths, GUINT_TO_POINTER (GVNC_AUTH_NONE));
 
 #if WITH_GTKGLEXT
 	if (gtk_gl_init_check(NULL, NULL)) {
