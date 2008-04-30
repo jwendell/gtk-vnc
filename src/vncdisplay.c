@@ -81,6 +81,7 @@ struct _VncDisplayPrivate
 	gboolean read_only;
 	gboolean allow_lossy;
 	gboolean allow_scaling;
+	gboolean shared_flag;
 
 	GSList *preferable_auths;
 };
@@ -121,7 +122,8 @@ enum
   PROP_HEIGHT,
   PROP_NAME,
   PROP_LOSSY_ENCODING,
-  PROP_SCALING
+  PROP_SCALING,
+  PROP_SHARED_FLAG
 };
 
 /* Signals */
@@ -198,6 +200,9 @@ vnc_display_get_property (GObject    *object,
       case PROP_SCALING:
         g_value_set_boolean (value, vnc->priv->allow_scaling);
 	break;
+      case PROP_SHARED_FLAG:
+        g_value_set_boolean (value, vnc->priv->shared_flag);
+	break;
       default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
 	break;			
@@ -231,6 +236,9 @@ vnc_display_set_property (GObject      *object,
         break;
       case PROP_SCALING:
         vnc_display_set_scaling (vnc, g_value_get_boolean (value));
+        break;
+      case PROP_SHARED_FLAG:
+        vnc_display_set_shared_flag (vnc, g_value_get_boolean (value));
         break;
       default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -1517,7 +1525,7 @@ static void *vnc_coroutine(void *opaque)
 	emit_signal_delayed(obj, VNC_CONNECTED, &s);
 
 	GVNC_DEBUG("Protocol initialization\n");
-	if (!gvnc_initialize(priv->gvnc, FALSE))
+	if (!gvnc_initialize(priv->gvnc, priv->shared_flag))
 		goto cleanup;
 
 	emit_signal_delayed(obj, VNC_INITIALIZED, &s);
@@ -1880,6 +1888,17 @@ static void vnc_display_class_init(VncDisplayClass *klass)
 								G_PARAM_STATIC_NAME |
 								G_PARAM_STATIC_NICK |
 								G_PARAM_STATIC_BLURB));
+	g_object_class_install_property (object_class,
+					 PROP_SHARED_FLAG,
+					 g_param_spec_boolean ( "shared-flag",
+								"Shared Flag",
+								"Whether we should leave other clients connected to the server",
+								FALSE,
+								G_PARAM_READWRITE |
+								G_PARAM_CONSTRUCT |
+								G_PARAM_STATIC_NAME |
+								G_PARAM_STATIC_NICK |
+								G_PARAM_STATIC_BLURB));
 
 	signalCredParam = g_param_spec_enum("credential",
 					    "credential",
@@ -2095,6 +2114,7 @@ static void vnc_display_init(VncDisplay *display)
 	priv->grab_pointer = FALSE;
 	priv->grab_keyboard = FALSE;
 	priv->local_pointer = FALSE;
+	priv->shared_flag = FALSE;
 
 	priv->preferable_auths = g_slist_append (priv->preferable_auths, GUINT_TO_POINTER (GVNC_AUTH_VENCRYPT));
 	priv->preferable_auths = g_slist_append (priv->preferable_auths, GUINT_TO_POINTER (GVNC_AUTH_TLS));
@@ -2319,6 +2339,12 @@ void vnc_display_set_lossy_encoding(VncDisplay *obj, gboolean enable)
 	obj->priv->allow_lossy = enable;
 }
 
+void vnc_display_set_shared_flag(VncDisplay *obj, gboolean shared)
+{
+	g_return_if_fail (VNC_IS_DISPLAY (obj));
+	obj->priv->shared_flag = shared;
+}
+
 #if WITH_GTKGLEXT
 gboolean vnc_display_set_scaling(VncDisplay *obj, gboolean enable)
 {
@@ -2358,6 +2384,13 @@ gboolean vnc_display_get_lossy_encoding(VncDisplay *obj)
 	g_return_val_if_fail (VNC_IS_DISPLAY (obj), FALSE);
 
 	return obj->priv->allow_lossy;
+}
+
+gboolean vnc_display_get_shared_flag(VncDisplay *obj)
+{
+	g_return_val_if_fail (VNC_IS_DISPLAY (obj), FALSE);
+
+	return obj->priv->shared_flag;
 }
 
 gboolean vnc_display_get_pointer_local(VncDisplay *obj)
