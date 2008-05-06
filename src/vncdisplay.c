@@ -81,6 +81,9 @@ struct _VncDisplayPrivate
 	gboolean read_only;
 	gboolean allow_lossy;
 	gboolean allow_scaling;
+	gboolean shared_flag;
+
+	GSList *preferable_auths;
 };
 
 /* Delayed signal emission.
@@ -119,7 +122,8 @@ enum
   PROP_HEIGHT,
   PROP_NAME,
   PROP_LOSSY_ENCODING,
-  PROP_SCALING
+  PROP_SCALING,
+  PROP_SHARED_FLAG
 };
 
 /* Signals */
@@ -196,6 +200,9 @@ vnc_display_get_property (GObject    *object,
       case PROP_SCALING:
         g_value_set_boolean (value, vnc->priv->allow_scaling);
 	break;
+      case PROP_SHARED_FLAG:
+        g_value_set_boolean (value, vnc->priv->shared_flag);
+	break;
       default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
 	break;			
@@ -229,6 +236,9 @@ vnc_display_set_property (GObject      *object,
         break;
       case PROP_SCALING:
         vnc_display_set_scaling (vnc, g_value_get_boolean (value));
+        break;
+      case PROP_SHARED_FLAG:
+        vnc_display_set_shared_flag (vnc, g_value_get_boolean (value));
         break;
       default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -1264,14 +1274,24 @@ static gboolean on_auth_type(void *opaque, unsigned int ntype, unsigned int *typ
 {
 	VncDisplay *obj = VNC_DISPLAY(opaque);
 	VncDisplayPrivate *priv = obj->priv;
+	GSList *l;
+	guint i;
 
-	/*
-	 * XXX lame - we should have some prioritization. That
-	 * said most servers only support 1 auth type at any time
-	 */
-	if (ntype)
-		gvnc_set_auth_type(priv->gvnc, types[0]);
+	if (!ntype)
+		return TRUE;
 
+	for (l = priv->preferable_auths; l; l=l->next) {
+		gvnc_auth pref = GPOINTER_TO_UINT (l->data);
+
+		for (i=0; i<ntype; i++) {
+			if (pref == types[i]) {
+				gvnc_set_auth_type(priv->gvnc, types[i]);
+				return TRUE;
+			}
+		}
+	}
+	
+	gvnc_set_auth_type(priv->gvnc, types[0]);
 	return TRUE;
 }
 
@@ -1280,13 +1300,24 @@ static gboolean on_auth_subtype(void *opaque, unsigned int ntype, unsigned int *
 	VncDisplay *obj = VNC_DISPLAY(opaque);
 	VncDisplayPrivate *priv = obj->priv;
 
-	/*
-	 * XXX lame - we should have some prioritization. That
-	 * said most servers only support 1 auth type at any time
-	 */
-	if (ntype)
-		gvnc_set_auth_subtype(priv->gvnc, types[0]);
+	GSList *l;
+	guint i;
 
+	if (!ntype)
+		return TRUE;
+
+	for (l = priv->preferable_auths; l; l=l->next) {
+		gvnc_auth pref = GPOINTER_TO_UINT (l->data);
+
+		for (i=0; i<ntype; i++) {
+			if (pref == types[i]) {
+				gvnc_set_auth_subtype(priv->gvnc, types[i]);
+				return TRUE;
+			}
+		}
+	}
+	
+	gvnc_set_auth_subtype(priv->gvnc, types[0]);
 	return TRUE;
 }
 
@@ -1494,7 +1525,7 @@ static void *vnc_coroutine(void *opaque)
 	emit_signal_delayed(obj, VNC_CONNECTED, &s);
 
 	GVNC_DEBUG("Protocol initialization\n");
-	if (!gvnc_initialize(priv->gvnc, FALSE))
+	if (!gvnc_initialize(priv->gvnc, priv->shared_flag))
 		goto cleanup;
 
 	emit_signal_delayed(obj, VNC_INITIALIZED, &s);
@@ -1741,6 +1772,8 @@ static void vnc_display_finalize (GObject *obj)
 		priv->image = NULL;
 	}
 
+	g_slist_free (priv->preferable_auths);
+
 	G_OBJECT_CLASS (vnc_display_parent_class)->finalize (obj);
 }
 
@@ -1849,6 +1882,17 @@ static void vnc_display_class_init(VncDisplayClass *klass)
 					 g_param_spec_boolean ( "scaling",
 								"Scaling",
 								"Whether we should use scaling",
+								FALSE,
+								G_PARAM_READWRITE |
+								G_PARAM_CONSTRUCT |
+								G_PARAM_STATIC_NAME |
+								G_PARAM_STATIC_NICK |
+								G_PARAM_STATIC_BLURB));
+	g_object_class_install_property (object_class,
+					 PROP_SHARED_FLAG,
+					 g_param_spec_boolean ( "shared-flag",
+								"Shared Flag",
+								"Whether we should leave other clients connected to the server",
 								FALSE,
 								G_PARAM_READWRITE |
 								G_PARAM_CONSTRUCT |
@@ -2070,6 +2114,12 @@ static void vnc_display_init(VncDisplay *display)
 	priv->grab_pointer = FALSE;
 	priv->grab_keyboard = FALSE;
 	priv->local_pointer = FALSE;
+	priv->shared_flag = FALSE;
+
+	priv->preferable_auths = g_slist_append (priv->preferable_auths, GUINT_TO_POINTER (GVNC_AUTH_VENCRYPT));
+	priv->preferable_auths = g_slist_append (priv->preferable_auths, GUINT_TO_POINTER (GVNC_AUTH_TLS));
+	priv->preferable_auths = g_slist_append (priv->preferable_auths, GUINT_TO_POINTER (GVNC_AUTH_VNC));
+	priv->preferable_auths = g_slist_append (priv->preferable_auths, GUINT_TO_POINTER (GVNC_AUTH_NONE));
 
 #if WITH_GTKGLEXT
 	if (gtk_gl_init_check(NULL, NULL)) {
@@ -2289,6 +2339,12 @@ void vnc_display_set_lossy_encoding(VncDisplay *obj, gboolean enable)
 	obj->priv->allow_lossy = enable;
 }
 
+void vnc_display_set_shared_flag(VncDisplay *obj, gboolean shared)
+{
+	g_return_if_fail (VNC_IS_DISPLAY (obj));
+	obj->priv->shared_flag = shared;
+}
+
 #if WITH_GTKGLEXT
 gboolean vnc_display_set_scaling(VncDisplay *obj, gboolean enable)
 {
@@ -2328,6 +2384,13 @@ gboolean vnc_display_get_lossy_encoding(VncDisplay *obj)
 	g_return_val_if_fail (VNC_IS_DISPLAY (obj), FALSE);
 
 	return obj->priv->allow_lossy;
+}
+
+gboolean vnc_display_get_shared_flag(VncDisplay *obj)
+{
+	g_return_val_if_fail (VNC_IS_DISPLAY (obj), FALSE);
+
+	return obj->priv->shared_flag;
 }
 
 gboolean vnc_display_get_pointer_local(VncDisplay *obj)

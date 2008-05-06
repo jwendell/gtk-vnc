@@ -250,7 +250,7 @@ Configure summary:
 	Compiler Flags .............:  ${CFLAGS}
 	Prefix......................:  ${prefix}
 
-	Python biding ..............:  ${WITH_PYTHON}
+	Python binding .............:  ${WITH_PYTHON}
 	Install example programs ...:  ${WITH_EXAMPLES}
 	Browser plugin .............:  ${enable_plugin}
 	Scaling support.............:  ${with_scaling}
