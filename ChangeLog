@@ -1,8 +1,59 @@
+2008-04-30  Jonh Wendell  <wendell@bani.com.br>
+
+	* src/libgtk-vnc_sym.version, src/vncdisplay.c, src/vncdisplay.h:
+	Created a function to let the app take control over the shared flag.
+	[281b37ee2880] [tip]
+
+2008-04-27  Jonh Wendell  <wendell@bani.com.br>
+
+	* src/vncdisplay.c:
+	Implement preferable auth methods
+	[e1b964facd65]
+
+2008-04-24  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* configure.ac:
+	Fix typo
+	[adefa4c86b29]
+
+2008-04-22  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* src/continuation.c:
+	Fix gcc warning about variable that can be clobbered by
+	longjump/vfork (Atsushi Sakai)
+	[854c8ce46e5a]
+
+	* configure.ac, src/Makefile.am:
+	Use regex for symbol visibility in linker on Solaris (Halton Huo)
+	[7348451f9cee]
+
+2008-04-15  Jonh Wendell  <wendell@bani.com.br>
+
+	* src/vncdisplay.c:
+	Fixed a crash when closing the connection in a middle of an update
+	[fb2b0584c87e]
+
+2008-04-11  Jonh Wendell  <wendell@bani.com.br>
+
+	* src/gvnc.c:
+	Use GLib memory functions
+	[53a42c599c77]
+
+2008-04-06  Anthony Liguori  <anthony@codemonkey.ws>
+
+	* .hgtags:
+	Added tag release-0.3.5 for changeset d8003db700fd
+	[b7bbfb2b5a47]
+
+	* ChangeLog, NEWS, configure.ac:
+	Prepare for 0.3.5 release
+	[d8003db700fd] [release-0.3.5]
+
 2008-04-04  Jonh Wendell  <wendell@bani.com.br>
 
 	* src/gvnc.c:
 	Maintain the consistency: create with g_strdup, free with g_free
-	[c7ef79a435a6] [tip]
+	[c7ef79a435a6]
 
 2008-04-03  "Daniel P. Berrange  <berrange@redhat.com>
 
@@ -167,12 +218,6 @@
 	branch merge
 	[fb8ab9818527]
 
-2008-03-07  "Daniel P. Berrange  <berrange@redhat.com>
-
-	* src/vncdisplay.c:
-	Don't setup gl textures if display isn't active
-	[5ac8330e0e24]
-
 2008-03-06  Atsushi SAKAI  <sakaia@jp.fujitsu.com>
 
 	* src/gvnc.c, src/vncdisplay.c:
@@ -184,6 +229,12 @@
 	* src/gvnc.c, src/vncdisplay.c:
 	fix typos
 	[9888e1ab15c2]
+
+2008-03-07  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* src/vncdisplay.c:
+	Don't setup gl textures if display isn't active
+	[5ac8330e0e24]
 
 2008-03-05  Anthony Liguori  <anthony@codemonkey.ws>
 
@@ -322,6 +373,29 @@
 	Branch merge
 	[13d193fa92bd]
 
+2008-02-20  Anthony Liguori  <anthony@codemonkey.ws>
+
+	* src/gvnc.h:
+	Fix compile warnings introduced by previous commit.
+	[61704bd7bb0d]
+
+2008-02-20  Stefano Stabellini  <stefano.stabellini@eu.citrix.com>
+
+	* src/gvnc.c, src/gvnc.h, src/vncdisplay.c:
+	Hi all, I am attaching a simple patch to add support for WMVi in
+	gtk-vnc. Seems to work well with xen-unstable.
+	[4c14d08521a7]
+
+2008-02-08  Anthony Liguori  <anthony@codemonkey.ws>
+
+	* src/vncdisplay.c:
+	Make sure to free image data on close.
+	[037c694d8865]
+
+	* src/vncdisplay.c:
+	Make sure to draw something to the widget even when not connected.
+	[6310faba0111]
+
 2008-02-19  "Daniel P. Berrange  <berrange@redhat.com>
 
 	* src/blt.h, src/vncdisplay.c:
@@ -357,29 +431,6 @@
 	* src/vncdisplay.c:
 	Focus the widget on mouse click
 	[bb6581a609b3]
-
-2008-02-20  Anthony Liguori  <anthony@codemonkey.ws>
-
-	* src/gvnc.h:
-	Fix compile warnings introduced by previous commit.
-	[61704bd7bb0d]
-
-2008-02-20  Stefano Stabellini  <stefano.stabellini@eu.citrix.com>
-
-	* src/gvnc.c, src/gvnc.h, src/vncdisplay.c:
-	Hi all, I am attaching a simple patch to add support for WMVi in
-	gtk-vnc. Seems to work well with xen-unstable.
-	[4c14d08521a7]
-
-2008-02-08  Anthony Liguori  <anthony@codemonkey.ws>
-
-	* src/vncdisplay.c:
-	Make sure to free image data on close.
-	[037c694d8865]
-
-	* src/vncdisplay.c:
-	Make sure to draw something to the widget even when not connected.
-	[6310faba0111]
 
 2008-02-06  Anthony Liguori  <anthony@codemonkey.ws>
 

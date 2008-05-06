@@ -1,6 +1,21 @@
     GTK VNC News
     ============
 
+May 5, 2008: Release 0.3.6
+==========================
+
+Bug fixes:
+
+ o Fix gcc warnings (Atushi SAKAI)
+ o Use regex for symbol visibility on Solaris (Halton Huo)
+ o Fix crash when closing connection during update (Jonh Wendell)
+ o Use glib memory functions
+
+New features:
+
+ o Provide interface to control shared flag (Jonh Wendell)
+ o Support preferred authentication types (Jonh Wendell)
+
 Apr 6, 2008: Release 0.3.5
 ==========================
 
