@@ -780,6 +780,9 @@ static gboolean leave_event(GtkWidget *widget, GdkEventCrossing *crossing,
         if (priv->grab_keyboard)
                 do_keyboard_ungrab(VNC_DISPLAY(widget), FALSE);
 
+        if (priv->grab_pointer)
+                do_pointer_ungrab(VNC_DISPLAY(widget), FALSE);
+
         return TRUE;
 }
 
