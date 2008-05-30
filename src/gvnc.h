@@ -27,6 +27,7 @@ struct gvnc_ops
 	gboolean (*auth_unsupported)(void *, unsigned int);
 	gboolean (*render_jpeg)(void *, rgb24_render_func *render, void *,
 				int, int, int, int, uint8_t *, int);
+	gboolean (*get_preferred_pixel_format)(void *, struct gvnc_pixel_format *);
 };
 
 struct gvnc_pixel_format

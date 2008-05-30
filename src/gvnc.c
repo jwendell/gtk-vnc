@@ -2796,6 +2796,12 @@ gboolean gvnc_initialize(struct gvnc *gvnc, gboolean shared_flag)
 	gvnc->name[n_name] = 0;
 	GVNC_DEBUG("Display name '%s'\n", gvnc->name);
 
+	if (!gvnc->fmt.true_color_flag && gvnc->ops.get_preferred_pixel_format)
+		if (gvnc->ops.get_preferred_pixel_format(gvnc->ops_data, &gvnc->fmt))
+			gvnc_set_pixel_format(gvnc, &gvnc->fmt);
+		else
+			goto fail;
+
 	memset(&gvnc->strm, 0, sizeof(gvnc->strm));
 	/* FIXME what level? */
 	for (i = 0; i < 5; i++)

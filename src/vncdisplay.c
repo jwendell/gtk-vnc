@@ -1072,6 +1072,28 @@ static gboolean on_pixel_format(void *opaque,
         return do_resize(opaque, priv->fb.width, priv->fb.height, TRUE);
 }
 
+static gboolean on_get_preferred_pixel_format(void *opaque,
+	struct gvnc_pixel_format *fmt)
+{
+	VncDisplay *obj = VNC_DISPLAY(opaque);
+	GdkVisual *v =  gdk_drawable_get_visual(GTK_WIDGET(obj)->window);
+
+	GVNC_DEBUG("Setting pixel format to true color\n");
+
+	fmt->true_color_flag = 1;
+	fmt->depth = v->depth;
+	fmt->bits_per_pixel = v->depth > 16 ? 32 : v->depth;
+	fmt->red_max = v->red_mask >> v->red_shift;
+	fmt->green_max = v->green_mask >> v->green_shift;
+	fmt->blue_max = v->blue_mask >> v->blue_shift;
+	fmt->red_shift = v->red_shift;
+	fmt->green_shift = v->green_shift;
+	fmt->blue_shift = v->blue_shift;
+	fmt->byte_order = v->byte_order == GDK_LSB_FIRST ? G_BIG_ENDIAN : G_LITTLE_ENDIAN;
+
+	return TRUE;
+}
+
 #if WITH_GTKGLEXT
 static void build_gl_image_from_gdk(uint32_t *data, GdkImage *image)
 {
@@ -1460,6 +1482,7 @@ static const struct gvnc_ops vnc_display_ops = {
 	.server_cut_text = on_server_cut_text,
 	.bell = on_bell,
 	.render_jpeg = on_render_jpeg,
+	.get_preferred_pixel_format = on_get_preferred_pixel_format
 };
 
 /* we use an idle function to allow the coroutine to exit before we actually
