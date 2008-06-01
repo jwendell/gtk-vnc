@@ -2784,6 +2784,9 @@ gboolean gvnc_initialize(struct gvnc *gvnc, gboolean shared_flag)
 	gvnc->width = gvnc_read_u16(gvnc);
 	gvnc->height = gvnc_read_u16(gvnc);
 
+	if (gvnc_has_error(gvnc))
+		return FALSE;
+
 	gvnc_read_pixel_format(gvnc, &gvnc->fmt);
 
 	n_name = gvnc_read_u32(gvnc);
@@ -2795,6 +2798,9 @@ gboolean gvnc_initialize(struct gvnc *gvnc, gboolean shared_flag)
 	gvnc_read(gvnc, gvnc->name, n_name);
 	gvnc->name[n_name] = 0;
 	GVNC_DEBUG("Display name '%s'\n", gvnc->name);
+
+	if (gvnc_has_error(gvnc))
+		return FALSE;
 
 	if (!gvnc->fmt.true_color_flag && gvnc->ops.get_preferred_pixel_format)
 		if (gvnc->ops.get_preferred_pixel_format(gvnc->ops_data, &gvnc->fmt))
