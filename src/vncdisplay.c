@@ -1680,7 +1680,7 @@ void vnc_display_close(VncDisplay *obj)
 	}
 
 #if WITH_GTKGLEXT
-	if (priv->gl_tex_data && GTK_WIDGET_VISIBLE (widget)) {
+	if (priv->gl_tex_data) {
 		gdk_gl_drawable_gl_begin(priv->gl_drawable,
 					 priv->gl_context);
 		glDeleteTextures(1, &priv->gl_tex);
@@ -1777,7 +1777,7 @@ static void vnc_display_finalize (GObject *obj)
 	display->priv->gvnc = NULL;
 
 #if WITH_GTKGLEXT
-	if (priv->gl_enabled && GTK_WIDGET_VISIBLE (obj)) {
+	if (priv->gl_enabled) {
 		gdk_gl_drawable_gl_begin(priv->gl_drawable,
 					 priv->gl_context);
 		glDeleteTextures(1, &priv->gl_tex);
