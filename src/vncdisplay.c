@@ -82,6 +82,7 @@ struct _VncDisplayPrivate
 	gboolean allow_lossy;
 	gboolean allow_scaling;
 	gboolean shared_flag;
+	gboolean force_size;
 
 	GSList *preferable_auths;
 };
@@ -123,7 +124,8 @@ enum
   PROP_NAME,
   PROP_LOSSY_ENCODING,
   PROP_SCALING,
-  PROP_SHARED_FLAG
+  PROP_SHARED_FLAG,
+  PROP_FORCE_SIZE
 };
 
 /* Signals */
@@ -203,6 +205,9 @@ vnc_display_get_property (GObject    *object,
       case PROP_SHARED_FLAG:
         g_value_set_boolean (value, vnc->priv->shared_flag);
 	break;
+      case PROP_FORCE_SIZE:
+        g_value_set_boolean (value, vnc->priv->force_size);
+	break;
       default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
 	break;			
@@ -239,6 +244,9 @@ vnc_display_set_property (GObject      *object,
         break;
       case PROP_SHARED_FLAG:
         vnc_display_set_shared_flag (vnc, g_value_get_boolean (value));
+        break;
+      case PROP_FORCE_SIZE:
+        vnc_display_set_force_size (vnc, g_value_get_boolean (value));
         break;
       default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -892,7 +900,8 @@ static void setup_gdk_image(VncDisplay *obj, gint width, gint height)
 	priv->fb.data = (uint8_t *)priv->image->mem;
 	priv->fb.byte_order = priv->image->byte_order == GDK_LSB_FIRST ? G_LITTLE_ENDIAN : G_BIG_ENDIAN;
 
-	gtk_widget_set_size_request(GTK_WIDGET(obj), width, height);
+	if (priv->force_size)
+		gtk_widget_set_size_request(GTK_WIDGET(obj), width, height);
 }
 
 #if WITH_GTKGLEXT
@@ -1926,6 +1935,17 @@ static void vnc_display_class_init(VncDisplayClass *klass)
 								G_PARAM_STATIC_NAME |
 								G_PARAM_STATIC_NICK |
 								G_PARAM_STATIC_BLURB));
+	g_object_class_install_property (object_class,
+					 PROP_FORCE_SIZE,
+					 g_param_spec_boolean ( "force-size",
+								"Force widget size",
+								"Whether we should define the widget size",
+								TRUE,
+								G_PARAM_READWRITE |
+								G_PARAM_CONSTRUCT |
+								G_PARAM_STATIC_NAME |
+								G_PARAM_STATIC_NICK |
+								G_PARAM_STATIC_BLURB));
 
 	signalCredParam = g_param_spec_enum("credential",
 					    "credential",
@@ -2142,6 +2162,7 @@ static void vnc_display_init(VncDisplay *display)
 	priv->grab_keyboard = FALSE;
 	priv->local_pointer = FALSE;
 	priv->shared_flag = FALSE;
+	priv->force_size = TRUE;
 
 	priv->preferable_auths = g_slist_append (priv->preferable_auths, GUINT_TO_POINTER (GVNC_AUTH_VENCRYPT));
 	priv->preferable_auths = g_slist_append (priv->preferable_auths, GUINT_TO_POINTER (GVNC_AUTH_TLS));
@@ -2398,6 +2419,19 @@ gboolean vnc_display_set_scaling(VncDisplay *obj G_GNUC_UNUSED,
 	return FALSE;
 }
 #endif
+
+void vnc_display_set_force_size(VncDisplay *obj, gboolean enabled)
+{
+	g_return_if_fail (VNC_IS_DISPLAY (obj));
+	obj->priv->force_size = enabled;
+}
+
+gboolean vnc_display_get_force_size(VncDisplay *obj)
+{
+	g_return_val_if_fail (VNC_IS_DISPLAY (obj), FALSE);
+
+	return obj->priv->force_size;
+}
 
 gboolean vnc_display_get_scaling(VncDisplay *obj)
 {

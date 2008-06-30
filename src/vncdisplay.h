@@ -116,6 +116,9 @@ gboolean	vnc_display_get_lossy_encoding(VncDisplay *obj);
 gboolean	vnc_display_set_scaling(VncDisplay *obj, gboolean enable);
 gboolean	vnc_display_get_scaling(VncDisplay *obj);
 
+void		vnc_display_set_force_size(VncDisplay *obj, gboolean enable);
+gboolean	vnc_display_get_force_size(VncDisplay *obj);
+
 void		vnc_display_set_shared_flag(VncDisplay *obj, gboolean shared);
 gboolean	vnc_display_get_shared_flag(VncDisplay *obj);
 
