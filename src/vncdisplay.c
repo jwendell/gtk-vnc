@@ -276,8 +276,7 @@ static GdkCursor *create_null_cursor(void)
 	return cursor;
 }
 
-static gboolean expose_event(GtkWidget *widget, GdkEventExpose *expose,
-			     gpointer data G_GNUC_UNUSED)
+static gboolean expose_event(GtkWidget *widget, GdkEventExpose *expose)
 {
 	VncDisplay *obj = VNC_DISPLAY(widget);
 	VncDisplayPrivate *priv = obj->priv;
@@ -496,8 +495,7 @@ void vnc_display_force_grab(VncDisplay *obj, gboolean enable)
 		do_pointer_ungrab(obj, FALSE);
 }
 
-static gboolean button_event(GtkWidget *widget, GdkEventButton *button,
-			     gpointer data G_GNUC_UNUSED)
+static gboolean button_event(GtkWidget *widget, GdkEventButton *button)
 {
 	VncDisplayPrivate *priv = VNC_DISPLAY(widget)->priv;
 	int n;
@@ -528,11 +526,10 @@ static gboolean button_event(GtkWidget *widget, GdkEventButton *button,
 				   0x7FFF, 0x7FFF);
 	}
 
-	return FALSE;
+	return TRUE;
 }
 
-static gboolean scroll_event(GtkWidget *widget, GdkEventScroll *scroll,
-			     gpointer data G_GNUC_UNUSED)
+static gboolean scroll_event(GtkWidget *widget, GdkEventScroll *scroll)
 {
 	VncDisplayPrivate *priv = VNC_DISPLAY(widget)->priv;
 	int mask;
@@ -566,11 +563,10 @@ static gboolean scroll_event(GtkWidget *widget, GdkEventScroll *scroll,
 				   0x7FFF, 0x7FFF);
 	}
 
-	return FALSE;
+	return TRUE;
 }
 
-static gboolean motion_event(GtkWidget *widget, GdkEventMotion *motion,
-			     gpointer data G_GNUC_UNUSED)
+static gboolean motion_event(GtkWidget *widget, GdkEventMotion *motion)
 {
 	VncDisplayPrivate *priv = VNC_DISPLAY(widget)->priv;
 	int dx, dy;
@@ -645,11 +641,10 @@ static gboolean motion_event(GtkWidget *widget, GdkEventMotion *motion,
 	priv->last_x = (int)motion->x;
 	priv->last_y = (int)motion->y;
 
-	return FALSE;
+	return TRUE;
 }
 
-static gboolean key_event(GtkWidget *widget, GdkEventKey *key,
-			  gpointer data G_GNUC_UNUSED)
+static gboolean key_event(GtkWidget *widget, GdkEventKey *key)
 {
 	VncDisplayPrivate *priv = VNC_DISPLAY(widget)->priv;
 	guint keyval;
@@ -755,19 +750,18 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *key,
 			do_pointer_grab(VNC_DISPLAY(widget), FALSE);
 	}
 
-	return FALSE;
+	return TRUE;
 }
 
-static gboolean enter_event(GtkWidget *widget, GdkEventCrossing *crossing,
-                            gpointer data G_GNUC_UNUSED)
+static gboolean enter_event(GtkWidget *widget, GdkEventCrossing *crossing)
 {
         VncDisplayPrivate *priv = VNC_DISPLAY(widget)->priv;
 
         if (priv->gvnc == NULL || !gvnc_is_initialized(priv->gvnc))
-                return TRUE;
+                return FALSE;
 
         if (crossing->mode != GDK_CROSSING_NORMAL)
-                return TRUE;
+                return FALSE;
 
         if (priv->grab_keyboard)
                 do_keyboard_grab(VNC_DISPLAY(widget), FALSE);
@@ -775,16 +769,15 @@ static gboolean enter_event(GtkWidget *widget, GdkEventCrossing *crossing,
         return TRUE;
 }
 
-static gboolean leave_event(GtkWidget *widget, GdkEventCrossing *crossing,
-                            gpointer data G_GNUC_UNUSED)
+static gboolean leave_event(GtkWidget *widget, GdkEventCrossing *crossing)
 {
         VncDisplayPrivate *priv = VNC_DISPLAY(widget)->priv;
 
         if (priv->gvnc == NULL || !gvnc_is_initialized(priv->gvnc))
-                return TRUE;
+                return FALSE;
 
         if (crossing->mode != GDK_CROSSING_NORMAL)
-                return TRUE;
+                return FALSE;
 
         if (priv->grab_keyboard)
                 do_keyboard_ungrab(VNC_DISPLAY(widget), FALSE);
@@ -796,14 +789,13 @@ static gboolean leave_event(GtkWidget *widget, GdkEventCrossing *crossing,
 }
 
 
-static gboolean focus_event(GtkWidget *widget, GdkEventFocus *focus G_GNUC_UNUSED,
-                            gpointer data G_GNUC_UNUSED)
+static gboolean focus_event(GtkWidget *widget, GdkEventFocus *focus G_GNUC_UNUSED)
 {
         VncDisplayPrivate *priv = VNC_DISPLAY(widget)->priv;
 	int i;
 
         if (priv->gvnc == NULL || !gvnc_is_initialized(priv->gvnc))
-                return TRUE;
+                return FALSE;
 
 	for (i = 0 ; i < (int)(sizeof(priv->down_keyval)/sizeof(priv->down_keyval[0])) ; i++) {
 		/* We are currently pressed so... */
@@ -820,9 +812,11 @@ static gboolean focus_event(GtkWidget *widget, GdkEventFocus *focus G_GNUC_UNUSE
 }
 
 #if WITH_GTKGLEXT
-static void realize_event(GtkWidget *widget, gpointer data G_GNUC_UNUSED)
+static void realize_event(GtkWidget *widget)
 {
 	VncDisplayPrivate *priv = VNC_DISPLAY(widget)->priv;
+
+	GTK_WIDGET_CLASS (vnc_display_parent_class)->realize(widget);
 
 	if (priv->gl_config == NULL)
 		return;
@@ -1237,8 +1231,7 @@ static void rescale_display(VncDisplay *obj, gint width, gint height)
 	}
 }
 
-static gboolean configure_event(GtkWidget *widget, GdkEventConfigure *configure,
-				gpointer data G_GNUC_UNUSED)
+static gboolean configure_event(GtkWidget *widget, GdkEventConfigure *configure)
 {
 	VncDisplay *obj = VNC_DISPLAY(widget);
 	VncDisplayPrivate *priv = obj->priv;
@@ -1817,6 +1810,23 @@ static void vnc_display_class_init(VncDisplayClass *klass)
 {
 	GObjectClass *object_class = G_OBJECT_CLASS (klass);
 	GtkObjectClass *gtkobject_class = GTK_OBJECT_CLASS (klass);
+	GtkWidgetClass *gtkwidget_class = GTK_WIDGET_CLASS (klass);
+
+	gtkwidget_class->expose_event = expose_event;
+	gtkwidget_class->motion_notify_event = motion_event;
+	gtkwidget_class->button_press_event = button_event;
+	gtkwidget_class->button_release_event = button_event;
+	gtkwidget_class->scroll_event = scroll_event;
+	gtkwidget_class->key_press_event = key_event;
+	gtkwidget_class->key_release_event = key_event;
+	gtkwidget_class->enter_notify_event = enter_event;
+	gtkwidget_class->leave_notify_event = leave_event;
+	gtkwidget_class->focus_out_event = focus_event;
+#if WITH_GTKGLEXT
+	gtkwidget_class->realize = realize_event;
+	gtkwidget_class->configure_event = configure_event;
+#endif
+
 
 	object_class->finalize = vnc_display_finalize;
 	object_class->get_property = vnc_display_get_property;
@@ -2108,33 +2118,6 @@ static void vnc_display_init(VncDisplay *display)
 	GtkObject *obj = GTK_OBJECT(display);
 	GtkWidget *widget = GTK_WIDGET(display);
 	VncDisplayPrivate *priv;
-
-	g_signal_connect(obj, "expose-event",
-			 G_CALLBACK(expose_event), NULL);
-	g_signal_connect(obj, "motion-notify-event",
-			 G_CALLBACK(motion_event), NULL);
-	g_signal_connect(obj, "button-press-event",
-			 G_CALLBACK(button_event), NULL);
-	g_signal_connect(obj, "button-release-event",
-			 G_CALLBACK(button_event), NULL);
-	g_signal_connect(obj, "scroll-event",
-			 G_CALLBACK(scroll_event), NULL);
-	g_signal_connect(obj, "key-press-event",
-			 G_CALLBACK(key_event), NULL);
-	g_signal_connect(obj, "key-release-event",
-			 G_CALLBACK(key_event), NULL);
-	g_signal_connect(obj, "enter-notify-event",
-			 G_CALLBACK(enter_event), NULL);
-	g_signal_connect(obj, "leave-notify-event",
-			 G_CALLBACK(leave_event), NULL);
-	g_signal_connect(obj, "focus-out-event",
-			 G_CALLBACK(focus_event), NULL);
-#if WITH_GTKGLEXT
-	g_signal_connect(obj, "realize",
-			 G_CALLBACK(realize_event), NULL);
-	g_signal_connect(obj, "configure-event",
-			 G_CALLBACK(configure_event), NULL);
-#endif
 
 	GTK_WIDGET_SET_FLAGS(obj, GTK_CAN_FOCUS);
 
