@@ -1,6 +1,22 @@
     GTK VNC News
     ============
 
+Sep 5, 2008: Release 0.3.7
+==========================
+
+Bug fixes:
+
+ o Ungrab pointer if widget looses focus (Daniel Berrange)
+ o Set a pixmap format if server does not default to true
+   colour mode  (Jonh Wendell)
+ o Misc fixes to prevent crash  (Jonh Wendell)
+ o Register internal signal handlers against class instead
+   of per object (Daniel berrange)
+
+New features:
+
+ o Add API to allow down-scaling to be enabled (Jonh Wendell)
+
 May 5, 2008: Release 0.3.6
 ==========================
 
