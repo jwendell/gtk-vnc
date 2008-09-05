@@ -1,8 +1,87 @@
+2008-09-05  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* NEWS, configure.ac:
+	Update version & NEWS for 0.3.7
+	[d5ebf650aad6] [tip]
+
+	* src/vncdisplay.c:
+	Register internal signal handlers against class, instead of each
+	object
+	[ffc643772cfd]
+
+2008-06-30  Jonh Wendell  <wendell@bani.com.br>
+
+	* src/libgtk-vnc_sym.version, src/vncdisplay.c, src/vncdisplay.h:
+	Added vnc_display_[gs]et_force_size(), which tell if the widget has
+	a fixed size. This helps scaling down work properly.
+	[3881365c9917]
+
+2008-06-05  Jonh Wendell  <wendell@bani.com.br>
+
+	* src/vncdisplay.c:
+	Backed out changeset dba0c3d837dd
+	[6a869ca98aeb]
+
+2008-06-04  Jonh Wendell  <wendell@bani.com.br>
+
+	* src/vncdisplay.c:
+	Fix an error message in destructor, when using scaling
+	[dba0c3d837dd]
+
+2008-06-01  Jonh Wendell  <wendell@bani.com.br>
+
+	* src/gvnc.c:
+	Do more checks if connection is still alive in initialisation. This
+	fix a crash when closing the connection right after connecting.
+	[2396ceb7da50]
+
+2008-05-30  Jonh Wendell  <wendell@bani.com.br>
+
+	* src/gvnc.c, src/gvnc.h, src/vncdisplay.c:
+	Use a preferred pixmap format when we receive true_color_flag 0 from
+	server
+	[d2f220a10a2f]
+
+2008-05-29  Jonh Wendell  <wendell@bani.com.br>
+
+	* src/vncdisplay.c:
+	Ignore CTRL-ALT key combination if we are autograbbing and pointer
+	is absolute
+	[e7d57ece8227]
+
+2008-05-21  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* src/vncdisplay.c:
+	Ungrab pointer upon loosing focus
+	[175e8585ff2a]
+
+2008-05-05  Anthony Liguori  <anthony@codemonkey.ws>
+
+	* .hgtags:
+	Added tag release-0.3.6 for changeset 9daca7e451a5
+	[3ca3eea2347a]
+
+	* configure.ac:
+	branch merge
+	[9daca7e451a5] [release-0.3.6]
+
+	* .hgtags:
+	Added tag release-0.3.6 for changeset 8050c87f404b
+	[4f055a629945]
+
+	* ChangeLog, NEWS, configure.ac:
+	Update for 0.3.6
+	[8050c87f404b]
+
+	* .hgtags:
+	Added tag release-0.3.6 for changeset 854c8ce46e5a
+	[46a807b15c82]
+
 2008-04-30  Jonh Wendell  <wendell@bani.com.br>
 
 	* src/libgtk-vnc_sym.version, src/vncdisplay.c, src/vncdisplay.h:
 	Created a function to let the app take control over the shared flag.
-	[281b37ee2880] [tip]
+	[281b37ee2880]
 
 2008-04-27  Jonh Wendell  <wendell@bani.com.br>
 
@@ -1053,17 +1132,19 @@
 	Merge heads
 	[4bf741278c01]
 
-	* examples/gvncviewer.c, examples/gvncviewer.py, src/Makefile.am,
-	src/gvnc.c, src/gvnc.h, src/vncdisplay.c, src/vncdisplay.h:
-	Added support for TLS related credentials
-	[6c4a0385c705]
-
 2007-08-01  Jonh Wendell  <wendell@bani.com.br>
 
 	* src/gvnc.c, src/vncdisplay.c:
 	Changed boolean functions (which use gvnc_has_error) to return FALSE
 	when failure
 	[2f8878799f3c]
+
+2007-08-13  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* examples/gvncviewer.c, examples/gvncviewer.py, src/Makefile.am,
+	src/gvnc.c, src/gvnc.h, src/vncdisplay.c, src/vncdisplay.h:
+	Added support for TLS related credentials
+	[6c4a0385c705]
 
 2007-07-30  "Daniel P. Berrange  <berrange@redhat.com>
 
@@ -1129,17 +1210,19 @@
 	* Merge
 	[7802cb9f9d47]
 
-	* examples/gvncviewer.c, examples/gvncviewer.py, src/libgtk-
-	vnc_sym.version, src/vnc.override, src/vncdisplay.c,
-	src/vncdisplay.h:
-	Added vnc_display_send_keys API & example usage
-	[ee139f2eefc8]
-
 2007-07-18  Anthony Liguori  <anthony@codemonkey.ws>
 
 	* src/gvnc.c:
 	Buffer client messages to avoid race condition when write() blocks.
 	[2a92ce0f7cf5]
+
+2007-07-18  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* examples/gvncviewer.c, examples/gvncviewer.py, src/libgtk-
+	vnc_sym.version, src/vnc.override, src/vncdisplay.c,
+	src/vncdisplay.h:
+	Added vnc_display_send_keys API & example usage
+	[ee139f2eefc8]
 
 2007-07-15  "Daniel P. Berrange  <berrange@redhat.com>
 
