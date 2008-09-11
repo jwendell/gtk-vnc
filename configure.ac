@@ -100,6 +100,17 @@ PKG_CHECK_MODULES(GTK, gtk+-2.0 >= $GTK_REQUIRED)
 AC_SUBST(GTK_CFLAGS)
 AC_SUBST(GTK_LIBS)
 
+save_CFLAGS="$CFLAGS"
+save_LDFLAGS="$LDFLAGS"
+CFLAGS="$CFLAGS $GTK_CFLAGS"
+LDFLAGS="$LDFLAGS $GTK_LIBS"
+AC_CHECK_LIB([gdk], [gdk_cairo_create], [WITH_GTK_CAIRO=1], [WITH_GTK_CAIRO=0])
+CFLAGS="$save_CFLAGS"
+LDFLAGS="$save_LDFLAGS"
+
+AC_DEFINE_UNQUOTED(WITH_GTK_CAIRO, [$WITH_GTK_CAIRO], [Whether to use cairo for GTK rendering])
+
+
 AC_ARG_WITH(libview,
 [  --with-libview          enable libview support in gvncviewer],
 [case "${withval}" in
@@ -218,6 +229,12 @@ AC_CONFIG_FILES(
   )
 
 AC_OUTPUT
+
+if [ test "$WITH_GTK_CAIRO" = 1 ]; then
+  with_scaling=yes
+else
+  with_scaling=no
+fi
 
 echo "
 Configure summary:
