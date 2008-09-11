@@ -14,7 +14,7 @@ Source: http://downloads.sourceforge.net/%{name}/%{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 URL: http://gtk-vnc.sf.net/
 BuildRequires: gtk2-devel pygtk2-devel python-devel zlib-devel
-BuildRequires: gnutls-devel gtkglext-devel
+BuildRequires: gnutls-devel
 %if %{with_plugin}
 %if "%{fedora}" > "8"
 BuildRequires: xulrunner-devel
