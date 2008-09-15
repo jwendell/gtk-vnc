@@ -548,8 +548,8 @@ static gboolean motion_event(GtkWidget *widget, GdkEventMotion *motion)
 
 	if (priv->allow_scaling) {
 		double sx, sy;
-		sx = (double)ww / (double)priv->fb.width;
-		sy = (double)wh / (double)priv->fb.height;
+		sx = (double)priv->fb.width / (double)ww;
+		sy = (double)priv->fb.height / (double)wh;
 
 		motion->x *= sx;
 		motion->y *= sy;
