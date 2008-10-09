@@ -20,14 +20,28 @@ MOZILLA_PLUGIN_REQUIRED=1.8
 
 AC_CONFIG_HEADERS([config.h:config.hin])
 
-
 AC_CANONICAL_TARGET
 
 AM_INIT_AUTOMAKE(gtk-vnc, 0.3.7)
 
+
+dnl gl_INIT uses m4_foreach_w, yet that is not defined in autoconf-2.59.
+dnl In order to accommodate developers with such old tools, here's a
+dnl replacement definition.
+m4_ifndef([m4_foreach_w],
+  [m4_define([m4_foreach_w],
+    [m4_foreach([$1], m4_split(m4_normalize([$2]), [ ]), [$3])])])
+
+gl_EARLY
+gl_INIT
+
 AC_PROG_CC_STDC
 AM_PROG_CC_C_O
+AC_LIBTOOL_WIN32_DLL
+
 AC_PROG_LIBTOOL
+
+AC_CHECK_HEADERS([pwd.h winsock2.h])
 
 AC_ARG_WITH(python,
 [  --with-python           build python bindings],
@@ -221,6 +235,8 @@ AM_CONDITIONAL(ENABLE_PLUGIN, [test "$enable_plugin" = "yes"])
 
 AC_CONFIG_FILES(
   Makefile
+  gnulib/lib/Makefile
+  gnulib/tests/Makefile
   src/Makefile
   examples/Makefile
   plugin/Makefile

@@ -8,6 +8,8 @@
  *  GTK VNC Widget
  */
 
+#include <config.h>
+
 #include "continuation.h"
 
 /*

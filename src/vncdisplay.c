@@ -8,6 +8,8 @@
  *  GTK VNC Widget
  */
 
+#include <config.h>
+
 #include "vncdisplay.h"
 #include "coroutine.h"
 #include "gvnc.h"
@@ -24,7 +26,9 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#ifdef HAVE_PWD_H
 #include <pwd.h>
+#endif
 
 #define VNC_DISPLAY_GET_PRIVATE(obj) \
       (G_TYPE_INSTANCE_GET_PRIVATE((obj), VNC_TYPE_DISPLAY, VncDisplayPrivate))
@@ -1886,33 +1890,44 @@ static int vnc_display_best_path(char *buf,
 
 static int vnc_display_set_x509_credential(VncDisplay *obj, const char *name)
 {
-	char sysdir[PATH_MAX], userdir[PATH_MAX];
-	struct passwd *pw;
 	char file[PATH_MAX];
+	char sysdir[PATH_MAX];
+#ifndef __MINGW32__
+	char userdir[PATH_MAX];
+	struct passwd *pw;
 	char *dirs[] = { sysdir, userdir };
+#else
+	char *dirs[] = { sysdir };
+#endif
 
 	strncpy(sysdir, SYSCONFDIR "/pki", PATH_MAX-1);
 	sysdir[PATH_MAX-1] = '\0';
 
+#ifndef __MINGW32__
 	if (!(pw = getpwuid(getuid())))
 		return TRUE;
 
 	snprintf(userdir, PATH_MAX-1, "%s/.pki", pw->pw_dir);
 	userdir[PATH_MAX-1] = '\0';
+#endif
 
-	if (vnc_display_best_path(file, PATH_MAX, "CA", "cacert.pem", dirs, 2) < 0)
+	if (vnc_display_best_path(file, PATH_MAX, "CA", "cacert.pem",
+				  dirs, sizeof(dirs)/sizeof(dirs[0])) < 0)
 		return TRUE;
 	gvnc_set_credential_x509_cacert(obj->priv->gvnc, file);
 
 	/* Don't mind failures of CRL */
-	if (vnc_display_best_path(file, PATH_MAX, "CA", "cacrl.pem", dirs, 2) == 0)
+	if (vnc_display_best_path(file, PATH_MAX, "CA", "cacrl.pem",
+				  dirs, sizeof(dirs)/sizeof(dirs[0])) == 0)
 		gvnc_set_credential_x509_cacert(obj->priv->gvnc, file);
 
 	/* Set client key & cert if we have them. Server will reject auth
 	 * if it decides it requires them*/
-	if (vnc_display_best_path(file, PATH_MAX, name, "private/clientkey.pem", dirs, 2) == 0)
+	if (vnc_display_best_path(file, PATH_MAX, name, "private/clientkey.pem",
+				  dirs, sizeof(dirs)/sizeof(dirs[0])) == 0)
 		gvnc_set_credential_x509_key(obj->priv->gvnc, file);
-	if (vnc_display_best_path(file, PATH_MAX, name, "clientcert.pem", dirs, 2) == 0)
+	if (vnc_display_best_path(file, PATH_MAX, name, "clientcert.pem",
+				  dirs, sizeof(dirs)/sizeof(dirs[0])) == 0)
 		gvnc_set_credential_x509_cert(obj->priv->gvnc, file);
 
 	return FALSE;

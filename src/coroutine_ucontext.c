@@ -8,6 +8,8 @@
  *  GTK VNC Widget
  */
 
+#include <config.h>
+
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <stdio.h>

@@ -8,13 +8,14 @@
  *  GTK VNC Widget
  */
 
+#include <config.h>
+
 #include "gvnc.h"
 
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#include <netdb.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -40,6 +41,14 @@
 #include <gdk/gdkkeysyms.h>
 
 #include "vnc_keycodes.h"
+#include "getaddrinfo.h"
+
+/* AI_ADDRCONFIG is missing on some systems and gnulib won't provide it
+   even if its emulated getaddrinfo() for us . */
+#ifndef AI_ADDRCONFIG
+# define AI_ADDRCONFIG 0
+#endif
+
 
 struct wait_queue
 {
@@ -185,7 +194,6 @@ static GIOCondition g_io_wait(GIOChannel *channel, GIOCondition cond)
 
 	g_io_add_watch(channel, cond | G_IO_HUP | G_IO_ERR | G_IO_NVAL, g_io_wait_helper, coroutine_self());
 	ret = coroutine_yield(NULL);
-
 	return *ret;
 }
 
@@ -344,7 +352,7 @@ static int gvnc_read(struct gvnc *gvnc, void *data, size_t len)
 	size_t offset = 0;
 
 	if (gvnc->has_error) return -EINVAL;
-	
+
 	while (offset < len) {
 		size_t tmp;
 
@@ -376,7 +384,7 @@ static int gvnc_read(struct gvnc *gvnc, void *data, size_t len)
 
 			if (ret == -1) {
 				switch (errno) {
-				case EAGAIN:
+				case EWOULDBLOCK:
 					if (gvnc->wait_interruptable) {
 						if (!g_io_wait_interruptable(&gvnc->wait,
 									     gvnc->channel, G_IO_IN))
@@ -386,7 +394,7 @@ static int gvnc_read(struct gvnc *gvnc, void *data, size_t len)
 				case EINTR:
 					continue;
 				default:
-					GVNC_DEBUG("Closing the connection: gvnc_read() - ret=-1\n");
+					GVNC_DEBUG("Closing the connection: gvnc_read() - errno=%d\n", errno);
 					gvnc->has_error = TRUE;
 					return -errno;
 				}
@@ -436,12 +444,12 @@ static void gvnc_flush(struct gvnc *gvnc)
 				    gvnc->write_offset-offset);
 		if (ret == -1) {
 			switch (errno) {
-			case EAGAIN:
+			case EWOULDBLOCK:
 				g_io_wait(gvnc->channel, G_IO_OUT);
 			case EINTR:
 				continue;
 			default:
-				GVNC_DEBUG("Closing the connection: gvnc_flush\n");
+				GVNC_DEBUG("Closing the connection: gvnc_flush %d\n", errno);
 				gvnc->has_error = TRUE;
 				return;
 			}
@@ -1341,12 +1349,12 @@ static void gvnc_zrle_update_tile_palette(struct gvnc *gvnc,
 static int gvnc_read_zrle_rl(struct gvnc *gvnc)
 {
 	int rl = 1;
-	uint8_t byte;
+	uint8_t b;
 
 	do {
-		byte = gvnc_read_u8(gvnc);
-		rl += byte;
-	} while (!gvnc_has_error(gvnc) && byte == 255);
+		b = gvnc_read_u8(gvnc);
+		rl += b;
+	} while (!gvnc_has_error(gvnc) && b == 255);
 
 	return rl;
 }
@@ -2802,12 +2810,12 @@ gboolean gvnc_initialize(struct gvnc *gvnc, gboolean shared_flag)
 	if (gvnc_has_error(gvnc))
 		return FALSE;
 
-	if (!gvnc->fmt.true_color_flag && gvnc->ops.get_preferred_pixel_format)
+	if (!gvnc->fmt.true_color_flag && gvnc->ops.get_preferred_pixel_format) {
 		if (gvnc->ops.get_preferred_pixel_format(gvnc->ops_data, &gvnc->fmt))
 			gvnc_set_pixel_format(gvnc, &gvnc->fmt);
 		else
 			goto fail;
-
+	}
 	memset(&gvnc->strm, 0, sizeof(gvnc->strm));
 	/* FIXME what level? */
 	for (i = 0; i < 5; i++)
@@ -2822,15 +2830,16 @@ gboolean gvnc_initialize(struct gvnc *gvnc, gboolean shared_flag)
 	return !gvnc_has_error(gvnc);
 }
 
-gboolean gvnc_open_fd(struct gvnc *gvnc, int fd)
+static gboolean gvnc_set_nonblock(int fd)
 {
-	int flags;
-	if (gvnc_is_open(gvnc)) {
-		GVNC_DEBUG ("Error: already connected?\n");
+#ifdef __MINGW32__
+	unsigned long flags = 1;
+	if (ioctlsocket(fd, FIONBIO, &flags) < 0) {
+		GVNC_DEBUG ("Failed to set nonblocking flag\n");
 		return FALSE;
 	}
-
-	GVNC_DEBUG("Connecting to FD %d\n", fd);
+#else
+	int flags;
 	if ((flags = fcntl(fd, F_GETFL)) < 0) {
 		GVNC_DEBUG ("Failed to fcntl()\n");
 		return FALSE;
@@ -2840,6 +2849,21 @@ gboolean gvnc_open_fd(struct gvnc *gvnc, int fd)
 		GVNC_DEBUG ("Failed to fcntl()\n");
 		return FALSE;
 	}
+#endif
+	return TRUE;
+}
+
+gboolean gvnc_open_fd(struct gvnc *gvnc, int fd)
+{
+	if (gvnc_is_open(gvnc)) {
+		GVNC_DEBUG ("Error: already connected?\n");
+		return FALSE;
+	}
+
+	GVNC_DEBUG("Connecting to FD %d\n", fd);
+
+	if (!gvnc_set_nonblock(fd))
+		return FALSE;
 
 	if (!(gvnc->channel = g_io_channel_unix_new(fd))) {
 		GVNC_DEBUG ("Failed to g_io_channel_unix_new()\n");
@@ -2873,7 +2897,7 @@ gboolean gvnc_open_host(struct gvnc *gvnc, const char *host, const char *port)
 
         runp = ai;
         while (runp != NULL) {
-                int flags, fd;
+                int fd;
                 GIOChannel *chan;
 
 		if ((fd = socket(runp->ai_family, runp->ai_socktype,
@@ -2883,17 +2907,8 @@ gboolean gvnc_open_host(struct gvnc *gvnc, const char *host, const char *port)
 		}
 
                 GVNC_DEBUG("Trying socket %d\n", fd);
-                if ((flags = fcntl(fd, F_GETFL)) < 0) {
-                        close(fd);
-                        GVNC_DEBUG ("Failed to fcntl()\n");
-                        break;
-                }
-                flags |= O_NONBLOCK;
-                if (fcntl(fd, F_SETFL, flags) < 0) {
-                        close(fd);
-                        GVNC_DEBUG ("Failed to fcntl()\n");
-                        break;
-                }
+		if (!gvnc_set_nonblock(fd))
+			break;
 
                 if (!(chan = g_io_channel_unix_new(fd))) {
                         close(fd);
@@ -2904,14 +2919,15 @@ gboolean gvnc_open_host(struct gvnc *gvnc, const char *host, const char *port)
         reconnect:
                 /* FIXME: Better handle EINPROGRESS/EISCONN return values,
                    as explained in connect(2) man page */
-                if ( (connect(fd, runp->ai_addr, runp->ai_addrlen) == 0) || errno == EISCONN) {
+                if ((connect(fd, runp->ai_addr, runp->ai_addrlen) == 0) ||
+		    errno == EISCONN) {
                         gvnc->channel = chan;
                         gvnc->fd = fd;
                         freeaddrinfo(ai);
                         return !gvnc_has_error(gvnc);
                 }
-
-                if (errno == EINPROGRESS) {
+                if (errno == EINPROGRESS ||
+                    errno == EWOULDBLOCK) {
                         g_io_wait(chan, G_IO_OUT|G_IO_ERR|G_IO_HUP);
                         goto reconnect;
                 } else if (errno != ECONNREFUSED &&

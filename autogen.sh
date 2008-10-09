@@ -45,7 +45,7 @@ if test -z "$*"; then
 fi
 
 libtoolize --copy --force
-aclocal
+aclocal -I gnulib/m4
 autoheader
 automake --add-missing --copy
 autoconf

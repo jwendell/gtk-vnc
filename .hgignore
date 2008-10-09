@@ -24,7 +24,7 @@ Makefile\.in$
 ^build
 ^examples/\.deps/
 ^examples/\.libs/
-^examples/gvncviewer$
+^examples/gvncviewer(\.exe)?$
 ^missing$
 ^INSTALL$
 ^depcomp$
@@ -36,9 +36,9 @@ Makefile\.in$
 ^plugin/gtk-vnc-plugin.la$
 ^plugin/gtk_vnc_plugin_la-.*
 ^plugin/gtk-vnc-plugin.so
-
-syntax: glob
-examples/*.o
-src/*.defs
-src/*.orig
-*.spec
+.gnulib
+examples/.*\.o
+src/.*\.defs
+src/.*\.orig
+.*\.spec
+.*\.tar\.gz$

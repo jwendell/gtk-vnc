@@ -8,6 +8,8 @@
  *  GTK VNC Widget
  */
 
+#include <config.h>
+
 #include "coroutine.h"
 #include <stdio.h>
 #include <stdlib.h>
