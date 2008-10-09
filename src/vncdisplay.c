@@ -26,11 +26,6 @@
 #include <unistd.h>
 #include <pwd.h>
 
-#if WITH_GTKGLEXT
-#include <gtk/gtkgl.h>
-#include <GL/gl.h>
-#endif
-
 #define VNC_DISPLAY_GET_PRIVATE(obj) \
       (G_TYPE_INSTANCE_GET_PRIVATE((obj), VNC_TYPE_DISPLAY, VncDisplayPrivate))
 
@@ -41,21 +36,9 @@ struct _VncDisplayPrivate
 	char *port;
 	GdkGC *gc;
 	GdkImage *image;
+	GdkPixmap *pixmap;
 	GdkCursor *null_cursor;
 	GdkCursor *remote_cursor;
-
-#if WITH_GTKGLEXT
-	int gl_enabled;
-	GdkGLConfig *gl_config;
-	GdkGLDrawable *gl_drawable;
-	GdkGLContext *gl_context;
-	uint8_t *gl_tex_data;
-	int gl_texture_width;
-	int gl_texture_height;
-	int gl_width;
-	int gl_height;
-	GLuint gl_tex;
-#endif
 
 	struct gvnc_framebuffer fb;
 	struct coroutine coroutine;
@@ -280,9 +263,15 @@ static gboolean expose_event(GtkWidget *widget, GdkEventExpose *expose)
 {
 	VncDisplay *obj = VNC_DISPLAY(widget);
 	VncDisplayPrivate *priv = obj->priv;
+	int ww, wh;
+	int mx = 0, my = 0;
+#if WITH_GTK_CAIRO
+	cairo_t *cr;
+#else
 	int x, y, w, h;
 	GdkRectangle drawn;
 	GdkRegion *clear, *copy;
+#endif
 
 	GVNC_DEBUG("Expose %dx%d @ %d,%d\n",
 		   expose->area.x,
@@ -290,121 +279,95 @@ static gboolean expose_event(GtkWidget *widget, GdkEventExpose *expose)
 		   expose->area.width,
 		   expose->area.height);
 
-	if (priv->image == NULL) {
-#if WITH_GTKGLEXT
-		if (priv->gl_tex_data == NULL)
-#endif
-		{
-			GdkGC *gc = gdk_gc_new(widget->window);
-			gdk_draw_rectangle(widget->window, gc, TRUE,
-					   expose->area.x, expose->area.y,
-					   expose->area.width,
-					   expose->area.height);
-			g_object_unref(gc);
-			return TRUE;
+	gdk_drawable_get_size(widget->window, &ww, &wh);
+
+	if (ww > priv->fb.width)
+		mx = (ww - priv->fb.width) / 2;
+	if (wh > priv->fb.height)
+		my = (wh - priv->fb.height) / 2;
+
+#if WITH_GTK_CAIRO
+	cr = gdk_cairo_create(GTK_WIDGET(obj)->window);
+	cairo_rectangle(cr,
+			expose->area.x,
+			expose->area.y,
+			expose->area.width + 1,
+			expose->area.height + 1);
+	cairo_clip(cr);
+
+	/* If we don't have a pixmap, or we're not scaling, then
+	   we need to fill with background color */
+	if (!priv->pixmap ||
+	    !priv->allow_scaling) {
+		cairo_rectangle(cr, 0, 0, ww, wh);
+		/* Optionally cut out the inner area where the pixmap
+		   will be drawn. This avoids 'flashing' since we're
+		   not double-buffering. Note we're using the undocumented
+		   behaviour of drawing the rectangle from right to left
+		   to cut out the whole */
+		if (priv->pixmap)
+			cairo_rectangle(cr, mx + priv->fb.width, my,
+					-1 * priv->fb.width, priv->fb.height);
+		cairo_fill(cr);
+	}
+
+	/* Draw the VNC display */
+	if (priv->pixmap) {
+		if (priv->allow_scaling) {
+			double sx, sy;
+			/* Scale to fill window */
+			sx = (double)ww / (double)priv->fb.width;
+			sy = (double)wh / (double)priv->fb.height;
+			cairo_scale(cr, sx, sy);
+			gdk_cairo_set_source_pixmap(cr,
+						    priv->pixmap,
+						    0, 0);
+		} else {
+			gdk_cairo_set_source_pixmap(cr,
+						    priv->pixmap,
+						    mx, my);
 		}
+		cairo_paint(cr);
 	}
 
-#if WITH_GTKGLEXT
-	if (priv->gl_enabled) {
-		float rx, ry;
-		int wx = 0, wy = 0;
-		int ww = priv->gl_width, wh = priv->gl_height;
-		double scale_x, scale_y;
+	cairo_destroy(cr);
+#else
+	x = MIN(expose->area.x - mx, priv->fb.width);
+	y = MIN(expose->area.y - my, priv->fb.height);
+	w = MIN(expose->area.x + expose->area.width - mx, priv->fb.width);
+	h = MIN(expose->area.y + expose->area.height - my, priv->fb.height);
+	x = MAX(0, x);
+	y = MAX(0, y);
+	w = MAX(0, w);
+	h = MAX(0, h);
 
-		scale_x = (double)priv->gl_width / priv->fb.width;
-		scale_y = (double)priv->gl_height / priv->fb.height;
+	w -= x;
+	h -= y;
 
-		x = expose->area.x / scale_x;
-		y = expose->area.y / scale_y;
-		w = expose->area.width / scale_x;
-		h = expose->area.height / scale_y;
+	drawn.x = x + mx;
+	drawn.y = y + my;
+	drawn.width = w;
+	drawn.height = h;
 
-		y -= 5;
-		h += 10;
-		if (y < 0)
-			y = 0;
+	clear = gdk_region_rectangle(&expose->area);
+	copy = gdk_region_rectangle(&drawn);
+	gdk_region_subtract(clear, copy);
 
-		x -= 5;
-		w += 10;
-		if (x < 0)
-			x = 0;
-
-		x = MIN(x, priv->fb.width);
-		y = MIN(y, priv->fb.height);
-		w = MIN(x + w, priv->fb.width);
-		h = MIN(y + h, priv->fb.height);
-		w -= x;
-		h -= y;
-
-		gdk_gl_drawable_gl_begin(priv->gl_drawable, priv->gl_context);
-		glBindTexture(GL_TEXTURE_2D, priv->gl_tex);
-		glPixelStorei(GL_UNPACK_ROW_LENGTH, priv->fb.width);
-		glTexSubImage2D(GL_TEXTURE_2D, 0,
-				x, y, w, h,
-				GL_BGRA_EXT,
-				GL_UNSIGNED_BYTE,
-				priv->gl_tex_data +
-				y * 4 * priv->fb.width +
-				x * 4);
-		rx = (float)priv->fb.width  / priv->gl_texture_width;
-		ry = (float)priv->fb.height / priv->gl_texture_height;
-		
-		glEnable(GL_TEXTURE_2D);
-		glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
-		glBegin(GL_QUADS);
-		glTexCoord2f(0,ry);  glVertex3f(wx, wy, 0);
-		glTexCoord2f(0,0);  glVertex3f(wx, wy+wh, 0);
-		glTexCoord2f(rx,0);  glVertex3f(wx+ww, wy+wh, 0);
-		glTexCoord2f(rx,ry);  glVertex3f(wx+ww, wy, 0);
-		glEnd();		
-		glDisable(GL_TEXTURE_2D);
-		glFlush();
-		gdk_gl_drawable_gl_end(priv->gl_drawable);
-	} else
-#endif
-	{
-		int mx = 0, my = 0;
-		int ww, wh;
-
-		gdk_drawable_get_size(widget->window, &ww, &wh);
-		if (ww > priv->fb.width)
-			mx = (ww - priv->fb.width) / 2;
-		if (wh > priv->fb.height)
-			my = (wh - priv->fb.height) / 2;
-
-		x = MIN(expose->area.x - mx, priv->fb.width);
-		y = MIN(expose->area.y - my, priv->fb.height);
-		w = MIN(expose->area.x + expose->area.width - mx, priv->fb.width);
-		h = MIN(expose->area.y + expose->area.height - my, priv->fb.height);
-		x = MAX(0, x);
-		y = MAX(0, y);
-		w = MAX(0, w);
-		h = MAX(0, h);
-
-		w -= x;
-		h -= y;
-
-		drawn.x = x + mx;
-		drawn.y = y + my;
-		drawn.width = w;
-		drawn.height = h;
-
-		clear = gdk_region_rectangle(&expose->area);
-		copy = gdk_region_rectangle(&drawn);
-		gdk_region_subtract(clear, copy);
-
+	if (priv->pixmap != NULL) {
 		gdk_gc_set_clip_region(priv->gc, copy);
-		gdk_draw_image(widget->window, priv->gc, priv->image,
-			       x, y, x + mx, y + my, w, h);
-
-		gdk_gc_set_clip_region(priv->gc, clear);
-		gdk_draw_rectangle(widget->window, priv->gc, TRUE, expose->area.x, expose->area.y,
-				   expose->area.width, expose->area.height);
-
-		gdk_region_destroy(clear);
-		gdk_region_destroy(copy);
+		gdk_draw_drawable(widget->window, priv->gc, priv->pixmap,
+				  x, y, x + mx, y + my, w, h);
 	}
+
+	gdk_gc_set_clip_region(priv->gc, clear);
+	gdk_draw_rectangle(widget->window, priv->gc, TRUE,
+			   expose->area.x, expose->area.y,
+			   expose->area.width, expose->area.height);
+
+	gdk_region_destroy(clear);
+	gdk_region_destroy(copy);
+#endif
+
 
 	return TRUE;
 }
@@ -570,6 +533,7 @@ static gboolean motion_event(GtkWidget *widget, GdkEventMotion *motion)
 {
 	VncDisplayPrivate *priv = VNC_DISPLAY(widget)->priv;
 	int dx, dy;
+	int ww, wh;
 
 	if (priv->gvnc == NULL || !gvnc_is_initialized(priv->gvnc))
 		return FALSE;
@@ -580,19 +544,18 @@ static gboolean motion_event(GtkWidget *widget, GdkEventMotion *motion)
 	if (priv->read_only)
 		return FALSE;
 
-#if WITH_GTKGLEXT
-	if (priv->gl_enabled) {
-		motion->x *= priv->fb.width;
-		motion->x /= priv->gl_width;
-		motion->y *= priv->fb.height;
-		motion->y /= priv->gl_height;
-	} else
-#endif
-	{
-		int ww, wh;
+	gdk_drawable_get_size(widget->window, &ww, &wh);
+
+	if (priv->allow_scaling) {
+		double sx, sy;
+		sx = (double)priv->fb.width / (double)ww;
+		sy = (double)priv->fb.height / (double)wh;
+
+		motion->x *= sx;
+		motion->y *= sy;
+	} else {
 		int mw = 0, mh = 0;
 
-		gdk_drawable_get_size(widget->window, &ww, &wh);
 		if (ww > priv->fb.width)
 			mw = (ww - priv->fb.width) / 2;
 		if (wh > priv->fb.height)
@@ -740,13 +703,12 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *key)
 		}
 	}
 
-	if ((!priv->grab_keyboard || !priv->absolute) &&
-	    key->type == GDK_KEY_PRESS &&
+	if (key->type == GDK_KEY_PRESS &&
 	    ((keyval == GDK_Control_L && (key->state & GDK_MOD1_MASK)) ||
 	     (keyval == GDK_Alt_L && (key->state & GDK_CONTROL_MASK)))) {
 		if (priv->in_pointer_grab)
 			do_pointer_ungrab(VNC_DISPLAY(widget), FALSE);
-		else
+		else if (!priv->grab_keyboard || !priv->absolute)
 			do_pointer_grab(VNC_DISPLAY(widget), FALSE);
 	}
 
@@ -811,45 +773,37 @@ static gboolean focus_event(GtkWidget *widget, GdkEventFocus *focus G_GNUC_UNUSE
         return TRUE;
 }
 
-#if WITH_GTKGLEXT
-static void realize_event(GtkWidget *widget)
-{
-	VncDisplayPrivate *priv = VNC_DISPLAY(widget)->priv;
-
-	GTK_WIDGET_CLASS (vnc_display_parent_class)->realize(widget);
-
-	if (priv->gl_config == NULL)
-		return;
-
-	priv->gl_drawable = gtk_widget_get_gl_drawable(widget);
-	priv->gl_context = gtk_widget_get_gl_context(widget);
-}
-#endif
-
 static gboolean on_update(void *opaque, int x, int y, int w, int h)
 {
 	GtkWidget *widget = GTK_WIDGET(opaque);
 	VncDisplay *obj = VNC_DISPLAY(widget);
 	VncDisplayPrivate *priv = obj->priv;
+	int ww, wh;
+	GdkRectangle r = { x, y, w, h };
 
-#if WITH_GTKGLEXT
-	if (priv->gl_enabled) {
-		double scale_x, scale_y;
+	/* Copy pixbuf to pixmap */
+	gdk_gc_set_clip_rectangle(priv->gc, &r);
+	gdk_draw_image(priv->pixmap, priv->gc, priv->image,
+		       x, y, x, y, w, h);
 
-		scale_x = (double)priv->gl_width / priv->fb.width;
-		scale_y = (double)priv->gl_height / priv->fb.height;
+	gdk_drawable_get_size(widget->window, &ww, &wh);
 
-		x *= scale_x;
-		y *= scale_y;
-		w *= scale_x;
-		h *= scale_y;
-	} else
-#endif
-	{
-		int ww, wh;
+	if (priv->allow_scaling) {
+		double sx, sy;
+
+		/* Scale the VNC region to produce expose region */
+
+		sx = (double)ww / (double)priv->fb.width;
+		sy = (double)wh / (double)priv->fb.height;
+		x *= sx;
+		y *= sy;
+		w *= sx;
+		h *= sy;
+	} else {
 		int mw = 0, mh = 0;
 
-		gdk_drawable_get_size(widget->window, &ww, &wh);
+		/* Offset the VNC region to produce expose region */
+
 		if (ww > priv->fb.width)
 			mw = (ww - priv->fb.width) / 2;
 		if (wh > priv->fb.height)
@@ -859,7 +813,7 @@ static gboolean on_update(void *opaque, int x, int y, int w, int h)
 		y += mh;
 	}
 
-	gtk_widget_queue_draw_area(widget, x, y, w, h);
+	gtk_widget_queue_draw_area(widget, x, y, w + 1, h + 1);
 
 	return TRUE;
 }
@@ -872,6 +826,8 @@ static void setup_gdk_image(VncDisplay *obj, gint width, gint height)
 	visual = gdk_drawable_get_visual(GTK_WIDGET(obj)->window);
 
 	priv->image = gdk_image_new(GDK_IMAGE_FASTEST, visual, width, height);
+	priv->pixmap = gdk_pixmap_new(GTK_WIDGET(obj)->window, width, height, -1);
+
 	GVNC_DEBUG("Visual mask: %3d %3d %3d\n      shift: %3d %3d %3d\n",
 		   visual->red_mask,
 		   visual->green_mask,
@@ -898,55 +854,6 @@ static void setup_gdk_image(VncDisplay *obj, gint width, gint height)
 		gtk_widget_set_size_request(GTK_WIDGET(obj), width, height);
 }
 
-#if WITH_GTKGLEXT
-static int pow_of_2(int value)
-{
-	int i;
-	for (i = 0; value >= (1 << i); i++);
-	return (1 << i);
-}
-
-static void setup_gl_image(VncDisplay *obj, gint width, gint height)
-{
-	VncDisplayPrivate *priv = VNC_DISPLAY(obj)->priv;
-	void *dummy;
-
-	priv->gl_texture_width = pow_of_2(width);
-	priv->gl_texture_height = pow_of_2(height);
-
-	gdk_gl_drawable_gl_begin(priv->gl_drawable, priv->gl_context);
-
-	glGenTextures(1, &priv->gl_tex);
-	glBindTexture(GL_TEXTURE_2D, priv->gl_tex);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-
-	dummy = g_malloc(priv->gl_texture_width*priv->gl_texture_height*4);
-	memset(dummy, 0, priv->gl_texture_width*priv->gl_texture_height*4);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB,
-		     priv->gl_texture_width, priv->gl_texture_height, 0,
-		     GL_RGB, GL_UNSIGNED_BYTE,
-		     dummy);
-	g_free(dummy);
-	
-	gdk_gl_drawable_gl_end(priv->gl_drawable);
-
-	priv->gl_tex_data = g_malloc(width * height * 4);
-
-	priv->fb.red_mask = 0xFF;
-	priv->fb.green_mask = 0xFF;
-	priv->fb.blue_mask = 0xFF;
-	priv->fb.red_shift = 16;
-	priv->fb.green_shift = 8;
-	priv->fb.blue_shift = 0;
-	priv->fb.depth = 32;
-	priv->fb.bpp = 4;
-	priv->fb.width = width;
-	priv->fb.height = height;
-	priv->fb.linesize = priv->fb.width * priv->fb.bpp;
-	priv->fb.data = (uint8_t *)priv->gl_tex_data;
-}
-#endif
 
 static gboolean emit_signal_auth_cred(gpointer opaque)
 {
@@ -1022,17 +929,10 @@ static gboolean do_resize(void *opaque, int width, int height, gboolean quiet)
 		g_object_unref(priv->image);
 		priv->image = NULL;
 	}
-
-#if WITH_GTKGLEXT
-	if (priv->gl_tex_data) {
-		gdk_gl_drawable_gl_begin(priv->gl_drawable,
-					 priv->gl_context);
-		glDeleteTextures(1, &priv->gl_tex);
-		gdk_gl_drawable_gl_end(priv->gl_drawable);
-		g_free(priv->gl_tex_data);
-		priv->gl_tex_data = NULL;
+	if (priv->pixmap) {
+		g_object_unref(priv->pixmap);
+		priv->pixmap = NULL;
 	}
-#endif
 
 	if (priv->gc == NULL) {
 		priv->null_cursor = create_null_cursor();
@@ -1043,12 +943,7 @@ static gboolean do_resize(void *opaque, int width, int height, gboolean quiet)
 		priv->gc = gdk_gc_new(GTK_WIDGET(obj)->window);
 	}
 
-#if WITH_GTKGLEXT
-	if (priv->gl_enabled)
-		setup_gl_image(obj, width, height);
-	else
-#endif
-		setup_gdk_image(obj, width, height);
+	setup_gdk_image(obj, width, height);
 
 	gvnc_set_local(priv->gvnc, &priv->fb);
 
@@ -1096,155 +991,6 @@ static gboolean on_get_preferred_pixel_format(void *opaque,
 
 	return TRUE;
 }
-
-#if WITH_GTKGLEXT
-static void build_gl_image_from_gdk(uint32_t *data, GdkImage *image)
-{
-	GdkVisual *visual;
-	int i, j;
-	uint8_t *row;
-
-	visual = image->visual;
-	row = image->mem;
-	for (j = 0; j < image->height; j++) {
-		uint8_t *src = row;
-		for (i = 0; i < image->width; i++) {
-			uint32_t pixel = 0;
-			switch (image->bpp) {
-			case 1:
-				pixel = *(uint8_t *)src;
-				break;
-			case 2:
-				pixel = *(uint16_t *)src;
-				break;
-			case 4:
-				pixel = *(uint32_t *)src;
-				break;
-			}
-			*data = ((pixel & visual->red_mask) >> visual->red_shift) << (24 - visual->red_prec) |
-				((pixel & visual->green_mask) >> visual->green_shift) << (16 - visual->green_prec) |
-				((pixel & visual->blue_mask) >> visual->blue_shift) << (8 - visual->blue_prec);
-			src += image->bpp;
-			data++;
-		}
-		row += image->bpl;
-
-	}
-}
-
-static void build_gdk_image_from_gl(GdkImage *image, uint32_t *data)
-{
-	GdkVisual *visual;
-	int i, j;
-	uint8_t *row;
-
-	visual = image->visual;
-	row = image->mem;
-	for (j = 0; j < image->height; j++) {
-		uint8_t *dst = row;
-		for (i = 0; i < image->width; i++) {
-			uint32_t pixel;
-
-			pixel = (((*data >> (24 - visual->red_prec)) << visual->red_shift) & visual->red_mask) |
-				(((*data >> (16 - visual->green_prec)) << visual->green_shift) & visual->green_mask) |
-				(((*data >> (8 - visual->blue_prec)) << visual->blue_shift) & visual->blue_mask);
-
-			switch (image->bpp) {
-			case 1:
-				*(uint8_t *)dst = pixel;
-				break;
-			case 2:
-				*(uint16_t *)dst = pixel;
-				break;
-			case 4:
-				*(uint32_t *)dst = pixel;
-				break;
-			}
-			dst += image->bpp;
-			data++;
-		}
-		row += image->bpl;
-	}
-}
-
-static void scale_display(VncDisplay *obj, gint width, gint height)
-{
-	VncDisplayPrivate *priv = VNC_DISPLAY(obj)->priv;
-
-	if (priv->gl_drawable == NULL)
-		return;
-
-	if (priv->gl_enabled == 0) {
-		GdkImage *image;
-
-		priv->gl_enabled = 1;
-
-		image = priv->image;
-		priv->image = NULL;
-	
-		do_resize(obj, priv->fb.width, priv->fb.height, TRUE);
-		build_gl_image_from_gdk((uint32_t *)priv->fb.data, image);
-
-		g_object_unref(image);
-	}
-
-	priv->gl_width = width;
-	priv->gl_height = height;
-
-	gdk_gl_drawable_gl_begin(priv->gl_drawable, priv->gl_context);
-	glClearColor (0.0, 0.0, 0.0, 0.0);
-	glShadeModel(GL_FLAT);
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    
-	glViewport(0, 0, priv->gl_width, priv->gl_height);
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	glOrtho(0.0, priv->gl_width, 0.0, priv->gl_height, -1, 1);
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-	gdk_gl_drawable_gl_end(priv->gl_drawable);
-}
-
-static void rescale_display(VncDisplay *obj, gint width, gint height)
-{
-	VncDisplayPrivate *priv = obj->priv;
-
-	if (priv->allow_scaling && 
-	    (priv->fb.width != width ||
-	     priv->fb.height != height))
-		scale_display(obj, width, height);
-	else if (priv->gl_enabled) {
-		void *data;
-		priv->gl_enabled = 0;
-
-		data = priv->gl_tex_data;
-		priv->gl_tex_data = NULL;
-
-		do_resize(GTK_WIDGET(obj), priv->fb.width, priv->fb.height, TRUE);
-
-		build_gdk_image_from_gl(priv->image, (uint32_t *)data);
-		gdk_gl_drawable_gl_begin(priv->gl_drawable,
-					 priv->gl_context);
-		glDeleteTextures(1, &priv->gl_tex);
-		gdk_gl_drawable_gl_end(priv->gl_drawable);
-		g_free(data);
-	}
-}
-
-static gboolean configure_event(GtkWidget *widget, GdkEventConfigure *configure)
-{
-	VncDisplay *obj = VNC_DISPLAY(widget);
-	VncDisplayPrivate *priv = obj->priv;
-
-	if (priv->fb.data == NULL)
-		return FALSE;
-
-	rescale_display(VNC_DISPLAY(widget),
-			configure->width, configure->height);
-	
-	return FALSE;
-}
-#endif
 
 static gboolean on_pointer_type_change(void *opaque, int absolute)
 {
@@ -1499,13 +1245,10 @@ static gboolean delayed_unref_object(gpointer data)
 		g_object_unref(obj->priv->image);
 		obj->priv->image = NULL;
 	}
-
-#if WITH_GTKGLEXT
-	if (obj->priv->gl_tex_data)
-		g_free(obj->priv->gl_tex_data);
-	obj->priv->gl_tex_data = NULL;
-	obj->priv->gl_enabled = 0;
-#endif
+	if (obj->priv->pixmap) {
+		g_object_unref(obj->priv->pixmap);
+		obj->priv->pixmap = NULL;
+	}
 
 	g_object_unref(G_OBJECT(data));
 	return FALSE;
@@ -1681,15 +1424,6 @@ void vnc_display_close(VncDisplay *obj)
 		gvnc_shutdown(priv->gvnc);
 	}
 
-#if WITH_GTKGLEXT
-	if (priv->gl_tex_data) {
-		gdk_gl_drawable_gl_begin(priv->gl_drawable,
-					 priv->gl_context);
-		glDeleteTextures(1, &priv->gl_tex);
-		gdk_gl_drawable_gl_end(priv->gl_drawable);
-	}
-#endif
-
 	if (widget->window) {
 		gint width, height;
 
@@ -1778,24 +1512,6 @@ static void vnc_display_finalize (GObject *obj)
 	gvnc_free(priv->gvnc);
 	display->priv->gvnc = NULL;
 
-#if WITH_GTKGLEXT
-	if (priv->gl_enabled) {
-		gdk_gl_drawable_gl_begin(priv->gl_drawable,
-					 priv->gl_context);
-		glDeleteTextures(1, &priv->gl_tex);
-		gdk_gl_drawable_gl_end(priv->gl_drawable);
-		if (priv->gl_tex_data) {
-			g_free(priv->gl_tex_data);
-			priv->gl_tex_data = NULL;
-		}
-	}
-
-	if (priv->gl_config) {
-		g_object_unref(G_OBJECT(priv->gl_config));
-		priv->gl_config = NULL;
-	}
-#endif
-
 	if (priv->image) {
 		g_object_unref(priv->image);
 		priv->image = NULL;
@@ -1822,11 +1538,6 @@ static void vnc_display_class_init(VncDisplayClass *klass)
 	gtkwidget_class->enter_notify_event = enter_event;
 	gtkwidget_class->leave_notify_event = leave_event;
 	gtkwidget_class->focus_out_event = focus_event;
-#if WITH_GTKGLEXT
-	gtkwidget_class->realize = realize_event;
-	gtkwidget_class->configure_event = configure_event;
-#endif
-
 
 	object_class->finalize = vnc_display_finalize;
 	object_class->get_property = vnc_display_get_property;
@@ -2152,23 +1863,6 @@ static void vnc_display_init(VncDisplay *display)
 	priv->preferable_auths = g_slist_append (priv->preferable_auths, GUINT_TO_POINTER (GVNC_AUTH_VNC));
 	priv->preferable_auths = g_slist_append (priv->preferable_auths, GUINT_TO_POINTER (GVNC_AUTH_NONE));
 
-#if WITH_GTKGLEXT
-	if (gtk_gl_init_check(NULL, NULL)) {
-		priv->gl_config = gdk_gl_config_new_by_mode(GDK_GL_MODE_RGB |
-							    GDK_GL_MODE_DEPTH);
-		if (!gtk_widget_set_gl_capability(widget,
-						  priv->gl_config,
-						  NULL,
-						  TRUE,
-						  GDK_GL_RGBA_TYPE)) {
-			g_warning("Could not enable OpenGL");
-			g_object_unref(G_OBJECT(priv->gl_config));
-			priv->gl_config = NULL;
-		}
-	} else
-		priv->gl_config = NULL;
-#endif
-
 	priv->gvnc = gvnc_new(&vnc_display_ops, obj);
 }
 
@@ -2376,32 +2070,29 @@ void vnc_display_set_shared_flag(VncDisplay *obj, gboolean shared)
 	obj->priv->shared_flag = shared;
 }
 
-#if WITH_GTKGLEXT
-gboolean vnc_display_set_scaling(VncDisplay *obj, gboolean enable)
+#if WITH_GTK_CAIRO
+gboolean vnc_display_set_scaling(VncDisplay *obj,
+				 gboolean enable)
 {
-	GtkWidget *widget = GTK_WIDGET(obj);
-	gint width, height;
+	int ww, wh;
 
-	g_return_val_if_fail (VNC_IS_DISPLAY (obj), FALSE);
-	if (obj->priv->gl_config == NULL)
-		return FALSE;
-	
 	obj->priv->allow_scaling = enable;
-	if (gvnc_is_open(obj->priv->gvnc) && widget->window) {
-		gdk_drawable_get_size(widget->window, &width, &height);
-		rescale_display(obj, width, height);
-		gtk_widget_queue_draw_area(widget, 0, 0, width, height);
+
+	if (obj->priv->pixmap != NULL) {
+		gdk_drawable_get_size(GTK_WIDGET(obj)->window, &ww, &wh);
+		gtk_widget_queue_draw_area(GTK_WIDGET(obj), 0, 0, ww, wh);
 	}
 
 	return TRUE;
 }
 #else
 gboolean vnc_display_set_scaling(VncDisplay *obj G_GNUC_UNUSED,
-	gboolean enable G_GNUC_UNUSED)
+				 gboolean enable G_GNUC_UNUSED)
 {
 	return FALSE;
 }
 #endif
+
 
 void vnc_display_set_force_size(VncDisplay *obj, gboolean enabled)
 {

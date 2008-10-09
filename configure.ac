@@ -7,11 +7,8 @@ GTK_REQUIRED=2.10.0
 AC_SUBST(GTK_REQUIRED)
 GNUTLS_REQUIRED=1.4.0
 AC_SUBST(GNUTLS_REQUIRED)
-GTKGLEXT_REQUIRED=1.2.0
-AC_SUBST(GTKGLEXT_REQUIRED)
 
 PYGTK_REQUIRED=2.0.0
-GTKGLEXT_REQUIRED=1.2.0
 VIEW_REQUIRED=0.6.0
 GTHREAD_REQUIRED=2.0.0
 PYTHON_REQUIRED=2.4
@@ -103,26 +100,16 @@ PKG_CHECK_MODULES(GTK, gtk+-2.0 >= $GTK_REQUIRED)
 AC_SUBST(GTK_CFLAGS)
 AC_SUBST(GTK_LIBS)
 
-AC_ARG_WITH(gtkglext,
-[  --with-gtkglext         enable gtkgl support],
-[case "${withval}" in
-   yes|no) ;;
-   *)	   AC_MSG_ERROR([bad value ${withval} for gtkglext option]) ;;
- esac],[withval=yes])
+save_CFLAGS="$CFLAGS"
+save_LDFLAGS="$LDFLAGS"
+CFLAGS="$CFLAGS $GTK_CFLAGS"
+LDFLAGS="$LDFLAGS $GTK_LIBS"
+AC_CHECK_FUNC([gdk_cairo_create], [WITH_GTK_CAIRO=1], [WITH_GTK_CAIRO=0])
+CFLAGS="$save_CFLAGS"
+LDFLAGS="$save_LDFLAGS"
 
-WITH_GTKGLEXT=0
-if test "${withval}" = "yes"; then
-  PKG_CHECK_MODULES(GTKGLEXT, gtkglext-1.0 >= $GTKGLEXT_REQUIRED,
-	            [WITH_GTKGLEXT=1], [WITH_GTKGLEXT=0])
-fi
-AC_DEFINE_UNQUOTED(WITH_GTKGLEXT,[$WITH_GTKGLEXT], [Whether to use gtkglext])
-AC_SUBST(GTKGLEXT_CFLAGS)
-AC_SUBST(GTKGLEXT_LIBS)
-if test $WITH_GTKGLEXT -eq 0; then
-  with_scaling="no"
-else
-  with_scaling="yes"
-fi
+AC_DEFINE_UNQUOTED(WITH_GTK_CAIRO, [$WITH_GTK_CAIRO], [Whether to use cairo for GTK rendering])
+
 
 AC_ARG_WITH(libview,
 [  --with-libview          enable libview support in gvncviewer],
@@ -242,6 +229,12 @@ AC_CONFIG_FILES(
   )
 
 AC_OUTPUT
+
+if [ test "$WITH_GTK_CAIRO" = 1 ]; then
+  with_scaling=yes
+else
+  with_scaling=no
+fi
 
 echo "
 Configure summary:
