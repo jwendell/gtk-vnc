@@ -17,13 +17,24 @@ static GMutex *run_lock;
 static struct coroutine *current;
 static struct coroutine leader;
 
+#if 0
+#define CO_DEBUG(OP) fprintf(stderr, "%s %p %s %d\n", OP, g_thread_self(), __FUNCTION__, __LINE__)
+#else
+#define CO_DEBUG(OP)
+#endif
+
 static void coroutine_system_init(void)
 {
-	if (!g_thread_supported())
+	if (!g_thread_supported()) {
+	        CO_DEBUG("INIT");
 		g_thread_init(NULL);
+	}
+
 
 	run_cond = g_cond_new();
 	run_lock = g_mutex_new();
+	CO_DEBUG("LOCK");
+	g_mutex_lock(run_lock);
 
 	/* The thread that creates the first coroutine is the system coroutine
 	 * so let's fill out a structure for it */
@@ -42,17 +53,22 @@ static void coroutine_system_init(void)
 static gpointer coroutine_thread(gpointer opaque)
 {
 	struct coroutine *co = opaque;
-
+	CO_DEBUG("LOCK");
 	g_mutex_lock(run_lock);
-	while (!co->runnable)
+	while (!co->runnable) {
+		CO_DEBUG("WAIT");
 		g_cond_wait(run_cond, run_lock);
+	}
 
+	CO_DEBUG("RUNNABLE");
 	current = co;
 	co->data = co->entry(co->data);
 	co->exited = 1;
 
 	co->caller->runnable = TRUE;
+	CO_DEBUG("BROADCAST");
 	g_cond_broadcast(run_cond);
+	CO_DEBUG("UNLOCK");
 	g_mutex_unlock(run_lock);
 
 	return NULL;
@@ -62,7 +78,8 @@ int coroutine_init(struct coroutine *co)
 {
 	if (run_cond == NULL)
 		coroutine_system_init();
-	
+
+	CO_DEBUG("NEW");
 	co->thread = g_thread_create_full(coroutine_thread, co, co->stack_size,
 					  FALSE, TRUE,
 					  G_THREAD_PRIORITY_NORMAL,
@@ -88,15 +105,19 @@ void *coroutine_swap(struct coroutine *from, struct coroutine *to, void *arg)
 	to->runnable = TRUE;
 	to->data = arg;
 	to->caller = from;
+	CO_DEBUG("BROADCAST");
 	g_cond_broadcast(run_cond);
+	CO_DEBUG("UNLOCK");
 	g_mutex_unlock(run_lock);
-
+	CO_DEBUG("LOCK");
 	g_mutex_lock(run_lock);
-	while (!from->runnable)
+	while (!from->runnable) {
+	        CO_DEBUG("WAIT");
 		g_cond_wait(run_cond, run_lock);
-
+	}
 	current = from;
 
+	CO_DEBUG("SWAPPED");
 	return from->data;
 }
 
@@ -111,6 +132,7 @@ void *coroutine_yieldto(struct coroutine *to, void *arg)
 		fprintf(stderr, "Co-routine is re-entering itself\n");
 		abort();
 	}
+	CO_DEBUG("SWAP");
 	return coroutine_swap(coroutine_self(), to, arg);
 }
 
@@ -121,6 +143,8 @@ void *coroutine_yield(void *arg)
 		fprintf(stderr, "Co-routine is yielding to no one\n");
 		abort();
 	}
+
+	CO_DEBUG("SWAP");
 	coroutine_self()->caller = NULL;
 	return coroutine_swap(coroutine_self(), to, arg);
 }
