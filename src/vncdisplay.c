@@ -703,13 +703,12 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *key)
 		}
 	}
 
-	if ((!priv->grab_keyboard || !priv->absolute) &&
-	    key->type == GDK_KEY_PRESS &&
+	if (key->type == GDK_KEY_PRESS &&
 	    ((keyval == GDK_Control_L && (key->state & GDK_MOD1_MASK)) ||
 	     (keyval == GDK_Alt_L && (key->state & GDK_CONTROL_MASK)))) {
 		if (priv->in_pointer_grab)
 			do_pointer_ungrab(VNC_DISPLAY(widget), FALSE);
-		else
+		else if (!priv->grab_keyboard || !priv->absolute)
 			do_pointer_grab(VNC_DISPLAY(widget), FALSE);
 	}
 
