@@ -21,7 +21,7 @@ gtk-vnc-plugin.so: gtk-vnc-plugin.la
 
 # Only leave the .so file in the plugins directory.
 install-data-hook:
-	rm -f $(plugindir)/gtk-vnc-plugin.a $(plugindir)/gtk-vnc-plugin.la
+	rm -f $(DESTDIR)$(plugindir)/gtk-vnc-plugin.a $(DESTDIR)$(plugindir)/gtk-vnc-plugin.la
 
 EXTRA_DIST = README
 
