@@ -2832,13 +2832,7 @@ gboolean gvnc_initialize(struct gvnc *gvnc, gboolean shared_flag)
 
 static gboolean gvnc_set_nonblock(int fd)
 {
-#ifdef __MINGW32__
-	unsigned long flags = 1;
-	if (ioctlsocket(fd, FIONBIO, &flags) < 0) {
-		GVNC_DEBUG ("Failed to set nonblocking flag\n");
-		return FALSE;
-	}
-#else
+#ifndef WIN32
 	int flags;
 	if ((flags = fcntl(fd, F_GETFL)) < 0) {
 		GVNC_DEBUG ("Failed to fcntl()\n");
@@ -2849,7 +2843,20 @@ static gboolean gvnc_set_nonblock(int fd)
 		GVNC_DEBUG ("Failed to fcntl()\n");
 		return FALSE;
 	}
-#endif
+
+#else /* WIN32 */
+	unsigned long flag = 1;
+
+	/* This is actually Gnulib's replacement rpl_ioctl function.
+	 * We can't call ioctlsocket directly in any case.
+	 */
+	if (ioctl (fd, FIONBIO, (void *) &flag) == -1) {
+		GVNC_DEBUG ("Failed to set nonblocking flag, winsock error = %d",
+			    WSAGetLastError ());
+		return FALSE;
+	}
+#endif /* WIN32 */
+
 	return TRUE;
 }
 
