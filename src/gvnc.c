@@ -380,7 +380,7 @@ static int gvnc_read(struct gvnc *gvnc, void *data, size_t len)
 					ret = -1;
 				}
 			} else
-				ret = read(fd, gvnc->read_buffer, 4096);
+				ret = recv (fd, gvnc->read_buffer, 4096, 0);
 
 			if (ret == -1) {
 				switch (errno) {
@@ -439,9 +439,9 @@ static void gvnc_flush(struct gvnc *gvnc)
 				ret = -1;
 			}
 		} else
-			ret = write(fd,
+			ret = send (fd,
 				    gvnc->write_buffer+offset,
-				    gvnc->write_offset-offset);
+				    gvnc->write_offset-offset, 0);
 		if (ret == -1) {
 			switch (errno) {
 			case EWOULDBLOCK:
