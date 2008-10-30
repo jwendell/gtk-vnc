@@ -1903,7 +1903,7 @@ static int vnc_display_set_x509_credential(VncDisplay *obj, const char *name)
 {
 	char file[PATH_MAX];
 	char sysdir[PATH_MAX];
-#ifndef __MINGW32__
+#ifndef WIN32
 	char userdir[PATH_MAX];
 	struct passwd *pw;
 	char *dirs[] = { sysdir, userdir };
@@ -1914,7 +1914,7 @@ static int vnc_display_set_x509_credential(VncDisplay *obj, const char *name)
 	strncpy(sysdir, SYSCONFDIR "/pki", PATH_MAX-1);
 	sysdir[PATH_MAX-1] = '\0';
 
-#ifndef __MINGW32__
+#ifndef WIN32
 	if (!(pw = getpwuid(getuid())))
 		return TRUE;
 
