@@ -347,7 +347,6 @@ static int gvnc_zread(struct gvnc *gvnc, void *buffer, size_t size)
 
 static int gvnc_read(struct gvnc *gvnc, void *data, size_t len)
 {
-	int fd = g_io_channel_unix_get_fd(gvnc->channel);
 	char *ptr = data;
 	size_t offset = 0;
 
@@ -380,7 +379,7 @@ static int gvnc_read(struct gvnc *gvnc, void *data, size_t len)
 					ret = -1;
 				}
 			} else
-				ret = recv (fd, gvnc->read_buffer, 4096, 0);
+				ret = recv (gvnc->fd, gvnc->read_buffer, 4096, 0);
 
 			if (ret == -1) {
 				switch (errno) {
@@ -422,7 +421,6 @@ static int gvnc_read(struct gvnc *gvnc, void *data, size_t len)
 
 static void gvnc_flush(struct gvnc *gvnc)
 {
-	int fd = g_io_channel_unix_get_fd(gvnc->channel);
 	size_t offset = 0;
 	while (offset < gvnc->write_offset) {
 		int ret;
@@ -439,7 +437,7 @@ static void gvnc_flush(struct gvnc *gvnc)
 				ret = -1;
 			}
 		} else
-			ret = send (fd,
+			ret = send (gvnc->fd,
 				    gvnc->write_buffer+offset,
 				    gvnc->write_offset-offset, 0);
 		if (ret == -1) {
@@ -490,11 +488,10 @@ static ssize_t gvnc_tls_push(gnutls_transport_ptr_t transport,
 			      const void *data,
 			      size_t len) {
 	struct gvnc *gvnc = (struct gvnc *)transport;
-	int fd = g_io_channel_unix_get_fd(gvnc->channel);
 	int ret;
 
  retry:
-	ret = write(fd, data, len);
+	ret = write(gvnc->fd, data, len);
 	if (ret < 0) {
 		if (errno == EINTR)
 			goto retry;
@@ -508,11 +505,10 @@ static ssize_t gvnc_tls_pull(gnutls_transport_ptr_t transport,
 			     void *data,
 			     size_t len) {
 	struct gvnc *gvnc = (struct gvnc *)transport;
-	int fd = g_io_channel_unix_get_fd(gvnc->channel);
 	int ret;
 
  retry:
-	ret = read(fd, data, len);
+	ret = read(gvnc->fd, data, len);
 	if (ret < 0) {
 		if (errno == EINTR)
 			goto retry;
@@ -2872,7 +2868,13 @@ gboolean gvnc_open_fd(struct gvnc *gvnc, int fd)
 	if (!gvnc_set_nonblock(fd))
 		return FALSE;
 
-	if (!(gvnc->channel = g_io_channel_unix_new(fd))) {
+	if (!(gvnc->channel =
+#ifdef WIN32
+	      g_io_channel_win32_new_socket(_get_osfhandle(fd))
+#else
+	      g_io_channel_unix_new(fd)
+#endif
+	      )) {
 		GVNC_DEBUG ("Failed to g_io_channel_unix_new()\n");
 		return FALSE;
 	}
@@ -2917,7 +2919,13 @@ gboolean gvnc_open_host(struct gvnc *gvnc, const char *host, const char *port)
 		if (!gvnc_set_nonblock(fd))
 			break;
 
-                if (!(chan = g_io_channel_unix_new(fd))) {
+                if (!(chan =
+#ifdef WIN32
+		      g_io_channel_win32_new_socket(_get_osfhandle(fd))
+#else
+		      g_io_channel_unix_new(fd)
+#endif
+		      )) {
                         close(fd);
                         GVNC_DEBUG ("Failed to g_io_channel_unix_new()\n");
                         break;
