@@ -1950,21 +1950,27 @@ static void gvnc_framebuffer_update(struct gvnc *gvnc, int32_t etype,
 	switch (etype) {
 	case GVNC_ENCODING_RAW:
 		gvnc_raw_update(gvnc, x, y, width, height);
+		gvnc_update(gvnc, x, y, width, height);
 		break;
 	case GVNC_ENCODING_COPY_RECT:
 		gvnc_copyrect_update(gvnc, x, y, width, height);
+		gvnc_update(gvnc, x, y, width, height);
 		break;
 	case GVNC_ENCODING_RRE:
 		gvnc_rre_update(gvnc, x, y, width, height);
+		gvnc_update(gvnc, x, y, width, height);
 		break;
 	case GVNC_ENCODING_HEXTILE:
 		gvnc_hextile_update(gvnc, x, y, width, height);
+		gvnc_update(gvnc, x, y, width, height);
 		break;
 	case GVNC_ENCODING_ZRLE:
 		gvnc_zrle_update(gvnc, x, y, width, height);
+		gvnc_update(gvnc, x, y, width, height);
 		break;
 	case GVNC_ENCODING_TIGHT:
 		gvnc_tight_update(gvnc, x, y, width, height);
+		gvnc_update(gvnc, x, y, width, height);
 		break;
 	case GVNC_ENCODING_DESKTOP_RESIZE:
 		gvnc_resize(gvnc, width, height);
@@ -1990,8 +1996,6 @@ static void gvnc_framebuffer_update(struct gvnc *gvnc, int32_t etype,
 		gvnc->has_error = TRUE;
 		break;
 	}
-
-	gvnc_update(gvnc, x, y, width, height);
 }
 
 gboolean gvnc_server_message(struct gvnc *gvnc)
