@@ -1822,8 +1822,15 @@ static void gvnc_server_cut_text(struct gvnc *gvnc, const void *data,
 
 static void gvnc_resize(struct gvnc *gvnc, int width, int height)
 {
-	if (gvnc->has_error || !gvnc->ops.resize)
+	if (gvnc->has_error)
 		return;
+
+	gvnc->width = width;
+	gvnc->height = height;
+
+	if (!gvnc->ops.resize)
+		return;
+
 	if (!gvnc->ops.resize(gvnc->ops_data, width, height)) {
 		GVNC_DEBUG("Closing the connection: gvnc_resize\n");
 		gvnc->has_error = TRUE;
