@@ -622,9 +622,7 @@ static gboolean motion_event(GtkWidget *widget, GdkEventMotion *motion)
 static gboolean key_event(GtkWidget *widget, GdkEventKey *key)
 {
 	VncDisplayPrivate *priv = VNC_DISPLAY(widget)->priv;
-	guint keyval;
-	gint group, level;
-	GdkModifierType consumed;
+	int i;
 
 	if (priv->gvnc == NULL || !gvnc_is_initialized(priv->gvnc))
 		return FALSE;
@@ -632,35 +630,12 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *key)
 	if (priv->read_only)
 		return FALSE;
 
-	/*
-	 * Key handling in VNC is screwy. The event.keyval from GTK is
-	 * interpreted relative to modifier state. This really messes
-	 * up with VNC which has no concept of modifiers - it just sees
-	 * key up & down events - the remote end interprets modifiers
-	 * itself. So if we interpret at the client end you can end up
-	 * with 'Alt' key press generating Alt_L, and key release generating
-	 * ISO_Prev_Group. This really really confuses the VNC server
-	 * with 'Alt' getting stuck on.
-	 *
-	 * So we have to redo GTK's  keycode -> keyval translation
-	 * using only the SHIFT modifier which the RFB explicitly
-	 * requires to be interpreted at client end.
-	 *
-	 * Arggggh.
-	 */
-	gdk_keymap_translate_keyboard_state(gdk_keymap_get_default(),
-					    key->hardware_keycode,
-					    key->state & (GDK_SHIFT_MASK | GDK_LOCK_MASK),
-					    key->group,
-					    &keyval,
-					    &group,
-					    &level,
-					    &consumed);
-
-	keyval = x_keymap_get_keyval_from_keycode(key->hardware_keycode, keyval);
+	fprintf(stderr, "\n\n%s keycode: %d  state: %d  group %d, keyval: %d\n",
+		key->type == GDK_KEY_PRESS ? "press" : "release",
+		key->hardware_keycode, key->state, key->group, key->keyval);
 
 	/*
-	 * More VNC suckiness with key state & modifiers in particular
+	 * Some VNC suckiness with key state & modifiers in particular
 	 *
 	 * Because VNC has no concept of modifiers, we have to track what keys are
 	 * pressed and when the widget looses focus send fake key up events for all
@@ -676,48 +651,49 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *key)
 	 *
 	 * Arggggh.
 	 */
+
+	/*
+	 * First the key release handling. This is *always* run, even for Key press
+	 * events, because GTK will often merge sequential press+release pairs of
+	 * the same key into a sequence of press+press+press+press+release. VNC
+	 * servers don't like this, so we have to see if we're already pressed
+	 * send release events. So, we run the release handling code all the time.
+	 */
+	for (i = 0 ; i < (int)(sizeof(priv->down_keyval)/sizeof(priv->down_keyval[0])) ; i++) {
+		/* We were pressed, and now we're released, so... */
+		if (priv->down_scancode[i] == key->hardware_keycode) {
+			/*
+			 * ..send the key release event we're dealing with
+			 *
+			 * NB, we use priv->down_keyval[i], and not our
+			 * current 'keyval', because we need to make sure
+			 * that the release keyval is identical to the
+			 * press keyval. In some layouts, this isn't always
+			 * true, with "Tab" generating Tab on press, and
+			 * ISO_Prev_Group on release.
+			 */
+			gvnc_key_event(priv->gvnc, 0, priv->down_keyval[i], key->hardware_keycode);
+			priv->down_keyval[i] = 0;
+			priv->down_scancode[i] = 0;
+			break;
+		}
+	}
+
 	if (key->type == GDK_KEY_PRESS) {
-		int i;
 		for (i = 0 ; i < (int)(sizeof(priv->down_keyval)/sizeof(priv->down_keyval[0])) ; i++) {
 			if (priv->down_scancode[i] == 0) {
-				priv->down_keyval[i] = keyval;
+				priv->down_keyval[i] = key->keyval;
 				priv->down_scancode[i] = key->hardware_keycode;
 				/* Send the actual key event we're dealing with */
-				gvnc_key_event(priv->gvnc, 1, keyval, key->hardware_keycode);
-				break;
-			} else if (priv->down_scancode[i] == key->hardware_keycode) {
-				/* Got an press when we're already pressed ! Why ... ?
-				 *
-				 * Well, GTK merges sequential press+release pairs of the same
-				 * key so instead of press+release,press+release,press+release
-				 * we only get press+press+press+press+press+release. This
-				 * really annoys some VNC servers, so we have to un-merge
-				 * them into a sensible stream of press+release pairs
-				 */
-				/* Fake an up event for the previous down event */
-				gvnc_key_event(priv->gvnc, 0, keyval, key->hardware_keycode);
-				/* Now send our actual ldown event */
-				gvnc_key_event(priv->gvnc, 1, keyval, key->hardware_keycode);
-				break;
-			}
-		}
-	} else {
-		int i;
-		for (i = 0 ; i < (int)(sizeof(priv->down_keyval)/sizeof(priv->down_keyval[0])) ; i++) {
-			/* We were pressed, and now we're released, so... */
-			if (priv->down_scancode[i] == key->hardware_keycode) {
-				priv->down_keyval[i] = 0;
-				priv->down_scancode[i] = 0;
-				/* ..send the key release event we're dealing with */
-				gvnc_key_event(priv->gvnc, 0, keyval, key->hardware_keycode);
+				gvnc_key_event(priv->gvnc, 1, key->keyval, key->hardware_keycode);
 				break;
 			}
 		}
 	}
 
 	if (key->type == GDK_KEY_PRESS &&
-	    ((keyval == GDK_Control_L && (key->state & GDK_MOD1_MASK)) ||
-	     (keyval == GDK_Alt_L && (key->state & GDK_CONTROL_MASK)))) {
+	    ((key->keyval == GDK_Control_L && (key->state & GDK_MOD1_MASK)) ||
+	     (key->keyval == GDK_Alt_L && (key->state & GDK_CONTROL_MASK)))) {
 		if (priv->in_pointer_grab)
 			do_pointer_ungrab(VNC_DISPLAY(widget), FALSE);
 		else if (!priv->grab_keyboard || !priv->absolute)
