@@ -640,9 +640,9 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *key)
 	if (priv->read_only)
 		return FALSE;
 
-	fprintf(stderr, "\n\n%s keycode: %d  state: %d  group %d, keyval: %d\n",
-		key->type == GDK_KEY_PRESS ? "press" : "release",
-		key->hardware_keycode, key->state, key->group, key->keyval);
+	GVNC_DEBUG("%s keycode: %d  state: %d  group %d, keyval: %d\n",
+		   key->type == GDK_KEY_PRESS ? "press" : "release",
+		   key->hardware_keycode, key->state, key->group, key->keyval);
 
 	/*
 	 * Some VNC suckiness with key state & modifiers in particular
