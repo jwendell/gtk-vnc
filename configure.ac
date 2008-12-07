@@ -242,6 +242,7 @@ AC_CONFIG_FILES(
   plugin/Makefile
   gtk-vnc-1.0.pc
   gtk-vnc.spec
+  mingw32-gtk-vnc.spec
   )
 
 AC_OUTPUT
