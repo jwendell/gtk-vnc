@@ -24,7 +24,9 @@
 #include <stdint.h>
 #include <gdk/gdk.h>
 
-uint8_t x_keycode_to_pc_keycode(int keycode);
+const uint8_t const *x_keycode_to_pc_keycode_map(void);
+uint16_t x_keycode_to_pc_keycode(const uint8_t *keycode_map,
+				 uint16_t keycode);
 void x_keymap_set_keymap_entries(void);
 void x_keymap_free_keymap_entries(void);
 guint x_keymap_get_keyval_from_keycode(guint keycode, guint keyval);

@@ -50,7 +50,6 @@
 
 #include <gdk/gdkkeysyms.h>
 
-#include "vnc_keycodes.h"
 #include "getaddrinfo.h"
 
 /* AI_ADDRCONFIG is missing on some systems and gnulib won't provide it
@@ -183,6 +182,7 @@ struct gvnc
 	int zrle_pi_bits;
 
 	gboolean has_ext_key_event;
+	const uint8_t const *keycode_map;
 };
 
 #define nibhi(a) (((a) >> 4) & 0x0F)
@@ -936,11 +936,9 @@ gboolean gvnc_key_event(struct gvnc *gvnc, uint8_t down_flag,
 {
 	uint8_t pad[2] = {0};
 
+	GVNC_DEBUG("Key event %d %d %d %d", key, scancode, down_flag, gvnc->has_ext_key_event);
 	if (gvnc->has_ext_key_event) {
-		if (key == GDK_Pause)
-			scancode = VKC_PAUSE;
-		else
-			scancode = x_keycode_to_pc_keycode(scancode);
+		scancode = x_keycode_to_pc_keycode(gvnc->keycode_map, scancode);
 
 		gvnc_buffered_write_u8(gvnc, 255);
 		gvnc_buffered_write_u8(gvnc, 0);
@@ -1956,6 +1954,11 @@ static void gvnc_xcursor(struct gvnc *gvnc, int x, int y, int width, int height)
 	g_free(pixbuf);
 }
 
+static void gvnc_ext_key_event(struct gvnc *gvnc)
+{
+	gvnc->has_ext_key_event = TRUE;
+	gvnc->keycode_map = x_keycode_to_pc_keycode_map();
+}
 
 static void gvnc_framebuffer_update(struct gvnc *gvnc, int32_t etype,
 				    uint16_t x, uint16_t y,
@@ -2006,7 +2009,7 @@ static void gvnc_framebuffer_update(struct gvnc *gvnc, int32_t etype,
 		gvnc_xcursor(gvnc, x, y, width, height);
 		break;
 	case GVNC_ENCODING_EXT_KEY_EVENT:
-		gvnc->has_ext_key_event = TRUE;
+		gvnc_ext_key_event(gvnc);
 		break;
 	default:
 		GVNC_DEBUG("Received an unknown encoding type: %d\n", etype);
