@@ -1,8 +1,189 @@
+2008-12-07  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* src/gvnc.c, src/x_keymap.c, src/x_keymap.h:
+	Fix key mapping with evdev
+	[49bde4aa5c01] [tip]
+
+	* Makefile.am, autobuild.sh, configure.ac, mingw32-gtk-vnc.spec.in:
+	Initial RPM spec for mingw & add mingw to automated builds
+	[a247100905c7]
+
+2008-11-26  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* src/vncdisplay.c:
+	Use GVNC_DEBUG instead of fprintf for diagnostic
+	[6178e73ea19b]
+
+2008-11-19  anthony  <anthony@squirrel>
+
+	* src/continuation.c, src/coroutine_gthread.c,
+	src/coroutine_ucontext.c, src/gvnc.c, src/vncdisplay.c:
+	branch merge
+	[91c12c4984c9]
+
+	* examples/gvncviewer.c, examples/gvncviewer.py, src/blt.h,
+	src/blt1.h, src/continuation.c, src/continuation.h, src/coroutine.h,
+	src/coroutine_gthread.c, src/coroutine_ucontext.c, src/gvnc.c,
+	src/gvnc.h, src/utils.h, src/vnc_keycodes.h, src/vncdisplay.c,
+	src/vncdisplay.h, src/vncmodule.c, src/x_keymap.c, src/x_keymap.h:
+	Update licensing text for all files to be the full FSF LGPL
+	preamble.
+
+	Signed-off-by: Anthony Liguori <anthony@codemonkey.ws>
+	[073d39393eff]
+
+	* src/d3des.c, src/d3des.h:
+	Switch to an older, still public domain version of d3des. The
+	RealVNC changes were GPL and we wish to remain LGPL.
+	[726e2cb86082]
+
+2008-11-17  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* src/vncdisplay.c:
+	Simplify keyboard modifier handling to try and fix non-US keyboards
+	[974dbf1cc505]
+
+2008-11-12  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* src/gvnc.c:
+	Save updates dimensions from resize event
+	[610b8cf46138]
+
+	* src/gvnc.c:
+	Avoid triggering bogus screen updates for pseudo-encodings
+	[2fa7d9dd62c8]
+
+	* src/gvnc.c:
+	Fix Win32 socket/fd handle mix-up. Make read/write routines always
+	use the FD, not the giochannel which could be a socket handle on
+	win32
+	[cbdd9755a6b0]
+
+2008-10-30  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* plugin/Makefile.am:
+	Fix $(DESTDIR) in plugin rule
+	[fa5bd6e978ec]
+
+	* configure.ac:
+	Use LIBS instead of LDFLAGS when checking for cairo for Win32
+	portability (Richard Jones)
+	[e4d8c112fafa]
+
+	* .hgignore:
+	Ignore more gnulib files
+	[f93a690c02ca]
+
+	* src/vncdisplay.c:
+	Replace __MINGW32__ with WIN32 macro (Richard Jones)
+	[173819a13d90]
+
+	* src/vncdisplay.c:
+	Call winsock initialization functions on startup (patch from Richard
+	Jones)
+	[6224c2676f76]
+
+	* src/gvnc.c:
+	Use ioctl() instead of ioctlsocket() on Win32 platforms
+	[c2c6540e064e]
+
+	* src/gvnc.c:
+	Switch to using recv/send for I/O to work on Win32 platforms
+	[33ce405f271f]
+
+2008-10-09  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* .hgignore, Makefile.am, autogen.sh, bootstrap, configure.ac,
+	gnulib/lib/Makefile.am, gnulib/lib/alloca.in.h,
+	gnulib/lib/arpa_inet.in.h, gnulib/lib/asnprintf.c,
+	gnulib/lib/dummy.c, gnulib/lib/errno.in.h, gnulib/lib/float+.h,
+	gnulib/lib/float.in.h, gnulib/lib/gai_strerror.c,
+	gnulib/lib/getaddrinfo.c, gnulib/lib/getaddrinfo.h,
+	gnulib/lib/gettext.h, gnulib/lib/inet_ntop.c, gnulib/lib/malloc.c,
+	gnulib/lib/netinet_in.in.h, gnulib/lib/printf-args.c, gnulib/lib
+	/printf-args.h, gnulib/lib/printf-parse.c, gnulib/lib/printf-
+	parse.h, gnulib/lib/size_max.h, gnulib/lib/snprintf.c,
+	gnulib/lib/stdbool.in.h, gnulib/lib/stdint.in.h, gnulib/lib/stdio-
+	write.c, gnulib/lib/stdio.in.h, gnulib/lib/stdlib.in.h,
+	gnulib/lib/sys_socket.in.h, gnulib/lib/unistd.in.h,
+	gnulib/lib/vasnprintf.c, gnulib/lib/vasnprintf.h,
+	gnulib/lib/wchar.in.h, gnulib/lib/winsock.c, gnulib/lib/xsize.h,
+	gnulib/m4/alloca.m4, gnulib/m4/arpa_inet_h.m4, gnulib/m4/errno_h.m4,
+	gnulib/m4/extensions.m4, gnulib/m4/float_h.m4,
+	gnulib/m4/getaddrinfo.m4, gnulib/m4/gnulib-cache.m4, gnulib/m4
+	/gnulib-common.m4, gnulib/m4/gnulib-comp.m4, gnulib/m4/gnulib-
+	tool.m4, gnulib/m4/include_next.m4, gnulib/m4/inet_ntop.m4,
+	gnulib/m4/intmax_t.m4, gnulib/m4/inttypes_h.m4,
+	gnulib/m4/longlong.m4, gnulib/m4/malloc.m4,
+	gnulib/m4/netinet_in_h.m4, gnulib/m4/onceonly.m4,
+	gnulib/m4/printf.m4, gnulib/m4/size_max.m4, gnulib/m4/snprintf.m4,
+	gnulib/m4/socklen.m4, gnulib/m4/sockpfaf.m4, gnulib/m4/stdbool.m4,
+	gnulib/m4/stdint.m4, gnulib/m4/stdint_h.m4, gnulib/m4/stdio_h.m4,
+	gnulib/m4/stdlib_h.m4, gnulib/m4/sys_socket_h.m4,
+	gnulib/m4/unistd_h.m4, gnulib/m4/vasnprintf.m4, gnulib/m4/wchar.m4,
+	gnulib/m4/wchar_t.m4, gnulib/m4/wint_t.m4, gnulib/m4/xsize.m4,
+	gnulib/tests/Makefile.am, gnulib/tests/dummy.c,
+	gnulib/tests/intprops.h, gnulib/tests/test-alloca-opt.c,
+	gnulib/tests/test-arpa_inet.c, gnulib/tests/test-errno.c,
+	gnulib/tests/test-getaddrinfo.c, gnulib/tests/test-netinet_in.c,
+	gnulib/tests/test-snprintf.c, gnulib/tests/test-stdbool.c,
+	gnulib/tests/test-stdint.c, gnulib/tests/test-stdio.c, gnulib/tests
+	/test-stdlib.c, gnulib/tests/test-sys_socket.c, gnulib/tests/test-
+	unistd.c, gnulib/tests/test-vasnprintf.c, gnulib/tests/test-vc-list-
+	files-cvs.sh, gnulib/tests/test-vc-list-files-git.sh, gnulib/tests
+	/test-wchar.c, gnulib/tests/verify.h, link-warning.h,
+	src/Makefile.am, src/continuation.c, src/coroutine_gthread.c,
+	src/coroutine_ucontext.c, src/gvnc.c, src/vncdisplay.c, vc-list-
+	files:
+	Import gnulib, and make use of it for mingw portability
+	[47135c91cd9c]
+
+	* Merge heads
+	[ed5db286ac58]
+
+	* src/coroutine_gthread.c:
+	Add missing mutex lock calls at init time
+	[085766df1230]
+
+	* src/vncdisplay.c:
+	Allow ungrab sequence if currently grabbed, even if abs pointer mode
+	is active
+	[1bae3a18e487]
+
+2008-09-15  Jonh Wendell  <wendell@bani.com.br>
+
+	* src/vncdisplay.c:
+	Fix the scaling factor for mouse motion.
+	[a3c68b4f30bd]
+
+	* configure.ac:
+	Fix checking gdk_cairo_create() in configure.ac
+	[9a343b80cd39]
+
+2008-09-11  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* configure.ac, src/vncdisplay.c:
+	Use cairo for drawing if available, including scaling support
+	[cf0e849385e0]
+
+	* configure.ac, examples/Makefile.am, gtk-vnc.spec.in,
+	plugin/Makefile.am, src/Makefile.am, src/vncdisplay.c:
+	Remove use of gtkglext for scaling
+	[6f896a6017cc]
+
 2008-09-05  "Daniel P. Berrange  <berrange@redhat.com>
+
+	* .hgtags:
+	Added tag release-0.3.7 for changeset 37c0b4255895
+	[f1d5c8fae2e9]
+
+	* ChangeLog:
+	Re-generate changelog
+	[37c0b4255895] [release-0.3.7]
 
 	* NEWS, configure.ac:
 	Update version & NEWS for 0.3.7
-	[d5ebf650aad6] [tip]
+	[d5ebf650aad6]
 
 	* src/vncdisplay.c:
 	Register internal signal handlers against class, instead of each

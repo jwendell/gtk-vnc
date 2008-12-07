@@ -1,6 +1,6 @@
 dnl Process this file with autoconf to produce a configure script.
 
-AC_INIT([gtk-vnc], [0.3.7], [anthony@codemonkey.ws])
+AC_INIT([gtk-vnc], [0.3.8], [anthony@codemonkey.ws])
 AC_CONFIG_SRCDIR([src/gvnc.c])
 
 GTK_REQUIRED=2.10.0
@@ -22,7 +22,7 @@ AC_CONFIG_HEADERS([config.h:config.hin])
 
 AC_CANONICAL_TARGET
 
-AM_INIT_AUTOMAKE(gtk-vnc, 0.3.7)
+AM_INIT_AUTOMAKE(gtk-vnc, 0.3.8)
 
 
 dnl gl_INIT uses m4_foreach_w, yet that is not defined in autoconf-2.59.

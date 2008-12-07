@@ -1,6 +1,27 @@
     GTK VNC News
     ============
 
+Dec 7, 2008: Release 0.3.8
+==========================
+
+Bug fixes:
+
+ o Fix threads based coroutine locking
+ o Switch to alternate d3des code for clarity in
+   licensing terms
+ o Re-write keycode handling to improve correctness on
+   non-US keyboard layouts
+ o Fix keycode to scancode translation for evdev keyboard
+   driver
+ o Save dimensions when getting desktop resize events
+ o Avoid bogus framebuffer updates from psuedo-encodings
+ o Always allow key ungrab if keyboard grab is active
+
+New features:
+
+ o Use Cairo for scaling support instead of OpenGL
+ o Ported to compile & run under Win32/MinGW
+
 Sep 5, 2008: Release 0.3.7
 ==========================
 
