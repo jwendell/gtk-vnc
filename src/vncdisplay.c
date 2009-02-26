@@ -439,14 +439,22 @@ static void do_pointer_grab(VncDisplay *obj, gboolean quiet)
 	if (!priv->grab_keyboard)
 		do_keyboard_grab(obj, quiet);
 
+	/*
+	 * For relative mouse to work correctly when grabbed we need to
+	 * allow the pointer to move anywhere on the local desktop, so
+	 * use NULL for the 'confine_to' argument. Furthermore we need
+	 * the coords to be reported to our VNC window, regardless of
+	 * what window the pointer is actally over, so use 'FALSE' for
+	 * 'owner_events' parameter
+	 */
 	gdk_pointer_grab(GTK_WIDGET(obj)->window,
-			 TRUE,
+			 FALSE, /* All events to come to our window directly */
 			 GDK_POINTER_MOTION_MASK |
 			 GDK_BUTTON_PRESS_MASK |
 			 GDK_BUTTON_RELEASE_MASK |
 			 GDK_BUTTON_MOTION_MASK |
 			 GDK_SCROLL_MASK,
-			 GTK_WIDGET(obj)->window,
+			 NULL, /* Allow cursor to move over entire desktop */
 			 priv->remote_cursor ? priv->remote_cursor : priv->null_cursor,
 			 GDK_CURRENT_TIME);
 	priv->in_pointer_grab = TRUE;
@@ -551,15 +559,33 @@ static gboolean scroll_event(GtkWidget *widget, GdkEventScroll *scroll)
 	return TRUE;
 }
 
+
+/*
+ * There are several scenarios to considier when handling client
+ * mouse motion events:
+ *
+ *  - Mouse in relative mode + centered rendering of desktop
+ *  - Mouse in relative mode + scaled rendering of desktop
+ *  - Mouse in absolute mode + centered rendering of desktop
+ *  - Mouse in absolute mode + scaled rendering of desktop
+ *
+ * Once scaled / offset, absolute mode is easy.
+ *
+ * Relative mode has a couple of special complications
+ *
+ *  - Need to turn client absolute events into a delta
+ *  - Need to warp local pointer to avoid hitting a wall
+ */
 static gboolean motion_event(GtkWidget *widget, GdkEventMotion *motion)
 {
 	VncDisplayPrivate *priv = VNC_DISPLAY(widget)->priv;
-	int dx, dy;
 	int ww, wh;
 
 	if (priv->gvnc == NULL || !gvnc_is_initialized(priv->gvnc))
 		return FALSE;
 
+	/* In relative mode, only move the server mouse pointer
+	 * if the client grab is active */
 	if (!priv->absolute && !priv->in_pointer_grab)
 		return FALSE;
 
@@ -568,11 +594,14 @@ static gboolean motion_event(GtkWidget *widget, GdkEventMotion *motion)
 
 	gdk_drawable_get_size(widget->window, &ww, &wh);
 
+	/* First apply adjustments to the coords in the motion event */
 	if (priv->allow_scaling) {
 		double sx, sy;
 		sx = (double)priv->fb.width / (double)ww;
 		sy = (double)priv->fb.height / (double)wh;
 
+		/* Scaling the desktop, so scale the mouse coords
+		 * by same ratio */
 		motion->x *= sx;
 		motion->y *= sy;
 	} else {
@@ -583,21 +612,28 @@ static gboolean motion_event(GtkWidget *widget, GdkEventMotion *motion)
 		if (wh > priv->fb.height)
 			mh = (wh - priv->fb.height) / 2;
 
+		/* Not scaling, drawing the desktop centered
+		 * in the larger window, so offset the mouse
+		 * coords to match centering */
 		motion->x -= mw;
 		motion->y -= mh;
-
-		if (motion->x < 0 || motion->x >= priv->fb.width ||
-		    motion->y < 0 || motion->y >= priv->fb.height)
-			return FALSE;
 	}
 
-	if (!priv->absolute && priv->in_pointer_grab) {
+	/* Next adjust the real client pointer */
+	if (!priv->absolute) {
 		GdkDrawable *drawable = GDK_DRAWABLE(widget->window);
 		GdkDisplay *display = gdk_drawable_get_display(drawable);
 		GdkScreen *screen = gdk_drawable_get_screen(drawable);
 		int x = (int)motion->x_root;
 		int y = (int)motion->y_root;
 
+		/* In relative mode check to see if client pointer hit
+		 * one of the screen edges, and if so move it back by
+		 * 200 pixels. This is important because the pointer
+		 * in the server doesn't correspond 1-for-1, and so
+		 * may still be only half way across the screen. Without
+		 * this warp, the server pointer would thus appear to hit
+		 * an invisible wall */
 		if (x == 0) x += 200;
 		if (y == 0) y += 200;
 		if (x == (gdk_screen_get_width(screen) - 1)) x -= 200;
@@ -611,11 +647,20 @@ static gboolean motion_event(GtkWidget *widget, GdkEventMotion *motion)
 		}
 	}
 
+	/* Finally send the event to server */
 	if (priv->last_x != -1) {
+		int dx, dy;
 		if (priv->absolute) {
 			dx = (int)motion->x;
 			dy = (int)motion->y;
+
+			/* Drop out of bounds motion to avoid upsetting
+			 * the server */
+			if (dx < 0 || dx >= priv->fb.width ||
+			    dy < 0 || dy >= priv->fb.height)
+				return FALSE;
 		} else {
+			/* Just send the delta since last motion event */
 			dx = (int)motion->x + 0x7FFF - priv->last_x;
 			dy = (int)motion->y + 0x7FFF - priv->last_y;
 		}
