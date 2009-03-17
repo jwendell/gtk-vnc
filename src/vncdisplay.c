@@ -1163,9 +1163,13 @@ static gboolean on_auth_unsupported(void *opaque, unsigned int auth_type)
 static gboolean on_server_cut_text(void *opaque, const void* text, size_t len)
 {
 	VncDisplay *obj = VNC_DISPLAY(opaque);
-	GString *str = g_string_new_len ((const gchar *)text, len);
+	GString *str;
 	struct signal_data s;
 
+	if (obj->priv->read_only)
+		return TRUE;
+
+	str = g_string_new_len ((const gchar *)text, len);
 	s.str = str;
 	emit_signal_delayed(obj, VNC_SERVER_CUT_TEXT, &s);
 
@@ -2112,7 +2116,8 @@ void vnc_display_client_cut_text(VncDisplay *obj, const gchar *text)
 {
 	g_return_if_fail (VNC_IS_DISPLAY (obj));
 
-	gvnc_client_cut_text(obj->priv->gvnc, text, strlen (text));
+	if (!obj->priv->read_only)
+		gvnc_client_cut_text(obj->priv->gvnc, text, strlen (text));
 }
 
 void vnc_display_set_lossy_encoding(VncDisplay *obj, gboolean enable)
