@@ -51,6 +51,7 @@
 #include <gdk/gdkkeysyms.h>
 
 #include "getaddrinfo.h"
+#include "dh.h"
 
 /* AI_ADDRCONFIG is missing on some systems and gnulib won't provide it
    even if its emulated getaddrinfo() for us . */
@@ -2172,6 +2173,83 @@ static gboolean gvnc_perform_auth_vnc(struct gvnc *gvnc)
 	return gvnc_check_auth_result(gvnc);
 }
 
+/*
+ *   marscha@2006 - Martin Scharpf
+ *   Encrypt bytes[length] in memory using key.
+ *   Key has to be 8 bytes, length a multiple of 8 bytes.
+ */
+static void
+vncEncryptBytes2(unsigned char *where, const int length, unsigned char *key) {
+       int i, j;
+       deskey(key, EN0);
+       for (i = 0; i< 8; i++)
+               where[i] ^= key[i];
+       des(where, where);
+       for (i = 8; i < length; i += 8) {
+               for (j = 0; j < 8; j++)
+                       where[i + j] ^= where[i + j - 8];
+               des(where + i, where + i);
+       }
+}
+
+static gboolean gvnc_perform_auth_mslogon(struct gvnc *gvnc)
+{
+       struct gvnc_dh *dh;
+       guchar gen[8], mod[8], resp[8], pub[8], key[8];
+       gcry_mpi_t genmpi, modmpi, respmpi, pubmpi, keympi;
+       guchar username[256], password[64];
+       guint passwordLen, usernameLen;
+
+       GVNC_DEBUG("Do Challenge\n");
+       if (!gvnc->cred_username)
+               return FALSE;
+       if (!gvnc->cred_password)
+               return FALSE;
+
+       gvnc_read(gvnc, gen, sizeof(gen));
+       gvnc_read(gvnc, mod, sizeof(mod));
+       gvnc_read(gvnc, resp, sizeof(resp));
+
+       genmpi = gvnc_bytes_to_mpi(gen);
+       modmpi = gvnc_bytes_to_mpi(mod);
+       respmpi = gvnc_bytes_to_mpi(resp);
+
+       dh = gvnc_dh_new(genmpi, modmpi);
+
+       pubmpi = gvnc_dh_gen_secret(dh);
+       gvnc_mpi_to_bytes(pubmpi, pub);
+
+       gvnc_write(gvnc, pub, sizeof(pub));
+
+       keympi = gvnc_dh_gen_key(dh, respmpi);
+       gvnc_mpi_to_bytes(keympi, key);
+
+       passwordLen = strlen(gvnc->cred_password);
+       usernameLen = strlen(gvnc->cred_username);
+       if (passwordLen > sizeof(password))
+               passwordLen = sizeof(password);
+       if (usernameLen > sizeof(username))
+               usernameLen = sizeof(username);
+
+       memset(password, 0, sizeof password);
+       memset(username, 0, sizeof username);
+       memcpy(password, gvnc->cred_password, passwordLen);
+       memcpy(username, gvnc->cred_username, usernameLen);
+
+       vncEncryptBytes2(username, sizeof(username), key);
+       vncEncryptBytes2(password, sizeof(password), key);
+
+       gvnc_write(gvnc, username, sizeof(username));
+       gvnc_write(gvnc, password, sizeof(password));
+       gvnc_flush(gvnc);
+
+       gcry_mpi_release(genmpi);
+       gcry_mpi_release(modmpi);
+       gcry_mpi_release(respmpi);
+       gvnc_dh_free (dh);
+
+       return gvnc_check_auth_result(gvnc);
+}
 
 static gboolean gvnc_start_tls(struct gvnc *gvnc, int anonTLS)
 {
@@ -2297,6 +2375,9 @@ gboolean gvnc_wants_credential_password(struct gvnc *gvnc)
                         return TRUE;
         }
 
+       if (gvnc->auth_type == GVNC_AUTH_MSLOGON)
+               return TRUE;
+
         return FALSE;
 }
 
@@ -2308,6 +2389,9 @@ gboolean gvnc_wants_credential_username(struct gvnc *gvnc)
                     gvnc->auth_subtype == GVNC_AUTH_VENCRYPT_X509PLAIN)
                         return TRUE;
         }
+
+       if (gvnc->auth_type == GVNC_AUTH_MSLOGON)
+               return TRUE;
 
         return FALSE;
 }
@@ -2625,6 +2709,9 @@ static gboolean gvnc_perform_auth(struct gvnc *gvnc)
 
 	case GVNC_AUTH_VENCRYPT:
 		return gvnc_perform_auth_vencrypt(gvnc);
+
+	case GVNC_AUTH_MSLOGON:
+		return gvnc_perform_auth_mslogon(gvnc);
 
 	default:
 		if (gvnc->ops.auth_unsupported)
@@ -2994,6 +3081,7 @@ gboolean gvnc_set_auth_type(struct gvnc *gvnc, unsigned int type)
         }
         if (type != GVNC_AUTH_NONE &&
             type != GVNC_AUTH_VNC &&
+            type != GVNC_AUTH_MSLOGON &&
             type != GVNC_AUTH_TLS &&
             type != GVNC_AUTH_VENCRYPT) {
             	if (gvnc->ops.auth_unsupported)

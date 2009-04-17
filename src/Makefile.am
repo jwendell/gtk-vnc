@@ -20,6 +20,7 @@ gtk_vnc_include_HEADERS = vncdisplay.h
 libgtk_vnc_1_0_la_SOURCES = blt.h blt1.h \
 	coroutine.h \
 	d3des.h d3des.c \
+	dh.h dh.c \
 	gvnc.h gvnc.c \
 	vncdisplay.h vncdisplay.c \
         vncmarshal.h vncmarshal.c \

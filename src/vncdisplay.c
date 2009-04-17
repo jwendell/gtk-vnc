@@ -1910,6 +1910,7 @@ static void vnc_display_init(VncDisplay *display)
 
 	priv->preferable_auths = g_slist_append (priv->preferable_auths, GUINT_TO_POINTER (GVNC_AUTH_VENCRYPT));
 	priv->preferable_auths = g_slist_append (priv->preferable_auths, GUINT_TO_POINTER (GVNC_AUTH_TLS));
+	priv->preferable_auths = g_slist_append (priv->preferable_auths, GUINT_TO_POINTER (GVNC_AUTH_MSLOGON));
 	priv->preferable_auths = g_slist_append (priv->preferable_auths, GUINT_TO_POINTER (GVNC_AUTH_VNC));
 	priv->preferable_auths = g_slist_append (priv->preferable_auths, GUINT_TO_POINTER (GVNC_AUTH_NONE));
 

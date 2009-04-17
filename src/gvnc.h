@@ -128,7 +128,8 @@ typedef enum {
 	GVNC_AUTH_TIGHT = 16,
 	GVNC_AUTH_ULTRA = 17,
 	GVNC_AUTH_TLS = 18,  /* Used by VINO */
-	GVNC_AUTH_VENCRYPT = 19 /* Used by VeNCrypt and QEMU */
+	GVNC_AUTH_VENCRYPT = 19, /* Used by VeNCrypt and QEMU */
+	GVNC_AUTH_MSLOGON = 0xfffffffa /* Used by UltraVNC */
 } gvnc_auth;
 
 typedef enum {
