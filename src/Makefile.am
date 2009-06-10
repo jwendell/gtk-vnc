@@ -4,10 +4,10 @@ EXTRA_DIST = libgtk-vnc_sym.version vncmarshal.txt
 lib_LTLIBRARIES = libgtk-vnc-1.0.la
 
 libgtk_vnc_1_0_la_LIBADD = @GTK_LIBS@ @GNUTLS_LIBS@ \
-			   @GTHREAD_LIBS@ \
+			   @GTHREAD_LIBS@ @SASL_LIBS@ \
                            ../gnulib/lib/libgnu.la
 libgtk_vnc_1_0_la_CFLAGS = @GTK_CFLAGS@ @GNUTLS_CFLAGS@ \
-			   @GTHREAD_CFLAGS@ @WARNING_CFLAGS@ \
+			   @GTHREAD_CFLAGS@ @SASL_CFLAGS@ @WARNING_CFLAGS@ \
 			   -DSYSCONFDIR=\""$(sysconfdir)"\" \
                            -DG_LOG_DOMAIN=\"gtk-vnc\" \
                            -I$(top_srcdir)/gnulib/lib -I../gnulib/lib

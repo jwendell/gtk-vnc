@@ -1902,10 +1902,24 @@ static void vnc_display_init(VncDisplay *display)
 	priv->shared_flag = FALSE;
 	priv->force_size = TRUE;
 
+	/*
+	 * Both these two provide TLS based auth, and can layer
+	 * all the other auth types on top. So these two must
+	 * be the first listed
+	 */
 	priv->preferable_auths = g_slist_append (priv->preferable_auths, GUINT_TO_POINTER (GVNC_AUTH_VENCRYPT));
 	priv->preferable_auths = g_slist_append (priv->preferable_auths, GUINT_TO_POINTER (GVNC_AUTH_TLS));
+
+	/*
+	 * Then stackable auth types in order of preference
+	 */
+	priv->preferable_auths = g_slist_append (priv->preferable_auths, GUINT_TO_POINTER (GVNC_AUTH_SASL));
 	priv->preferable_auths = g_slist_append (priv->preferable_auths, GUINT_TO_POINTER (GVNC_AUTH_MSLOGON));
 	priv->preferable_auths = g_slist_append (priv->preferable_auths, GUINT_TO_POINTER (GVNC_AUTH_VNC));
+
+	/*
+	 * Or nothing at all
+	 */
 	priv->preferable_auths = g_slist_append (priv->preferable_auths, GUINT_TO_POINTER (GVNC_AUTH_NONE));
 
 	priv->gvnc = gvnc_new(&vnc_display_ops, obj);

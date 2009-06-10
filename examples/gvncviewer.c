@@ -241,7 +241,10 @@ static void vnc_credential(GtkWidget *vncdisplay, GValueArray *credList)
 				case VNC_DISPLAY_CREDENTIAL_PASSWORD:
 					data[i] = gtk_entry_get_text(GTK_ENTRY(entry[row]));
 					break;
+				default:
+					continue;
 				}
+				row++;
 			}
 		}
 	}
