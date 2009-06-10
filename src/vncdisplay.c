@@ -1034,7 +1034,7 @@ static gboolean on_pointer_type_change(void *opaque, int absolute)
 	VncDisplay *obj = VNC_DISPLAY(opaque);
 	VncDisplayPrivate *priv = obj->priv;
 
-	if (absolute && priv->in_pointer_grab && !priv->grab_pointer)
+	if (absolute && priv->in_pointer_grab && priv->grab_pointer)
 		do_pointer_ungrab(obj, FALSE);
 
 	priv->absolute = absolute;
