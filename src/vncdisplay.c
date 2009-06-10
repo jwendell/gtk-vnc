@@ -765,9 +765,6 @@ static gboolean enter_event(GtkWidget *widget, GdkEventCrossing *crossing)
         if (priv->gvnc == NULL || !gvnc_is_initialized(priv->gvnc))
                 return FALSE;
 
-        if (crossing->mode != GDK_CROSSING_NORMAL)
-                return FALSE;
-
         if (priv->grab_keyboard)
                 do_keyboard_grab(VNC_DISPLAY(widget), FALSE);
 
@@ -779,9 +776,6 @@ static gboolean leave_event(GtkWidget *widget, GdkEventCrossing *crossing)
         VncDisplayPrivate *priv = VNC_DISPLAY(widget)->priv;
 
         if (priv->gvnc == NULL || !gvnc_is_initialized(priv->gvnc))
-                return FALSE;
-
-        if (crossing->mode != GDK_CROSSING_NORMAL)
                 return FALSE;
 
         if (priv->grab_keyboard)
