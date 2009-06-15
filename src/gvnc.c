@@ -423,6 +423,7 @@ static int gvnc_read_wire(struct gvnc *gvnc, void *data, size_t len)
 }
 
 
+#if HAVE_SASL
 /*
  * Read at least 1 more byte of data out of the SASL decrypted
  * data buffer, into the internal read buffer
@@ -468,6 +469,7 @@ static int gvnc_read_sasl(struct gvnc *gvnc)
 	//GVNC_DEBUG("Done read write %d - %d", want, gvnc->has_error);
 	return want;
 }
+#endif
 
 
 /*
@@ -588,6 +590,7 @@ static void gvnc_flush_wire(struct gvnc *gvnc,
 }
 
 
+#if HAVE_SASL
 /*
  * Encode all buffered data, write all encrypted data out
  * to the wire
@@ -611,6 +614,7 @@ static void gvnc_flush_sasl(struct gvnc *gvnc)
 	//GVNC_DEBUG("Flush SASL %d: %p %d", gvnc->write_offset, output, outputlen);
 	gvnc_flush_wire(gvnc, output, outputlen);
 }
+#endif
 
 /*
  * Write all buffered data straight out to the wire
