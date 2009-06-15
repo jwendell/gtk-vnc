@@ -276,7 +276,7 @@ static GdkCursor *create_null_cursor(void)
 	cursor = gdk_cursor_new_from_pixmap(GDK_PIXMAP(image),
 					    GDK_PIXMAP(image),
 					    &fg, &fg, 0, 0);
-	gdk_bitmap_unref(image);
+	g_object_unref(image);
 
 	return cursor;
 }
@@ -1199,7 +1199,7 @@ static gboolean on_local_cursor(void *opaque, int x, int y, int width, int heigh
 		priv->remote_cursor = gdk_cursor_new_from_pixbuf(display,
 								 pixbuf,
 								 x, y);
-		gdk_pixbuf_unref(pixbuf);
+		g_object_unref(pixbuf);
 	}
 
 	if (priv->in_pointer_grab) {
@@ -1252,7 +1252,7 @@ static gboolean on_render_jpeg(void *opaque G_GNUC_UNUSED,
 	       gdk_pixbuf_get_pixels(p),
 	       gdk_pixbuf_get_rowstride(p));
 
-	gdk_pixbuf_unref(p);
+	g_object_unref(p);
 
 	return TRUE;
 }

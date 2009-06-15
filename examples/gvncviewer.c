@@ -68,7 +68,7 @@ static gboolean vnc_screenshot(GtkWidget *window G_GNUC_UNUSED,
 	if (ev->key.keyval == GDK_F11) {
 		GdkPixbuf *pix = vnc_display_get_pixbuf(VNC_DISPLAY(vncdisplay));
 		gdk_pixbuf_save(pix, "gvncviewer.png", "png", NULL, "tEXt::Generator App", "gvncviewer", NULL);
-		gdk_pixbuf_unref(pix);
+		g_object_unref(pix);
 		printf("Screenshot saved to gvncviewer.png\n");
 	}
 	return FALSE;
@@ -340,7 +340,7 @@ int main(int argc, char **argv)
 	gtk_window_set_resizable(GTK_WINDOW(window), TRUE);
 
 	sendkey = gtk_menu_item_new_with_mnemonic("_Send Key");
-	gtk_menu_bar_append(GTK_MENU_BAR(menubar), sendkey);
+	gtk_menu_shell_append(GTK_MENU_SHELL(menubar), sendkey);
 
 	submenu = gtk_menu_new();
 
@@ -349,23 +349,23 @@ int main(int argc, char **argv)
 	cad = gtk_menu_item_new_with_mnemonic("Ctrl+Alt+_Del");
 	cab = gtk_menu_item_new_with_mnemonic("Ctrl+Alt+_Backspace");
 
-	gtk_menu_append(GTK_MENU(submenu), caf1);
-	gtk_menu_append(GTK_MENU(submenu), caf7);
-	gtk_menu_append(GTK_MENU(submenu), cad);
-	gtk_menu_append(GTK_MENU(submenu), cab);
+	gtk_menu_shell_append(GTK_MENU_SHELL(submenu), caf1);
+	gtk_menu_shell_append(GTK_MENU_SHELL(submenu), caf7);
+	gtk_menu_shell_append(GTK_MENU_SHELL(submenu), cad);
+	gtk_menu_shell_append(GTK_MENU_SHELL(submenu), cab);
 
 	gtk_menu_item_set_submenu(GTK_MENU_ITEM(sendkey), submenu);
 
 	view = gtk_menu_item_new_with_mnemonic("_View");
-	gtk_menu_bar_append(GTK_MENU_BAR(menubar), view);
+	gtk_menu_shell_append(GTK_MENU_SHELL(menubar), view);
 
 	submenu = gtk_menu_new();
 
 	fullscreen = gtk_check_menu_item_new_with_mnemonic("_Full Screen");
 	scaling = gtk_check_menu_item_new_with_mnemonic("Scaled display");
 
-	gtk_menu_append(GTK_MENU(submenu), fullscreen);
-	gtk_menu_append(GTK_MENU(submenu), scaling);
+	gtk_menu_shell_append(GTK_MENU_SHELL(submenu), fullscreen);
+	gtk_menu_shell_append(GTK_MENU_SHELL(submenu), scaling);
 
 	gtk_menu_item_set_submenu(GTK_MENU_ITEM(view), submenu);
 
@@ -398,45 +398,45 @@ int main(int argc, char **argv)
 		gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(scaling), TRUE);
 	}
 
-	gtk_signal_connect(GTK_OBJECT(window), "delete-event",
-			   GTK_SIGNAL_FUNC(gtk_main_quit), NULL);
-	gtk_signal_connect(GTK_OBJECT(vnc), "vnc-connected",
-			   GTK_SIGNAL_FUNC(vnc_connected), NULL);
-	gtk_signal_connect(GTK_OBJECT(vnc), "vnc-initialized",
-			   GTK_SIGNAL_FUNC(vnc_initialized), window);
-	gtk_signal_connect(GTK_OBJECT(vnc), "vnc-disconnected",
-			   GTK_SIGNAL_FUNC(vnc_disconnected), NULL);
-	gtk_signal_connect(GTK_OBJECT(vnc), "vnc-auth-credential",
-			   GTK_SIGNAL_FUNC(vnc_credential), NULL);
-	gtk_signal_connect(GTK_OBJECT(vnc), "vnc-auth-failure",
-			   GTK_SIGNAL_FUNC(vnc_auth_failure), NULL);
+	g_signal_connect(window, "delete-event",
+			 G_CALLBACK(gtk_main_quit), NULL);
+	g_signal_connect(vnc, "vnc-connected",
+			 G_CALLBACK(vnc_connected), NULL);
+	g_signal_connect(vnc, "vnc-initialized",
+			 G_CALLBACK(vnc_initialized), window);
+	g_signal_connect(vnc, "vnc-disconnected",
+			 G_CALLBACK(vnc_disconnected), NULL);
+	g_signal_connect(vnc, "vnc-auth-credential",
+			 G_CALLBACK(vnc_credential), NULL);
+	g_signal_connect(vnc, "vnc-auth-failure",
+			 G_CALLBACK(vnc_auth_failure), NULL);
 
-	gtk_signal_connect(GTK_OBJECT(vnc), "vnc-desktop-resize",
-			   GTK_SIGNAL_FUNC(vnc_desktop_resize), NULL);
+	g_signal_connect(vnc, "vnc-desktop-resize",
+			 G_CALLBACK(vnc_desktop_resize), NULL);
 
-	gtk_signal_connect(GTK_OBJECT(vnc), "vnc-pointer-grab",
-			   GTK_SIGNAL_FUNC(vnc_grab), window);
-	gtk_signal_connect(GTK_OBJECT(vnc), "vnc-pointer-ungrab",
-			   GTK_SIGNAL_FUNC(vnc_ungrab), window);
+	g_signal_connect(vnc, "vnc-pointer-grab",
+			 G_CALLBACK(vnc_grab), window);
+	g_signal_connect(vnc, "vnc-pointer-ungrab",
+			 G_CALLBACK(vnc_ungrab), window);
 
-	gtk_signal_connect(GTK_OBJECT(window), "key-press-event",
-			   GTK_SIGNAL_FUNC(vnc_screenshot), vnc);
+	g_signal_connect(window, "key-press-event",
+			 G_CALLBACK(vnc_screenshot), vnc);
 
-	gtk_signal_connect(GTK_OBJECT(caf1), "activate",
-			   GTK_SIGNAL_FUNC(send_caf1), vnc);
-	gtk_signal_connect(GTK_OBJECT(caf7), "activate",
-			   GTK_SIGNAL_FUNC(send_caf7), vnc);
-	gtk_signal_connect(GTK_OBJECT(cad), "activate",
-			   GTK_SIGNAL_FUNC(send_cad), vnc);
-	gtk_signal_connect(GTK_OBJECT(cab), "activate",
-			   GTK_SIGNAL_FUNC(send_cab), vnc);
-	gtk_signal_connect(GTK_OBJECT(fullscreen), "toggled",
-			   GTK_SIGNAL_FUNC(do_fullscreen), window);
-	gtk_signal_connect(GTK_OBJECT(scaling), "toggled",
-			   GTK_SIGNAL_FUNC(do_scaling), vnc);
+	g_signal_connect(caf1, "activate",
+			 G_CALLBACK(send_caf1), vnc);
+	g_signal_connect(caf7, "activate",
+			 G_CALLBACK(send_caf7), vnc);
+	g_signal_connect(cad, "activate",
+			 G_CALLBACK(send_cad), vnc);
+	g_signal_connect(cab, "activate",
+			 G_CALLBACK(send_cab), vnc);
+	g_signal_connect(fullscreen, "toggled",
+			 G_CALLBACK(do_fullscreen), window);
+	g_signal_connect(scaling, "toggled",
+			 G_CALLBACK(do_scaling), vnc);
 #if WITH_LIBVIEW
-	gtk_signal_connect(GTK_OBJECT(window), "window-state-event",
-			   GTK_SIGNAL_FUNC(window_state_event), layout);
+	g_signal_connect(window, "window-state-event",
+			 G_CALLBACK(window_state_event), layout);
 #endif
 
 	gtk_main();
