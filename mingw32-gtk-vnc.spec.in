@@ -39,7 +39,7 @@ allowing it to be completely asynchronous while remaining single threaded.
 %setup -q -n gtk-vnc-%{version}
 
 %build
-%{_mingw32_configure} --without-python --with-examples
+%{_mingw32_configure} --without-python --with-examples --without-sasl
 make
 
 

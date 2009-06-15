@@ -41,6 +41,7 @@ if [ -x /usr/bin/i686-pc-mingw32-gcc ]; then
     --build=$(uname -m)-pc-linux \
     --host=i686-pc-mingw32 \
     --without-python \
+    --without-sasl \
     --prefix="$AUTOBUILD_INSTALL_ROOT/i686-pc-mingw32/sys-root/mingw" \
 
   make
