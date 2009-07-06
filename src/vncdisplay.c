@@ -761,7 +761,7 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *key)
 	return TRUE;
 }
 
-static gboolean enter_event(GtkWidget *widget, GdkEventCrossing *crossing)
+static gboolean enter_event(GtkWidget *widget, GdkEventCrossing *crossing G_GNUC_UNUSED)
 {
         VncDisplayPrivate *priv = VNC_DISPLAY(widget)->priv;
 
@@ -774,7 +774,7 @@ static gboolean enter_event(GtkWidget *widget, GdkEventCrossing *crossing)
         return TRUE;
 }
 
-static gboolean leave_event(GtkWidget *widget, GdkEventCrossing *crossing)
+static gboolean leave_event(GtkWidget *widget, GdkEventCrossing *crossing G_GNUC_UNUSED)
 {
         VncDisplayPrivate *priv = VNC_DISPLAY(widget)->priv;
 
