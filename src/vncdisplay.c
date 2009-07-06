@@ -295,7 +295,7 @@ static gboolean expose_event(GtkWidget *widget, GdkEventExpose *expose)
 	GdkRegion *clear, *copy;
 #endif
 
-	GVNC_DEBUG("Expose %dx%d @ %d,%d\n",
+	GVNC_DEBUG("Expose %dx%d @ %d,%d",
 		   expose->area.x,
 		   expose->area.y,
 		   expose->area.width,
@@ -685,7 +685,7 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *key)
 	if (priv->read_only)
 		return FALSE;
 
-	GVNC_DEBUG("%s keycode: %d  state: %d  group %d, keyval: %d\n",
+	GVNC_DEBUG("%s keycode: %d  state: %d  group %d, keyval: %d",
 		   key->type == GDK_KEY_PRESS ? "press" : "release",
 		   key->hardware_keycode, key->state, key->group, key->keyval);
 
@@ -865,7 +865,7 @@ static void setup_gdk_image(VncDisplay *obj, gint width, gint height)
 	priv->image = gdk_image_new(GDK_IMAGE_FASTEST, visual, width, height);
 	priv->pixmap = gdk_pixmap_new(GTK_WIDGET(obj)->window, width, height, -1);
 
-	GVNC_DEBUG("Visual mask: %3d %3d %3d\n      shift: %3d %3d %3d\n",
+	GVNC_DEBUG("Visual mask: %3d %3d %3d\n      shift: %3d %3d %3d",
 		   visual->red_mask,
 		   visual->green_mask,
 		   visual->blue_mask,
@@ -1013,7 +1013,7 @@ static gboolean on_get_preferred_pixel_format(void *opaque,
 	VncDisplay *obj = VNC_DISPLAY(opaque);
 	GdkVisual *v =  gdk_drawable_get_visual(GTK_WIDGET(obj)->window);
 
-	GVNC_DEBUG("Setting pixel format to true color\n");
+	GVNC_DEBUG("Setting pixel format to true color");
 
 	fmt->true_color_flag = 1;
 	fmt->depth = v->depth;
@@ -1327,7 +1327,7 @@ static void *vnc_coroutine(void *opaque)
 		return NULL;
 	}
 
-	GVNC_DEBUG("Started background coroutine\n");
+	GVNC_DEBUG("Started background coroutine");
 	x_keymap_set_keymap_entries();
 
 	if (priv->fd != -1) {
@@ -1340,7 +1340,7 @@ static void *vnc_coroutine(void *opaque)
 
 	emit_signal_delayed(obj, VNC_CONNECTED, &s);
 
-	GVNC_DEBUG("Protocol initialization\n");
+	GVNC_DEBUG("Protocol initialization");
 	if (!gvnc_initialize(priv->gvnc, priv->shared_flag))
 		goto cleanup;
 
@@ -1365,7 +1365,7 @@ static void *vnc_coroutine(void *opaque)
 	if (!gvnc_framebuffer_update_request(priv->gvnc, 0, 0, 0, priv->fb.width, priv->fb.height))
 		goto cleanup;
 
-	GVNC_DEBUG("Running main loop\n");
+	GVNC_DEBUG("Running main loop");
 	while ((ret = gvnc_server_message(priv->gvnc))) {
 		if (!gvnc_framebuffer_update_request(priv->gvnc, 1, 0, 0,
 						     priv->fb.width, priv->fb.height))
@@ -1373,7 +1373,7 @@ static void *vnc_coroutine(void *opaque)
 	}
 
  cleanup:
-	GVNC_DEBUG("Doing final VNC cleanup\n");
+	GVNC_DEBUG("Doing final VNC cleanup");
 	gvnc_close(priv->gvnc);
 	emit_signal_delayed(obj, VNC_DISCONNECTED, &s);
 	g_idle_add(delayed_unref_object, obj);
@@ -1464,7 +1464,7 @@ void vnc_display_close(VncDisplay *obj)
 		return;
 
 	if (gvnc_is_open(priv->gvnc)) {
-		GVNC_DEBUG("Requesting graceful shutdown of connection\n");
+		GVNC_DEBUG("Requesting graceful shutdown of connection");
 		gvnc_shutdown(priv->gvnc);
 	}
 
@@ -1538,7 +1538,7 @@ void vnc_display_send_pointer(VncDisplay *obj, gint x, gint y, int button_mask)
 static void vnc_display_destroy (GtkObject *obj)
 {
 	VncDisplay *display = VNC_DISPLAY (obj);
-	GVNC_DEBUG("Requesting that VNC close\n");
+	GVNC_DEBUG("Requesting that VNC close");
 	vnc_display_close(display);
 	GTK_OBJECT_CLASS (vnc_display_parent_class)->destroy (obj);
 }
@@ -1549,7 +1549,7 @@ static void vnc_display_finalize (GObject *obj)
 	VncDisplay *display = VNC_DISPLAY (obj);
 	VncDisplayPrivate *priv = display->priv;
 
-	GVNC_DEBUG("Releasing VNC widget\n");
+	GVNC_DEBUG("Releasing VNC widget");
 	if (gvnc_is_open(priv->gvnc)) {
 		g_warning("VNC widget finalized before the connection finished shutting down\n");
 	}

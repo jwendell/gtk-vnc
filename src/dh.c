@@ -144,7 +144,7 @@ gcry_mpi_t gvnc_bytes_to_mpi(const guchar* value)
 
        error = gcry_mpi_scan(&ret, GCRYMPI_FMT_STD, value, 8, NULL);
        if (gcry_err_code (error) != GPG_ERR_NO_ERROR)
-         GVNC_DEBUG ("MPI error: %s\n", gcry_strerror (error));
+         GVNC_DEBUG ("MPI error: %s", gcry_strerror (error));
 
        return ret;
 }
