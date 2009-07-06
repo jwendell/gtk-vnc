@@ -227,8 +227,8 @@ NPP_Destroy(NPP instance, NPSavedData** save G_GNUC_UNUSED)
   if (This != NULL)
     {
       (void) GtkVNCDestroyWindow (instance);
-      if (This->host) free (This->host);
-      if (This->port) free (This->port);
+      free (This->host);
+      free (This->port);
       NPN_MemFree(instance->pdata);
       instance->pdata = NULL;
     }
