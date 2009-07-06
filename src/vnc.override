@@ -12,18 +12,18 @@ ignore-glob
   *_get_type
   vnc_display_send_keys_ex
 %%
-override vnc_display_send_keys kwargs 
+override vnc_display_send_keys kwargs
 static PyObject*
 _wrap_vnc_display_send_keys(PyGObject *self,
-                            PyObject *args, PyObject *kwargs) 
+                            PyObject *args, PyObject *kwargs)
 {
-    static char *kwlist[] = {"keys", "kind", NULL}; 
+    static char *kwlist[] = {"keys", "kind", NULL};
     PyObject *keyList;
     int kind = VNC_DISPLAY_KEY_EVENT_CLICK;
     int ret, i, len;
     guint *keys;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs,    
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs,
                                      "O|I:VncDisplay.send_keys", kwlist,
                                      &keyList, &kind))
 	return NULL;

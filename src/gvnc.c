@@ -1,6 +1,6 @@
 /*
  * GTK VNC Widget
- *  
+ *
  * Copyright (C) 2006  Anthony Liguori <anthony@codemonkey.ws>
  *
  * This library is free software; you can redistribute it and/or
@@ -1148,7 +1148,7 @@ gboolean gvnc_pointer_event(struct gvnc *gvnc, uint8_t button_mask,
 	gvnc_buffered_write_u16(gvnc, x);
 	gvnc_buffered_write_u16(gvnc, y);
 	gvnc_buffered_flush(gvnc);
-	return !gvnc_has_error(gvnc);	
+	return !gvnc_has_error(gvnc);
 }
 
 gboolean gvnc_client_cut_text(struct gvnc *gvnc,
@@ -1208,7 +1208,7 @@ static uint32_t gvnc_swap_img_32(struct gvnc *gvnc, uint32_t pixel)
 		return  (((pixel >> 24) & 0xFF) <<  0) |
 			(((pixel >> 16) & 0xFF) <<  8) |
 			(((pixel >>  8) & 0xFF) << 16) |
-			(((pixel >>  0) & 0xFF) << 24);			
+			(((pixel >>  0) & 0xFF) << 24);
 	else
 		return pixel;
 }
@@ -1362,16 +1362,16 @@ static void gvnc_copyrect_update(struct gvnc *gvnc,
 	uint8_t *dst, *src;
 	int pitch = gvnc->local.linesize;
 	int i;
-	
+
 	src_x = gvnc_read_u16(gvnc);
 	src_y = gvnc_read_u16(gvnc);
-	
+
 	if (src_y < dst_y) {
 		pitch = -pitch;
 		src_y += (height - 1);
 		dst_y += (height - 1);
 	}
-	
+
 	dst = gvnc_get_local(gvnc, dst_x, dst_y);
 	src = gvnc_get_local(gvnc, src_x, src_y);
 	for (i = 0; i < height; i++) {
@@ -1456,7 +1456,7 @@ static void gvnc_read_cpixel(struct gvnc *gvnc, uint8_t *pixel)
 				 ((gvnc->fmt.green_max << gvnc->fmt.green_shift) < (1 << 24)) &&
 				 ((gvnc->fmt.blue_max << gvnc->fmt.blue_shift) < (1 << 24)));
 
-		/* 
+		/*
 		 * We need to analyse the shifts to see if they fit in 3 bytes,
 		 * rather than looking at the declared  'depth' for the format
 		 * because despite what the RFB spec says, this is what RealVNC
@@ -1617,8 +1617,8 @@ static void gvnc_zrle_update_tile(struct gvnc *gvnc, uint16_t x, uint16_t y,
 	} else if (subencoding == 128) {
 		/* Plain RLE */
 		gvnc_zrle_update_tile_rle(gvnc, x, y, width, height);
-	} else if (subencoding == 129) { 
-	
+	} else if (subencoding == 129) {
+
 	} else if (subencoding >= 130) {
 		/* Palette RLE */
 		gvnc_zrle_update_tile_prle(gvnc, subencoding - 128,
@@ -3066,7 +3066,7 @@ static gboolean gvnc_start_tls(struct gvnc *gvnc, int anonTLS)
 		gvnc->has_error = TRUE;
 		return FALSE;
 	}
-	
+
 	GVNC_DEBUG("Handshake done");
 
 	if (anonTLS) {

@@ -99,7 +99,7 @@ AC_ARG_WITH(examples,
  esac],[withval=no])
 WITH_EXAMPLES=$withval
 
- 
+
 dnl check ld support --version-script
 ld --help>/tmp/$$ 2>&1
 if `cat /tmp/$$|grep version-script>/dev/null 2>&1`; then
@@ -307,7 +307,7 @@ fi
 echo "
 Configure summary:
 
-	Compiler ...................:  ${CC} 
+	Compiler ...................:  ${CC}
 	Compiler Flags .............:  ${CFLAGS}
 	Prefix......................:  ${prefix}
 

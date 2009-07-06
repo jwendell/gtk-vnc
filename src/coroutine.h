@@ -1,6 +1,6 @@
 /*
  * GTK VNC Widget
- *  
+ *
  * Copyright (C) 2006  Anthony Liguori <anthony@codemonkey.ws>
  *
  * This library is free software; you can redistribute it and/or

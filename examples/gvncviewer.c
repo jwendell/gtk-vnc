@@ -1,6 +1,6 @@
 /*
  * GTK VNC Widget
- *  
+ *
  * Copyright (C) 2006  Anthony Liguori <anthony@codemonkey.ws>
  *
  * This library is free software; you can redistribute it and/or
@@ -34,7 +34,7 @@
 static gchar **args = NULL;
 static const GOptionEntry options [] =
 {
-  { 
+  {
     G_OPTION_REMAINING, '\0', 0, G_OPTION_ARG_STRING_ARRAY, &args,
     NULL, "hostname[:display]" },
   { NULL, 0, 0, G_OPTION_ARG_NONE, NULL, NULL, 0 }

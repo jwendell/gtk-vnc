@@ -1,13 +1,13 @@
    GTK VNC  Readme
    ===============
 
-gtk-vnc is a VNC viewer widget for GTK. It is built using 
-coroutines allowing it to be completely asynchronous while 
+gtk-vnc is a VNC viewer widget for GTK. It is built using
+coroutines allowing it to be completely asynchronous while
 remaining single threaded. It provides a core C library, and
 bindings for Python (PyGTK)
 
 The API is still in early stages of development & so until
-version 1.0 is declared, the API may change. The primary 
+version 1.0 is declared, the API may change. The primary
 public API is provided by the vncdisplay.h class & should
 be reasonably free of API churn. The other header files are
 internal VNC protocol implementation & will very likely change.

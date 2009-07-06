@@ -1,6 +1,6 @@
 /*
  * GTK VNC Widget
- *  
+ *
  * Copyright (C) 2006  Anthony Liguori <anthony@codemonkey.ws>
  *
  * This library is free software; you can redistribute it and/or
@@ -152,7 +152,7 @@ static void HEXTILE(struct gvnc *gvnc, uint8_t flags, uint16_t x, uint16_t y,
 			FAST_FILL(gvnc, bg, x, y, width, height);
 		else
 			FILL(gvnc, bg, x, y, width, height);
-			
+
 
 		/* AnySubrects */
 		if (flags & 0x08) {

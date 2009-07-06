@@ -1,6 +1,6 @@
 /*
  * GTK VNC Widget
- *  
+ *
  * Copyright (C) 2006  Anthony Liguori <anthony@codemonkey.ws>
  *
  * This library is free software; you can redistribute it and/or
@@ -214,7 +214,7 @@ vnc_display_get_property (GObject    *object,
 	break;
       default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
-	break;			
+	break;
     }
 }
 
@@ -254,7 +254,7 @@ vnc_display_set_property (GObject      *object,
         break;
       default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
-        break;			
+        break;
     }
 }
 
@@ -941,7 +941,7 @@ static gboolean emit_signal_auth_cred(gpointer opaque)
 	}
 
 	coroutine_yieldto(s->caller, NULL);
-	
+
 	return FALSE;
 }
 
@@ -1001,7 +1001,7 @@ static gboolean on_resize(void *opaque, int width, int height)
 	return do_resize(opaque, width, height, FALSE);
 }
 
-static gboolean on_pixel_format(void *opaque, 
+static gboolean on_pixel_format(void *opaque,
 	struct gvnc_pixel_format *fmt G_GNUC_UNUSED)
 {
         VncDisplay *obj = VNC_DISPLAY(opaque);
@@ -1104,7 +1104,7 @@ static gboolean on_auth_type(void *opaque, unsigned int ntype, unsigned int *typ
 			}
 		}
 	}
-	
+
 	gvnc_set_auth_type(priv->gvnc, types[0]);
 	return TRUE;
 }
@@ -1130,7 +1130,7 @@ static gboolean on_auth_subtype(void *opaque, unsigned int ntype, unsigned int *
 			}
 		}
 	}
-	
+
 	gvnc_set_auth_subtype(priv->gvnc, types[0]);
 	return TRUE;
 }
@@ -2238,13 +2238,13 @@ gboolean vnc_display_is_pointer_absolute(VncDisplay *obj)
 GOptionGroup *
 vnc_display_get_option_group (void)
 {
-  GOptionGroup *group;
+	GOptionGroup *group;
 
-  group = g_option_group_new ("gtk-vnc", "GTK-VNC Options", "Show GTK-VNC Options", NULL, NULL);
+	group = g_option_group_new ("gtk-vnc", "GTK-VNC Options", "Show GTK-VNC Options", NULL, NULL);
 
-  g_option_group_add_entries (group, gtk_vnc_args);
-  
-  return group;
+	g_option_group_add_entries (group, gtk_vnc_args);
+
+	return group;
 }
 
 #ifdef WIN32

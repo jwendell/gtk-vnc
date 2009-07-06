@@ -205,10 +205,10 @@ GtkVNCXSetWindow (NPP instance, NPWindow *window)
   /* All the events that our canvas wants to receive */
   gtk_widget_add_events
     (This->vnc,
-     GDK_BUTTON_PRESS_MASK | 
+     GDK_BUTTON_PRESS_MASK |
      GDK_BUTTON_RELEASE_MASK |
-     GDK_KEY_PRESS_MASK | 
-     GDK_KEY_RELEASE_MASK | 
+     GDK_KEY_PRESS_MASK |
+     GDK_KEY_RELEASE_MASK |
      GDK_POINTER_MOTION_MASK |
      GDK_SCROLL_MASK |
      GDK_EXPOSURE_MASK |

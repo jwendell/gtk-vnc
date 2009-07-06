@@ -3,7 +3,7 @@
 
 set -e
 srcdir=`dirname $0`
-test -z "$srcdir" && srcdir=. 
+test -z "$srcdir" && srcdir=.
 
 THEDIR=`pwd`
 cd $srcdir
@@ -55,6 +55,6 @@ rm -f COPYING
 cd $THEDIR
 
 $srcdir/configure --enable-warnings "$@" && {
-    echo 
+    echo
     echo "Now type 'make' to compile gtk-vnc."
 }
