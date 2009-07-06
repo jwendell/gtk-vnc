@@ -678,6 +678,7 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *key)
 {
 	VncDisplayPrivate *priv = VNC_DISPLAY(widget)->priv;
 	int i;
+	int keyval = key->keyval;
 
 	if (priv->gvnc == NULL || !gvnc_is_initialized(priv->gvnc))
 		return FALSE;
@@ -687,7 +688,9 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *key)
 
 	GVNC_DEBUG("%s keycode: %d  state: %d  group %d, keyval: %d",
 		   key->type == GDK_KEY_PRESS ? "press" : "release",
-		   key->hardware_keycode, key->state, key->group, key->keyval);
+		   key->hardware_keycode, key->state, key->group, keyval);
+
+	keyval = x_keymap_get_keyval_from_keycode(key->hardware_keycode, keyval);
 
 	/*
 	 * Some VNC suckiness with key state & modifiers in particular
@@ -737,18 +740,18 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *key)
 	if (key->type == GDK_KEY_PRESS) {
 		for (i = 0 ; i < (int)(sizeof(priv->down_keyval)/sizeof(priv->down_keyval[0])) ; i++) {
 			if (priv->down_scancode[i] == 0) {
-				priv->down_keyval[i] = key->keyval;
+				priv->down_keyval[i] = keyval;
 				priv->down_scancode[i] = key->hardware_keycode;
 				/* Send the actual key event we're dealing with */
-				gvnc_key_event(priv->gvnc, 1, key->keyval, key->hardware_keycode);
+				gvnc_key_event(priv->gvnc, 1, keyval, key->hardware_keycode);
 				break;
 			}
 		}
 	}
 
 	if (key->type == GDK_KEY_PRESS &&
-	    ((key->keyval == GDK_Control_L && (key->state & GDK_MOD1_MASK)) ||
-	     (key->keyval == GDK_Alt_L && (key->state & GDK_CONTROL_MASK)))) {
+	    ((keyval == GDK_Control_L && (key->state & GDK_MOD1_MASK)) ||
+	     (keyval == GDK_Alt_L && (key->state & GDK_CONTROL_MASK)))) {
 		if (priv->in_pointer_grab)
 			do_pointer_ungrab(VNC_DISPLAY(widget), FALSE);
 		else if (!priv->grab_keyboard || !priv->absolute)
