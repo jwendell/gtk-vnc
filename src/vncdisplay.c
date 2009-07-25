@@ -1507,7 +1507,7 @@ void vnc_display_send_keys_ex(VncDisplay *obj, const guint *keyvals,
 {
 	int i;
 
-	if (obj->priv->gvnc == NULL || !gvnc_is_open(obj->priv->gvnc))
+	if (obj->priv->gvnc == NULL || !gvnc_is_open(obj->priv->gvnc) || obj->priv->read_only)
 		return;
 
 	if (kind & VNC_DISPLAY_KEY_EVENT_PRESS) {
