@@ -1,6 +1,25 @@
     GTK VNC News
     ============
 
+Aug 10, 2009: Release 0.3.9
+===========================
+
+Bug fixes:
+
+ o Fix Shift+Tab keyval translation (again)
+ o Remove use of deprecated GTK+ symbols
+ o Fix inverted logic for release pointer grab
+ o Fix enter/leave event handling in relative mouse mode
+ o Don't send keys/clipboard data in readonly mode
+ o Fix relative mouse motion mode edge tracing
+ o Fix linking to libgcrypt for mingw32 platform
+
+New features:
+
+ o Add API to get command line GOptionEntry objects
+ o Support SASL authentication extension
+ o Support MS Logon authentication extension
+
 Dec 7, 2008: Release 0.3.8
 ==========================
 
