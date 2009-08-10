@@ -122,10 +122,58 @@ static void send_caf1(GtkWidget *menu G_GNUC_UNUSED, GtkWidget *vncdisplay)
 		sizeof(keys)/sizeof(keys[0]));
 }
 
+static void send_caf2(GtkWidget *menu G_GNUC_UNUSED, GtkWidget *vncdisplay)
+{
+	guint keys[] = { GDK_Control_L, GDK_Alt_L, GDK_F2 };
+	printf("Sending Ctrl+Alt+F2\n");
+	vnc_display_send_keys(VNC_DISPLAY(vncdisplay), keys,
+		sizeof(keys)/sizeof(keys[0]));
+}
+
+static void send_caf3(GtkWidget *menu G_GNUC_UNUSED, GtkWidget *vncdisplay)
+{
+	guint keys[] = { GDK_Control_L, GDK_Alt_L, GDK_F3 };
+	printf("Sending Ctrl+Alt+F3\n");
+	vnc_display_send_keys(VNC_DISPLAY(vncdisplay), keys,
+		sizeof(keys)/sizeof(keys[0]));
+}
+
+static void send_caf4(GtkWidget *menu G_GNUC_UNUSED, GtkWidget *vncdisplay)
+{
+	guint keys[] = { GDK_Control_L, GDK_Alt_L, GDK_F4 };
+	printf("Sending Ctrl+Alt+F4\n");
+	vnc_display_send_keys(VNC_DISPLAY(vncdisplay), keys,
+		sizeof(keys)/sizeof(keys[0]));
+}
+
+static void send_caf5(GtkWidget *menu G_GNUC_UNUSED, GtkWidget *vncdisplay)
+{
+	guint keys[] = { GDK_Control_L, GDK_Alt_L, GDK_F5 };
+	printf("Sending Ctrl+Alt+F5\n");
+	vnc_display_send_keys(VNC_DISPLAY(vncdisplay), keys,
+		sizeof(keys)/sizeof(keys[0]));
+}
+
+static void send_caf6(GtkWidget *menu G_GNUC_UNUSED, GtkWidget *vncdisplay)
+{
+	guint keys[] = { GDK_Control_L, GDK_Alt_L, GDK_F6 };
+	printf("Sending Ctrl+Alt+F6\n");
+	vnc_display_send_keys(VNC_DISPLAY(vncdisplay), keys,
+		sizeof(keys)/sizeof(keys[0]));
+}
+
 static void send_caf7(GtkWidget *menu G_GNUC_UNUSED, GtkWidget *vncdisplay)
 {
 	guint keys[] = { GDK_Control_L, GDK_Alt_L, GDK_F7 };
 	printf("Sending Ctrl+Alt+F7\n");
+	vnc_display_send_keys(VNC_DISPLAY(vncdisplay), keys,
+		sizeof(keys)/sizeof(keys[0]));
+}
+
+static void send_caf8(GtkWidget *menu G_GNUC_UNUSED, GtkWidget *vncdisplay)
+{
+	guint keys[] = { GDK_Control_L, GDK_Alt_L, GDK_F8 };
+	printf("Sending Ctrl+Alt+F8\n");
 	vnc_display_send_keys(VNC_DISPLAY(vncdisplay), keys,
 		sizeof(keys)/sizeof(keys[0]));
 }
@@ -302,7 +350,13 @@ int main(int argc, char **argv)
 	GtkWidget *sendkey, *view;
 	GtkWidget *submenu;
 	GtkWidget *caf1;
+	GtkWidget *caf2;
+	GtkWidget *caf3;
+	GtkWidget *caf4;
+	GtkWidget *caf5;
+	GtkWidget *caf6;
 	GtkWidget *caf7;
+	GtkWidget *caf8;
 	GtkWidget *cad;
 	GtkWidget *cab;
 	GtkWidget *fullscreen;
@@ -345,12 +399,24 @@ int main(int argc, char **argv)
 	submenu = gtk_menu_new();
 
 	caf1 = gtk_menu_item_new_with_mnemonic("Ctrl+Alt+F_1");
+	caf2 = gtk_menu_item_new_with_mnemonic("Ctrl+Alt+F_2");
+	caf3 = gtk_menu_item_new_with_mnemonic("Ctrl+Alt+F_3");
+	caf4 = gtk_menu_item_new_with_mnemonic("Ctrl+Alt+F_4");
+	caf5 = gtk_menu_item_new_with_mnemonic("Ctrl+Alt+F_5");
+	caf6 = gtk_menu_item_new_with_mnemonic("Ctrl+Alt+F_6");
 	caf7 = gtk_menu_item_new_with_mnemonic("Ctrl+Alt+F_7");
+	caf8 = gtk_menu_item_new_with_mnemonic("Ctrl+Alt+F_8");
 	cad = gtk_menu_item_new_with_mnemonic("Ctrl+Alt+_Del");
 	cab = gtk_menu_item_new_with_mnemonic("Ctrl+Alt+_Backspace");
 
 	gtk_menu_shell_append(GTK_MENU_SHELL(submenu), caf1);
+	gtk_menu_shell_append(GTK_MENU_SHELL(submenu), caf2);
+	gtk_menu_shell_append(GTK_MENU_SHELL(submenu), caf3);
+	gtk_menu_shell_append(GTK_MENU_SHELL(submenu), caf4);
+	gtk_menu_shell_append(GTK_MENU_SHELL(submenu), caf5);
+	gtk_menu_shell_append(GTK_MENU_SHELL(submenu), caf6);
 	gtk_menu_shell_append(GTK_MENU_SHELL(submenu), caf7);
+	gtk_menu_shell_append(GTK_MENU_SHELL(submenu), caf8);
 	gtk_menu_shell_append(GTK_MENU_SHELL(submenu), cad);
 	gtk_menu_shell_append(GTK_MENU_SHELL(submenu), cab);
 
@@ -424,8 +490,20 @@ int main(int argc, char **argv)
 
 	g_signal_connect(caf1, "activate",
 			 G_CALLBACK(send_caf1), vnc);
+	g_signal_connect(caf2, "activate",
+			 G_CALLBACK(send_caf2), vnc);
+	g_signal_connect(caf3, "activate",
+			 G_CALLBACK(send_caf3), vnc);
+	g_signal_connect(caf4, "activate",
+			 G_CALLBACK(send_caf4), vnc);
+	g_signal_connect(caf5, "activate",
+			 G_CALLBACK(send_caf5), vnc);
+	g_signal_connect(caf6, "activate",
+			 G_CALLBACK(send_caf6), vnc);
 	g_signal_connect(caf7, "activate",
 			 G_CALLBACK(send_caf7), vnc);
+	g_signal_connect(caf8, "activate",
+			 G_CALLBACK(send_caf8), vnc);
 	g_signal_connect(cad, "activate",
 			 G_CALLBACK(send_cad), vnc);
 	g_signal_connect(cab, "activate",
