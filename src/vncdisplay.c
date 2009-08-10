@@ -2247,6 +2247,12 @@ vnc_display_get_option_group (void)
 	return group;
 }
 
+const GOptionEntry *
+vnc_display_get_option_entries (void)
+{
+	return gtk_vnc_args;
+}
+
 #ifdef WIN32
 
 /* On Windows, we must call WSAStartup before using any sockets and we
