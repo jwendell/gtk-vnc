@@ -170,7 +170,6 @@ EXTRA_DIST += test-vasnprintf.c
 ## begin gnulib module vc-list-files-tests
 
 TESTS += test-vc-list-files-git.sh
-TESTS += test-vc-list-files-cvs.sh
 TESTS_ENVIRONMENT += PATH='$(abs_aux_dir)':"$$PATH"
 EXTRA_DIST += test-vc-list-files-git.sh test-vc-list-files-cvs.sh
 
