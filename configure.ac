@@ -151,7 +151,8 @@ AC_SUBST(GNUTLS_LIBS)
 
 dnl Cyrus SASL
 AC_ARG_WITH([sasl],
-  [  --with-sasl         use cyrus SASL for authentication],
+  [AS_HELP_STRING([--with-sasl],
+    [use cyrus SASL for authentication @<:@default=check@:>@])],
   [],
   [with_sasl=check])
 
@@ -315,4 +316,5 @@ Configure summary:
 	Install example programs ...:  ${WITH_EXAMPLES}
 	Browser plugin .............:  ${enable_plugin}
 	Scaling support.............:  ${with_scaling}
+	SASL support................:  ${with_sasl}
 "
