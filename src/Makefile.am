@@ -36,7 +36,8 @@ EXTRA_DIST += continuation.h continuation.c coroutine_ucontext.c
 endif
 
 vncmarshal.c: vncmarshal.txt
-	glib-genmarshal --body $< > $@ || (rm -f $@ && exit 1)
+	echo "#include \"vncmarshal.h\"" > $@ && \
+	glib-genmarshal --body $< >> $@ || (rm -f $@ && exit 1)
 
 vncmarshal.h: vncmarshal.txt
 	glib-genmarshal --header $< > $@ || (rm -f $@ && exit 1)
