@@ -76,3 +76,4 @@ else
 EXTRA_DIST += vnc.override vncmodule.c
 endif
 
+-include $(top_srcdir)/git.mk

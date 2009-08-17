@@ -28,3 +28,5 @@ EXTRA_DIST = README
 CLEANFILES = gtk-vnc-plugin.so
 
 endif
+
+-include $(top_srcdir)/git.mk

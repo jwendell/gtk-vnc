@@ -12,3 +12,5 @@ gvncviewer_CFLAGS = @GTK_CFLAGS@ @WARNING_CFLAGS@ \
 		    @VIEW_CFLAGS@ -I$(top_srcdir)/src/
 
 EXTRA_DIST = gvncviewer.py
+
+-include $(top_srcdir)/git.mk
