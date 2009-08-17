@@ -1,0 +1,105 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2009-08-17 16:03-0300\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: ../gnulib/lib/gai_strerror.c:44
+msgid "Address family for hostname not supported"
+msgstr ""
+
+#: ../gnulib/lib/gai_strerror.c:45
+msgid "Temporary failure in name resolution"
+msgstr ""
+
+#: ../gnulib/lib/gai_strerror.c:46
+msgid "Bad value for ai_flags"
+msgstr ""
+
+#: ../gnulib/lib/gai_strerror.c:47
+msgid "Non-recoverable failure in name resolution"
+msgstr ""
+
+#: ../gnulib/lib/gai_strerror.c:48
+msgid "ai_family not supported"
+msgstr ""
+
+#: ../gnulib/lib/gai_strerror.c:49
+msgid "Memory allocation failure"
+msgstr ""
+
+#: ../gnulib/lib/gai_strerror.c:50
+msgid "No address associated with hostname"
+msgstr ""
+
+#: ../gnulib/lib/gai_strerror.c:51
+msgid "Name or service not known"
+msgstr ""
+
+#: ../gnulib/lib/gai_strerror.c:52
+msgid "Servname not supported for ai_socktype"
+msgstr ""
+
+#: ../gnulib/lib/gai_strerror.c:53
+msgid "ai_socktype not supported"
+msgstr ""
+
+#: ../gnulib/lib/gai_strerror.c:54
+msgid "System error"
+msgstr ""
+
+#: ../gnulib/lib/gai_strerror.c:55
+msgid "Argument buffer too small"
+msgstr ""
+
+#: ../gnulib/lib/gai_strerror.c:57
+msgid "Processing request in progress"
+msgstr ""
+
+#: ../gnulib/lib/gai_strerror.c:58
+msgid "Request canceled"
+msgstr ""
+
+#: ../gnulib/lib/gai_strerror.c:59
+msgid "Request not canceled"
+msgstr ""
+
+#: ../gnulib/lib/gai_strerror.c:60
+msgid "All requests done"
+msgstr ""
+
+#: ../gnulib/lib/gai_strerror.c:61
+msgid "Interrupted by a signal"
+msgstr ""
+
+#: ../gnulib/lib/gai_strerror.c:62
+msgid "Parameter string not correctly encoded"
+msgstr ""
+
+#: ../gnulib/lib/gai_strerror.c:74
+msgid "Unknown error"
+msgstr ""
+
+#: ../src/vncdisplay.c:169
+msgid "Enables debug output"
+msgstr "Ativa mensagens de depuração"
+
+#: ../src/vncdisplay.c:2245
+msgid "GTK-VNC Options:"
+msgstr "Opções do GTK-VNC:"
+
+#: ../src/vncdisplay.c:2245
+msgid "Show GTK-VNC Options"
+msgstr "Mostra opções do GTK-VNC"
