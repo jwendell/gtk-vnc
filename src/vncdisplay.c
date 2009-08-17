@@ -19,6 +19,7 @@
  */
 
 #include <config.h>
+#include <locale.h>
 
 #include "vncdisplay.h"
 #include "coroutine.h"
@@ -29,6 +30,7 @@
 #include "x_keymap.h"
 
 #include <gtk/gtk.h>
+#include <glib/gi18n.h>
 #include <string.h>
 #include <stdlib.h>
 #include <gdk/gdkkeysyms.h>
@@ -164,7 +166,7 @@ gboolean debug_enabled = FALSE;
 
 static const GOptionEntry gtk_vnc_args[] =
 {
-  { "gtk-vnc-debug", 0, 0, G_OPTION_ARG_NONE, &debug_enabled, "Enables debug output", 0 },
+  { "gtk-vnc-debug", 0, 0, G_OPTION_ARG_NONE, &debug_enabled, N_("Enables debug output"), 0 },
   { NULL, 0, 0, G_OPTION_ARG_NONE, NULL, NULL, 0 }
 };
 
@@ -2240,7 +2242,8 @@ vnc_display_get_option_group (void)
 {
 	GOptionGroup *group;
 
-	group = g_option_group_new ("gtk-vnc", "GTK-VNC Options", "Show GTK-VNC Options", NULL, NULL);
+	group = g_option_group_new ("gtk-vnc", N_("GTK-VNC Options:"), N_("Show GTK-VNC Options"), NULL, NULL);
+	g_option_group_set_translation_domain (group, GETTEXT_PACKAGE);
 
 	g_option_group_add_entries (group, gtk_vnc_args);
 

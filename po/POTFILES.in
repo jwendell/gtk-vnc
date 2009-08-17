@@ -1,0 +1,2 @@
+gnulib/lib/gai_strerror.c
+src/vncdisplay.c
