@@ -1,100 +1,98 @@
-# SOME DESCRIPTIVE TITLE.
-# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
-# This file is distributed under the same license as the PACKAGE package.
-# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+# Brazilian Portuguese translation of gtk-vnc.
+# Copyright (C) 2009 Free Software Foundation, Inc.
+# Henrique P. Machado <zehrique@gmail.com>, 2009.
 #
-#, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: PACKAGE VERSION\n"
+"Project-Id-Version: 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2009-08-17 16:03-0300\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
+"POT-Creation-Date: 2009-08-18 21:51-0400\n"
+"PO-Revision-Date: 2009-08-17 23:52-0300\n"
+"Last-Translator: Henrique P. Machado <zehrique@gmail.com>\n"
+"Language-Team: Brazilian Portuguese <gnome-pt_br-list@gnome.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
 #: ../gnulib/lib/gai_strerror.c:44
 msgid "Address family for hostname not supported"
-msgstr ""
+msgstr "Sem suporte à família de endereços para a máquina"
 
 #: ../gnulib/lib/gai_strerror.c:45
 msgid "Temporary failure in name resolution"
-msgstr ""
+msgstr "Falha temporária na resolução de nomes"
 
 #: ../gnulib/lib/gai_strerror.c:46
 msgid "Bad value for ai_flags"
-msgstr ""
+msgstr "Valor inváligo para ai_flags"
 
 #: ../gnulib/lib/gai_strerror.c:47
 msgid "Non-recoverable failure in name resolution"
-msgstr ""
+msgstr "Falha não-recuperável na resolução de nomes"
 
 #: ../gnulib/lib/gai_strerror.c:48
 msgid "ai_family not supported"
-msgstr ""
+msgstr "Sem suporte a ai_family"
 
 #: ../gnulib/lib/gai_strerror.c:49
 msgid "Memory allocation failure"
-msgstr ""
+msgstr "Falha de alocação de memória"
 
 #: ../gnulib/lib/gai_strerror.c:50
 msgid "No address associated with hostname"
-msgstr ""
+msgstr "Nenhum endereço associado com a máquina"
 
 #: ../gnulib/lib/gai_strerror.c:51
 msgid "Name or service not known"
-msgstr ""
+msgstr "Nome ou serviço desconhecido"
 
 #: ../gnulib/lib/gai_strerror.c:52
 msgid "Servname not supported for ai_socktype"
-msgstr ""
+msgstr "Sem suporte a Servname para ai_socktype"
 
 #: ../gnulib/lib/gai_strerror.c:53
 msgid "ai_socktype not supported"
-msgstr ""
+msgstr "Sem suporte a ai_socktype"
 
 #: ../gnulib/lib/gai_strerror.c:54
 msgid "System error"
-msgstr ""
+msgstr "Erro de sistema"
 
 #: ../gnulib/lib/gai_strerror.c:55
 msgid "Argument buffer too small"
-msgstr ""
+msgstr "Buffer de argumentos muito pequeno"
 
 #: ../gnulib/lib/gai_strerror.c:57
 msgid "Processing request in progress"
-msgstr ""
+msgstr "Requisição de processamento em progresso"
 
 #: ../gnulib/lib/gai_strerror.c:58
 msgid "Request canceled"
-msgstr ""
+msgstr "Requisição cancelada"
 
 #: ../gnulib/lib/gai_strerror.c:59
 msgid "Request not canceled"
-msgstr ""
+msgstr "Requisição não cancelada"
 
 #: ../gnulib/lib/gai_strerror.c:60
 msgid "All requests done"
-msgstr ""
+msgstr "Todas as requisições feitas"
 
 #: ../gnulib/lib/gai_strerror.c:61
 msgid "Interrupted by a signal"
-msgstr ""
+msgstr "Interrompido por um sinal"
 
 #: ../gnulib/lib/gai_strerror.c:62
 msgid "Parameter string not correctly encoded"
-msgstr ""
+msgstr "String de parâmetro não codificado corretamente"
 
 #: ../gnulib/lib/gai_strerror.c:74
 msgid "Unknown error"
-msgstr ""
+msgstr "Erro desconhecido"
 
 #: ../src/vncdisplay.c:169
 msgid "Enables debug output"
-msgstr "Ativa mensagens de depuração"
+msgstr "Habilita mensagens de depuração"
 
 #: ../src/vncdisplay.c:2245
 msgid "GTK-VNC Options:"
