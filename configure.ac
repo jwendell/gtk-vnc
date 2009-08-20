@@ -171,6 +171,7 @@ AC_ARG_WITH([sasl],
 
 SASL_CFLAGS=
 SASL_LIBS=
+enable_sasl=no
 if test "x$with_sasl" != "xno"; then
   if test "x$with_sasl" != "xyes" -a "x$with_sasl" != "xcheck"; then
     SASL_CFLAGS="-I$with_sasl"
@@ -188,24 +189,27 @@ if test "x$with_sasl" != "xno"; then
         fail=1
     fi])
   if test "x$with_sasl" != "xno" ; then
-    AC_CHECK_LIB([sasl2], [sasl_client_init],[with_sasl=yes],[
-      if test "x$with_sasl" = "xcheck" ; then
-          with_sasl=no
-      else
-          fail=1
-      fi])
+    AC_CHECK_LIB([sasl2], [sasl_client_init],[with_sasl2=yes],[with_sasl2=no])
   fi
-  test $fail = 1 &&
+  if test "x$with_sasl2" = "xno" -a "x$with_sasl" != "xno" ; then
+    AC_CHECK_LIB([sasl], [sasl_client_init],[with_sasl=yes],[with_sasl=no])
+  fi
+  if test "x$with_sasl2" = "xyes"; then
+    SASL_LIBS="$SASL_LIBS -lsasl2"
+  elif test "x$with_sasl" = "xyes"; then
+    SASL_LIBS="$SASL_LIBS -lsasl"
+  else
     AC_MSG_ERROR([You must install the Cyrus SASL development package in order to compile GTK-VNC])
+  fi
   CFLAGS="$old_cflags"
   LIBS="$old_libs"
-  SASL_LIBS="$SASL_LIBS -lsasl2"
-  if test "x$with_sasl" = "xyes" ; then
+  if test "x$with_sasl2" = "xyes" -o "x$with_sasl" = "xyes" ; then
     AC_DEFINE_UNQUOTED([HAVE_SASL], 1,
       [whether Cyrus SASL is available for authentication])
+    enable_sasl=yes
   fi
 fi
-AM_CONDITIONAL([HAVE_SASL], [test "x$with_sasl" = "xyes"])
+AM_CONDITIONAL([HAVE_SASL], [test "x$with_sasl2" = "xyes" -o "x$with_sasl" = "xyes"])
 AC_SUBST([SASL_CFLAGS])
 AC_SUBST([SASL_LIBS])
 
@@ -330,5 +334,5 @@ Configure summary:
 	Install example programs ...:  ${WITH_EXAMPLES}
 	Browser plugin .............:  ${enable_plugin}
 	Scaling support.............:  ${with_scaling}
-	SASL support................:  ${with_sasl}
+	SASL support................:  ${enable_sasl}
 "
