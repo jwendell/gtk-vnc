@@ -1,21 +1,21 @@
 dnl Process this file with autoconf to produce a configure script.
 
-AC_INIT([gtk-vnc], [0.3.9], [anthony@codemonkey.ws])
+AC_INIT([gtk-vnc], [0.3.9])
 AC_CONFIG_SRCDIR([src/gvnc.c])
+AC_CONFIG_AUX_DIR([build-aux])
+AM_CONFIG_HEADER([config.h])
+dnl Make automake keep quiet about wildcards & other GNUmake-isms
+AM_INIT_AUTOMAKE([-Wno-portability])
 
-#*******************************************************************************
-# Internationalization
-#*******************************************************************************
-GETTEXT_PACKAGE=gtk-vnc
-AC_SUBST(GETTEXT_PACKAGE)
-AC_DEFINE_UNQUOTED(GETTEXT_PACKAGE,"$GETTEXT_PACKAGE", [GETTEXT package name])
+# Use the silent-rules feature when possible.
+m4_ifndef([AM_SILENT_RULES], [m4_define([AM_SILENT_RULES],[])])
+AM_SILENT_RULES([yes])
 
-IT_PROG_INTLTOOL([0.35.0])
-AM_GLIB_GNU_GETTEXT
+AC_CANONICAL_HOST
 
-#*******************************************************************************
-# Check required libraries
-#*******************************************************************************
+dnl *******************************************************************************
+dnl Declare required library versions
+dnl *******************************************************************************
 
 GTK_REQUIRED=2.10.0
 AC_SUBST(GTK_REQUIRED)
@@ -31,12 +31,9 @@ NSPR_REQUIRED=4.0.0
 FIREFOX_PLUGIN_REQUIRED=2.0.0
 MOZILLA_PLUGIN_REQUIRED=1.8
 
-AC_CONFIG_HEADERS([config.h:config.hin])
-
-AC_CANONICAL_TARGET
-
-AM_INIT_AUTOMAKE(gtk-vnc, 0.3.9)
-
+dnl *******************************************************************************
+dnl Setup GNULIB - must be before anything else in this file
+dnl *******************************************************************************
 
 dnl gl_INIT uses m4_foreach_w, yet that is not defined in autoconf-2.59.
 dnl In order to accommodate developers with such old tools, here's a
@@ -48,11 +45,28 @@ m4_ifndef([m4_foreach_w],
 gl_EARLY
 gl_INIT
 
+dnl *******************************************************************************
+dnl Setup core compilers / build helpers
+dnl *******************************************************************************
+
 AC_PROG_CC_STDC
 AM_PROG_CC_C_O
-AC_LIBTOOL_WIN32_DLL
 
+AC_LIBTOOL_WIN32_DLL
 AC_PROG_LIBTOOL
+
+dnl *******************************************************************************
+dnl Internationalization
+dnl *******************************************************************************
+GETTEXT_PACKAGE=gtk-vnc
+AC_SUBST(GETTEXT_PACKAGE)
+AC_DEFINE_UNQUOTED(GETTEXT_PACKAGE,"$GETTEXT_PACKAGE", [GETTEXT package name])
+
+IT_PROG_INTLTOOL([0.35.0])
+AM_GLIB_GNU_GETTEXT
+
+dnl *******************************************************************************
+
 
 AC_CHECK_HEADERS([pwd.h winsock2.h])
 
@@ -65,44 +79,7 @@ AC_ARG_WITH(python,
 
 WITH_PYTHON=$withval
 
-AC_ARG_ENABLE(fatal-warnings,
-[  --enable-fatal-warnings make all compiler warnings fatal (not recommended)],
-[case "${enableval}" in
-   yes|no) ;;
-   *)      AC_MSG_ERROR([bad value ${enableval} for fatal-warnings option]) ;;
- esac],
-              [enableval=no])
-if test "${enableval}" = yes; then
-  gl_COMPILER_FLAGS(-Werror)
-  AC_SUBST([WERROR_CFLAGS], [$COMPILER_FLAGS])
-  COMPILER_FLAGS=
-fi
-
-AC_ARG_ENABLE(warnings,
-[  --enable-warnings       turn on lots of compiler warnings (recommended)],
-[case "${enableval}" in
-   yes|no) ;;
-   *)      AC_MSG_ERROR([bad value ${enableval} for warnings option]) ;;
- esac],
-              [enableval=no])
-
-if test "${enableval}" = yes; then
-  gl_COMPILER_FLAGS(-W)
-  gl_COMPILER_FLAGS(-Wall)
-  gl_COMPILER_FLAGS(-Wcast-align)
-  gl_COMPILER_FLAGS(-Wformat)
-  gl_COMPILER_FLAGS(-Wwrite-strings)
-  AC_SUBST([WARNING_CXXFLAGS], [$COMPILER_FLAGS])
-  # The following warnings are not suitable for C++.
-  gl_COMPILER_FLAGS(-Wbad-function-cast)
-  gl_COMPILER_FLAGS(-Wmissing-declarations)
-  gl_COMPILER_FLAGS(-Wmissing-prototypes)
-  gl_COMPILER_FLAGS(-Wshadow)
-  # gl_COMPILER_FLAGS(-Wstrict-prototypes)
-  AC_SUBST([WARNING_CFLAGS], [$COMPILER_FLAGS])
-  AC_DEFINE([lint], 1, [Define to 1 if the compiler is checking for lint.])
-  COMPILER_FLAGS=
-fi
+GTK_VNC_COMPILE_WARNINGS
 
 AC_ARG_WITH(examples,
 [  --with-examples         install example programs],

@@ -10,7 +10,8 @@ rm -rf build
 mkdir build
 cd build
 
-../autogen.sh --prefix=$AUTOBUILD_INSTALL_ROOT --enable-fatal-warnings
+../autogen.sh --prefix=$AUTOBUILD_INSTALL_ROOT \
+    --enable-compile-warnings=error
 
 make
 make install
