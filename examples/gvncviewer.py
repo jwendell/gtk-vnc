@@ -90,6 +90,7 @@ def vnc_auth_cred(src, credList):
 
     if prompt:
         dialog = gtk.Dialog("Authentication required", None, 0, (gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL, gtk.STOCK_OK, gtk.RESPONSE_OK))
+        dialog.set_default_response(gtk.RESPONSE_OK)
         label = []
         entry = []
 
@@ -97,14 +98,16 @@ def vnc_auth_cred(src, credList):
 
         row = 0
         for i in range(len(credList)):
+            entry.append(gtk.Entry())
             if credList[i] == gtkvnc.CREDENTIAL_USERNAME:
                 label.append(gtk.Label("Username:"))
             elif credList[i] == gtkvnc.CREDENTIAL_PASSWORD:
                 label.append(gtk.Label("Password:"))
+                entry[-1].set_visibility(False)
+                entry[-1].set_activates_default(True)
             else:
+                entry[-1].destroy()
                 continue
-
-            entry.append(gtk.Entry())
 
             box.attach(label[row], 0, 1, row, row+1, 0, 0, 3, 3)
             box.attach(entry[row], 1, 2, row, row+1, 0, 0, 3, 3)
