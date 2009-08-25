@@ -34,10 +34,10 @@
 static gchar **args = NULL;
 static const GOptionEntry options [] =
 {
-  {
-    G_OPTION_REMAINING, '\0', 0, G_OPTION_ARG_STRING_ARRAY, &args,
-    NULL, "hostname[:display]" },
-  { NULL, 0, 0, G_OPTION_ARG_NONE, NULL, NULL, 0 }
+	{
+		G_OPTION_REMAINING, '\0', 0, G_OPTION_ARG_STRING_ARRAY, &args,
+		NULL, "[hostname][:display]" },
+	{ NULL, 0, 0, G_OPTION_ARG_NONE, NULL, NULL, 0 }
 };
 
 
@@ -377,7 +377,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 	if (!args || (g_strv_length(args) != 1)) {
-		fprintf(stderr, "Usage: gvncviewer hostname[:display]\n%s\n", help_msg);
+		fprintf(stderr, "Usage: gvncviewer [hostname][:display]\n%s\n", help_msg);
 		return 1;
 	}
 
@@ -455,6 +455,8 @@ int main(int argc, char **argv)
 	} else
 		snprintf(port, sizeof(port), "%d", 5900);
 
+	if (!*hostname) 
+		snprintf(hostname, sizeof(hostname), "%s", "127.0.0.1");
 	vnc_display_open_host(VNC_DISPLAY(vnc), hostname, port);
 	vnc_display_set_keyboard_grab(VNC_DISPLAY(vnc), TRUE);
 	vnc_display_set_pointer_grab(VNC_DISPLAY(vnc), TRUE);
