@@ -50,16 +50,13 @@ make DESTDIR=$RPM_BUILD_ROOT install
 # Remove static libraries but DON'T remove *.dll.a files.
 rm $RPM_BUILD_ROOT%{_mingw32_libdir}/libgtk-vnc-1.0.a
 
-# automake gives gvncviewer a strange name ...
-mv $RPM_BUILD_ROOT%{_mingw32_bindir}/i686-pc-mingw32-gvncviewer.exe \
-   $RPM_BUILD_ROOT%{_mingw32_bindir}/gvncviewer.exe \
-
+%find_lang gtk-vnc
 
 %clean
 rm -rf $RPM_BUILD_ROOT
 
 
-%files
+%files -f gtk-vnc.lang
 %defattr(-,root,root)
 %{_mingw32_bindir}/gvncviewer.exe
 %{_mingw32_bindir}/libgtk-vnc-1.0-0.dll

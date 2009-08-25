@@ -10,11 +10,11 @@ Version: @VERSION@
 Release: 1%{?dist}%{?extra_release}
 License: LGPLv2+
 Group: Development/Libraries
-Source: http://downloads.sourceforge.net/%{name}/%{name}-%{version}.tar.gz
+Source: http://ftp.gnome.org/pub/GNOME/sources/%{name}/0.3/%{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
-URL: http://gtk-vnc.sf.net/
+URL: http://live.gnome.org/gtk-vnc
 BuildRequires: gtk2-devel pygtk2-devel python-devel zlib-devel
-BuildRequires: gnutls-devel cyrus-sasl-devel
+BuildRequires: gnutls-devel cyrus-sasl-devel intltool
 %if %{with_plugin}
 %if "%{fedora}" > "8"
 BuildRequires: xulrunner-devel
@@ -87,6 +87,7 @@ rm -f %{buildroot}%{_libdir}/python*/site-packages/*.la
 rm -f %{buildroot}%{_libdir}/mozilla/plugins/%{name}-plugin.a
 rm -f %{buildroot}%{_libdir}/mozilla/plugins/%{name}-plugin.la
 %endif
+%find_lang %{name}
 
 %clean
 rm -fr %{buildroot}
@@ -95,7 +96,7 @@ rm -fr %{buildroot}
 
 %postun -p /sbin/ldconfig
 
-%files
+%files -f %{name}.lang
 %defattr(-, root, root)
 %doc AUTHORS ChangeLog NEWS README COPYING.LIB
 %{_libdir}/lib*.so.*
