@@ -131,7 +131,9 @@ def vnc_auth_cred(src, credList):
 
     for i in range(len(credList)):
         if i < len(data) and data[i] != None:
-            src.set_credential(credList[i], data[i])
+            if src.set_credential(credList[i], data[i]):
+                print "Cannot set credential type %d" % (credList[i])
+                src.close()
         else:
             print "Unsupported credential type %d" % (credList[i])
             src.close()
