@@ -325,6 +325,7 @@ static gboolean gvnc_use_compression(struct gvnc *gvnc)
 
 static int gvnc_zread(struct gvnc *gvnc, void *buffer, size_t size)
 {
+	char *ptr = buffer;
 	size_t offset = 0;
 
 	while (offset < size) {
@@ -334,7 +335,7 @@ static int gvnc_zread(struct gvnc *gvnc, void *buffer, size_t size)
 			size_t len = MIN(gvnc->uncompressed_length,
 					 size - offset);
 
-			memcpy(buffer + offset,
+			memcpy(ptr + offset,
 			       gvnc->uncompressed_buffer,
 			       len);
 
@@ -512,7 +513,7 @@ static int gvnc_read(struct gvnc *gvnc, void *data, size_t len)
 		/* compressed data is buffered independently of the read buffer
 		 * so we must by-pass it */
 		if (gvnc_use_compression(gvnc)) {
-			int ret = gvnc_zread(gvnc, data + offset, len);
+			int ret = gvnc_zread(gvnc, ptr + offset, len);
 			if (ret == -1) {
 				GVNC_DEBUG("Closing the connection: gvnc_read() - gvnc_zread() failed");
 				gvnc->has_error = TRUE;
@@ -548,6 +549,7 @@ static void gvnc_flush_wire(struct gvnc *gvnc,
 			    const void *data,
 			    size_t datalen)
 {
+	const char *ptr = data;
 	size_t offset = 0;
 	//GVNC_DEBUG("Flush write %p %d", data, datalen);
 	while (offset < datalen) {
@@ -555,7 +557,7 @@ static void gvnc_flush_wire(struct gvnc *gvnc,
 
 		if (gvnc->tls_session) {
 			ret = gnutls_write(gvnc->tls_session,
-					   data+offset,
+					   ptr+offset,
 					   datalen-offset);
 			if (ret < 0) {
 				if (ret == GNUTLS_E_AGAIN)
@@ -566,7 +568,7 @@ static void gvnc_flush_wire(struct gvnc *gvnc,
 			}
 		} else
 			ret = send (gvnc->fd,
-				    data+offset,
+				    ptr+offset,
 				    datalen-offset, 0);
 		if (ret == -1) {
 			switch (errno) {
