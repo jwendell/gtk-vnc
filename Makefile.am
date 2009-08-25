@@ -1,5 +1,5 @@
 SUBDIRS = gnulib/lib src examples plugin gnulib/tests po
-ACLOCAL_AMFLAGS = -I gnulib/m4
+ACLOCAL_AMFLAGS = -I m4 -I gnulib/m4
 
 pkgconfig_DATA = @PACKAGE@-1.0.pc
 pkgconfigdir = $(libdir)/pkgconfig
