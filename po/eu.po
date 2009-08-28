@@ -1,0 +1,107 @@
+# translation of eu.po to Basque
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+#
+# Iñaki Larrañaga Murgoitio <dooteo@euskalgnu.org>, 2009.
+msgid ""
+msgstr ""
+"Project-Id-Version: eu\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2009-08-28 17:00+0200\n"
+"PO-Revision-Date: 2009-08-28 17:05+0200\n"
+"Last-Translator: Iñaki Larrañaga Murgoitio <dooteo@euskalgnu.org>\n"
+"Language-Team: Basque <itzulpena@euskalgnu.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: KBabel 1.11.4\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: ../gnulib/lib/gai_strerror.c:44
+msgid "Address family for hostname not supported"
+msgstr "Ostalari-izenaren helbidearen familia ez dago onartuta"
+
+#: ../gnulib/lib/gai_strerror.c:45
+msgid "Temporary failure in name resolution"
+msgstr "Aldi baterako hutsegitea izenaren bereizmenean"
+
+#: ../gnulib/lib/gai_strerror.c:46
+msgid "Bad value for ai_flags"
+msgstr "Okerreko balioa 'ai_flags'-entzako"
+
+#: ../gnulib/lib/gai_strerror.c:47
+msgid "Non-recoverable failure in name resolution"
+msgstr "Berreskura ezin daitekeen hutsegitea izenaren bereizmenean"
+
+#: ../gnulib/lib/gai_strerror.c:48
+msgid "ai_family not supported"
+msgstr "'ai_family' ez dago onartuta"
+
+#: ../gnulib/lib/gai_strerror.c:49
+msgid "Memory allocation failure"
+msgstr "Memoria alokatzean hutsegitea"
+
+#: ../gnulib/lib/gai_strerror.c:50
+msgid "No address associated with hostname"
+msgstr "Ez dago helbiderik esleituta ostalari-izenarekin"
+
+#: ../gnulib/lib/gai_strerror.c:51
+msgid "Name or service not known"
+msgstr "Izena edo zerbitzua ez da ezaguna"
+
+#: ../gnulib/lib/gai_strerror.c:52
+msgid "Servname not supported for ai_socktype"
+msgstr "Zerbitzari-izena ez dago onartuta 'ai_socktype'-en"
+
+#: ../gnulib/lib/gai_strerror.c:53
+msgid "ai_socktype not supported"
+msgstr "'ai_socktype' ez dago onartuta"
+
+#: ../gnulib/lib/gai_strerror.c:54
+msgid "System error"
+msgstr "Sistemako errorea"
+
+#: ../gnulib/lib/gai_strerror.c:55
+msgid "Argument buffer too small"
+msgstr "Argumentuaren bufferra txikiegia"
+
+#: ../gnulib/lib/gai_strerror.c:57
+msgid "Processing request in progress"
+msgstr "Eskaeraren prozesua lantzen"
+
+#: ../gnulib/lib/gai_strerror.c:58
+msgid "Request canceled"
+msgstr "Eskaera bertan behera utzita"
+
+#: ../gnulib/lib/gai_strerror.c:59
+msgid "Request not canceled"
+msgstr "Eskaera ez da bertan behera utzi"
+
+#: ../gnulib/lib/gai_strerror.c:60
+msgid "All requests done"
+msgstr "Eskaera guztiak egin dira"
+
+#: ../gnulib/lib/gai_strerror.c:61
+msgid "Interrupted by a signal"
+msgstr "Seinale batekin etenda"
+
+#: ../gnulib/lib/gai_strerror.c:62
+msgid "Parameter string not correctly encoded"
+msgstr "Parametroaren katea ez dago ongi kodetuta"
+
+#: ../gnulib/lib/gai_strerror.c:74
+msgid "Unknown error"
+msgstr "Errore ezezaguna"
+
+#: ../src/vncdisplay.c:169
+msgid "Enables debug output"
+msgstr "Arazketaren irteera gaitzen du"
+
+#: ../src/vncdisplay.c:2245
+msgid "GTK-VNC Options:"
+msgstr "GTK-VNC aukerak:"
+
+#: ../src/vncdisplay.c:2245
+msgid "Show GTK-VNC Options"
+msgstr "Erakutsi GTK-VNC aukerak"
+
