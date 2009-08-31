@@ -28,6 +28,7 @@
 #include "vncmarshal.h"
 #include "config.h"
 #include "x_keymap.h"
+#include "enums.h"
 
 #include <gtk/gtk.h>
 #include <glib/gi18n.h>
@@ -1720,7 +1721,7 @@ static void vnc_display_class_init(VncDisplayClass *klass)
 	signalCredParam = g_param_spec_enum("credential",
 					    "credential",
 					    "credential",
-					    vnc_display_credential_get_type(),
+					    VNC_TYPE_DISPLAY_CREDENTIAL,
 					    0,
 					    G_PARAM_READABLE);
 
@@ -2045,40 +2046,6 @@ void vnc_display_set_keyboard_grab(VncDisplay *obj, gboolean enable)
 void vnc_display_set_read_only(VncDisplay *obj, gboolean enable)
 {
 	obj->priv->read_only = enable;
-}
-
-GType vnc_display_credential_get_type(void)
-{
-	static GType etype = 0;
-
-	if (etype == 0) {
-		static const GEnumValue values[] = {
-			{ VNC_DISPLAY_CREDENTIAL_PASSWORD, "VNC_DISPLAY_CREDENTIAL_PASSWORD", "password" },
-			{ VNC_DISPLAY_CREDENTIAL_USERNAME, "VNC_DISPLAY_CREDENTIAL_USERNAME", "username" },
-			{ VNC_DISPLAY_CREDENTIAL_CLIENTNAME, "VNC_DISPLAY_CREDENTIAL_CLIENTNAME", "clientname" },
-			{ 0, NULL, NULL }
-		};
-		etype = g_enum_register_static ("VncDisplayCredentialType", values );
-	}
-
-	return etype;
-}
-
-GType vnc_display_key_event_get_type(void)
-{
-	static GType etype = 0;
-
-	if (etype == 0) {
-		static const GEnumValue values[] = {
-			{ VNC_DISPLAY_KEY_EVENT_PRESS, "VNC_DISPLAY_KEY_EVENT_PRESS", "press" },
-			{ VNC_DISPLAY_KEY_EVENT_RELEASE, "VNC_DISPLAY_KEY_EVENT_RELEASE", "release" },
-			{ VNC_DISPLAY_KEY_EVENT_CLICK, "VNC_DISPLAY_KEY_EVENT_CLICK", "click" },
-			{ 0, NULL, NULL }
-		};
-		etype = g_enum_register_static ("VncDisplayKeyEvents", values );
-	}
-
-	return etype;
 }
 
 GdkPixbuf *vnc_display_get_pixbuf(VncDisplay *obj)

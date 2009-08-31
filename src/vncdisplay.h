@@ -29,8 +29,6 @@ typedef struct _VncDisplayPrivate VncDisplayPrivate;
 #include <glib.h>
 
 #define VNC_TYPE_DISPLAY (vnc_display_get_type())
-#define VNC_TYPE_DISPLAY_CREDENTIAL (vnc_display_credential_get_type())
-#define VNC_TYPE_DISPLAY_KEY_EVENT (vnc_display_key_event_get_type())
 
 #define VNC_DISPLAY(obj) \
         (G_TYPE_CHECK_INSTANCE_CAST((obj), VNC_TYPE_DISPLAY, VncDisplay))
@@ -82,8 +80,6 @@ typedef enum
 G_BEGIN_DECLS
 
 GType		vnc_display_get_type(void);
-GType		vnc_display_credential_get_type(void);
-GType		vnc_display_key_event_get_type(void);
 GtkWidget *	vnc_display_new(void);
 
 gboolean	vnc_display_open_fd(VncDisplay *obj, int fd);
