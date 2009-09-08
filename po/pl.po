@@ -1,0 +1,106 @@
+# -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+# Aviary.pl
+# Jeśli masz jakiekolwiek uwagi odnoszące się do tłumaczenia lub chcesz
+# pomóc w jego rozwijaniu i pielęgnowaniu, napisz do nas:
+# gnomepl@aviary.pl
+# -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+msgid ""
+msgstr ""
+"Project-Id-Version: gtk-vnc\n"
+"Report-Msgid-Bugs-To: http://bugzilla.gnome.org/enter_bug.cgi?product=gtk-vnc&component=general\n"
+"POT-Creation-Date: 2009-09-07 22:33+0000\n"
+"PO-Revision-Date: 2009-09-09 01:42+0200\n"
+"Last-Translator: Piotr Drąg <piotrdrag@gmail.com>\n"
+"Language-Team: Polish <gnomepl@aviary.pl>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+#: ../gnulib/lib/gai_strerror.c:44
+msgid "Address family for hostname not supported"
+msgstr "Rodzina adresów dla nazwy komputera nie jest obsługiwana"
+
+#: ../gnulib/lib/gai_strerror.c:45
+msgid "Temporary failure in name resolution"
+msgstr "Tymczasowe niepowodzenie w rozwiązaniu nazwy"
+
+#: ../gnulib/lib/gai_strerror.c:46
+msgid "Bad value for ai_flags"
+msgstr "Błędna wartość dla ai_flags"
+
+#: ../gnulib/lib/gai_strerror.c:47
+msgid "Non-recoverable failure in name resolution"
+msgstr "Nieodwracalne niepowodzenie w rozwiązaniu nazwy"
+
+#: ../gnulib/lib/gai_strerror.c:48
+msgid "ai_family not supported"
+msgstr "ai_family nie jest obsługiwane"
+
+#: ../gnulib/lib/gai_strerror.c:49
+msgid "Memory allocation failure"
+msgstr "Niepowodzenie przydzielenia pamięci"
+
+#: ../gnulib/lib/gai_strerror.c:50
+msgid "No address associated with hostname"
+msgstr "Brak adresu powiązanego z nazwą komputera"
+
+#: ../gnulib/lib/gai_strerror.c:51
+msgid "Name or service not known"
+msgstr "Nazwa lub usługa jest nieznana"
+
+#: ../gnulib/lib/gai_strerror.c:52
+msgid "Servname not supported for ai_socktype"
+msgstr "Nazwa serwera nie jest obsługiwana dla ai_socktype"
+
+#: ../gnulib/lib/gai_strerror.c:53
+msgid "ai_socktype not supported"
+msgstr "ai_socktype nie jest obsługiwane"
+
+#: ../gnulib/lib/gai_strerror.c:54
+msgid "System error"
+msgstr "Błąd systemu"
+
+#: ../gnulib/lib/gai_strerror.c:55
+msgid "Argument buffer too small"
+msgstr "Bufor parametrów jest za mały"
+
+#: ../gnulib/lib/gai_strerror.c:57
+msgid "Processing request in progress"
+msgstr "Trwa przetwarzanie żądań"
+
+#: ../gnulib/lib/gai_strerror.c:58
+msgid "Request canceled"
+msgstr "Anulowano żądanie"
+
+#: ../gnulib/lib/gai_strerror.c:59
+msgid "Request not canceled"
+msgstr "Żądanie nie zostało anulowane"
+
+#: ../gnulib/lib/gai_strerror.c:60
+msgid "All requests done"
+msgstr "Ukończono wszystkie żądania"
+
+#: ../gnulib/lib/gai_strerror.c:61
+msgid "Interrupted by a signal"
+msgstr "Przerwano przez sygnał"
+
+#: ../gnulib/lib/gai_strerror.c:62
+msgid "Parameter string not correctly encoded"
+msgstr "Ciąg parametrów nie jest poprawnie zakodowany"
+
+#: ../gnulib/lib/gai_strerror.c:74
+msgid "Unknown error"
+msgstr "Nieznany błąd"
+
+#: ../src/vncdisplay.c:169
+msgid "Enables debug output"
+msgstr "Włącza wyjście debugowania"
+
+#: ../src/vncdisplay.c:2245
+msgid "GTK-VNC Options:"
+msgstr "Opcje programu GTK-VNC:"
+
+#: ../src/vncdisplay.c:2245
+msgid "Show GTK-VNC Options"
+msgstr "Wyświetla opcje programu GTK-VNC"
