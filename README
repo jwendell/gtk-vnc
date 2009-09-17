@@ -12,12 +12,16 @@ public API is provided by the vncdisplay.h class & should
 be reasonably free of API churn. The other header files are
 internal VNC protocol implementation & will very likely change.
 
-For information about the project visit the webpages at:
+For information about the project visit the webpage at:
 
-  http://gtk-vnc.sourceforge.net/
+  http://live.gnome.org/gtk-vnc
 
 To contact developers use the project mailing list at:
 
-  https://lists.sourceforge.net/lists/listinfo/gtk-vnc-devel
+  http://mail.gnome.org/mailman/listinfo/gtk-vnc-list
+
+To browse or report bugs, go to our bugzilla page at:
+
+  http://bugzilla.gnome.org/browse.cgi?product=gtk-vnc
 
 -- End
