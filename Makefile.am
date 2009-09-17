@@ -23,7 +23,7 @@ MAINTAINERCLEANFILES = 		\
 	compile			\
 	aclocal.m4		\
 	config.guess		\
-	config.hin		\
+	config.h.in		\
 	config.sub		\
 	depcomp			\
 	gtk-doc.make		\
@@ -42,6 +42,11 @@ MAINTAINERCLEANFILES = 		\
 	gnulib/m4/ltsugar.m4		\
 	gnulib/m4/ltversion.m4		\
 	gnulib/m4/lt~obsolete.m4	\
+	m4/libtool.m4			\
+	m4/lt~obsolete.m4		\
+	m4/ltoptions.m4			\
+	m4/ltsugar.m4			\
+	m4/ltversion.m4			\
 	`find "$(srcdir)" -type f -name Makefile.in -print`
 
 -include $(top_srcdir)/git.mk
