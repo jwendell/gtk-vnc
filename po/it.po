@@ -1,0 +1,106 @@
+# Italian translation for gtk-vnc.
+# Copyright (C) 2009 gtk-vnc's COPYRIGHT HOLDER
+# This file is distributed under the same license as the gtk-vnc package.
+# Luca Ferretti <elle.uca@libero.it>, 2009.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: gtk-vnc master\n"
+"Report-Msgid-Bugs-To: http://bugzilla.gnome.org/enter_bug.cgi?product=gtk-"
+"vnc&component=general\n"
+"POT-Creation-Date: 2009-09-17 13:12+0000\n"
+"PO-Revision-Date: 2009-09-06 10:09+0200\n"
+"Last-Translator: Luca Ferretti <elle.uca@libero.it>\n"
+"Language-Team: Italian <tp@lists.linux.it>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: ../gnulib/lib/gai_strerror.c:44
+msgid "Address family for hostname not supported"
+msgstr "Famiglia di indirizzi per l'hostname non supportata"
+
+#: ../gnulib/lib/gai_strerror.c:45
+msgid "Temporary failure in name resolution"
+msgstr "Fallimento temporaneo nella risoluzione dei nomi"
+
+#: ../gnulib/lib/gai_strerror.c:46
+msgid "Bad value for ai_flags"
+msgstr "Valore errato per ai_flags"
+
+#: ../gnulib/lib/gai_strerror.c:47
+msgid "Non-recoverable failure in name resolution"
+msgstr "Fallimento non recuperabile nella risoluzione dei nomi"
+
+#: ../gnulib/lib/gai_strerror.c:48
+msgid "ai_family not supported"
+msgstr "ai_family non supportata"
+
+#: ../gnulib/lib/gai_strerror.c:49
+msgid "Memory allocation failure"
+msgstr "Fallimento nell'allocazione della memoria"
+
+#: ../gnulib/lib/gai_strerror.c:50
+msgid "No address associated with hostname"
+msgstr "Nessun indirizzo associato con l'hostname"
+
+#: ../gnulib/lib/gai_strerror.c:51
+msgid "Name or service not known"
+msgstr "Nome o servizio non noto"
+
+#: ../gnulib/lib/gai_strerror.c:52
+msgid "Servname not supported for ai_socktype"
+msgstr "Servname non supportato per ai_socktype"
+
+#: ../gnulib/lib/gai_strerror.c:53
+msgid "ai_socktype not supported"
+msgstr "ai_socktype non supportato"
+
+#: ../gnulib/lib/gai_strerror.c:54
+msgid "System error"
+msgstr "Errore di sistema"
+
+#: ../gnulib/lib/gai_strerror.c:55
+msgid "Argument buffer too small"
+msgstr "Buffer di argomento troppo piccolo"
+
+#: ../gnulib/lib/gai_strerror.c:57
+msgid "Processing request in progress"
+msgstr "Eleborazione richiesta in corso"
+
+#: ../gnulib/lib/gai_strerror.c:58
+msgid "Request canceled"
+msgstr "Richiesta annullata"
+
+#: ../gnulib/lib/gai_strerror.c:59
+msgid "Request not canceled"
+msgstr "Richiesta non annullata"
+
+#: ../gnulib/lib/gai_strerror.c:60
+msgid "All requests done"
+msgstr "Completate tutte le richieste"
+
+#: ../gnulib/lib/gai_strerror.c:61
+msgid "Interrupted by a signal"
+msgstr "Interrotto da un segnale"
+
+#: ../gnulib/lib/gai_strerror.c:62
+msgid "Parameter string not correctly encoded"
+msgstr "Stringa di parametro codificata non correttamente"
+
+#: ../gnulib/lib/gai_strerror.c:74
+msgid "Unknown error"
+msgstr "Errore sconosciuto"
+
+#: ../src/vncdisplay.c:170
+msgid "Enables debug output"
+msgstr "Abilita l'output di debug"
+
+#: ../src/vncdisplay.c:2212
+msgid "GTK-VNC Options:"
+msgstr "Opzioni GTK-VNC:"
+
+#: ../src/vncdisplay.c:2212
+msgid "Show GTK-VNC Options"
+msgstr "Mostra le opzioni GTK-VNC"
