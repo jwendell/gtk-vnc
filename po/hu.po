@@ -1,0 +1,107 @@
+# Hungarian translation of gtk-vnc
+# Copyright 2009. Free Software Foundation, Inc.
+# This file is distributed under the same license as the gtk-vnc package.
+#
+# Gabor Kelemen <kelemeng at gnome dot hu>, 2009.
+msgid ""
+msgstr ""
+"Project-Id-Version: gtk-vnc mster\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2009-09-19 01:56+0200\n"
+"PO-Revision-Date: 2009-09-19 02:01+0200\n"
+"Last-Translator: Gabor Kelemen <kelemeng at gnome dot hu>\n"
+"Language-Team: Hungarian <gnome at fsf dot hu>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: KBabel 1.11.4\n"
+"Plural-Forms:  nplurals=2; plural=(n != 1);\n"
+
+#: ../gnulib/lib/gai_strerror.c:44
+msgid "Address family for hostname not supported"
+msgstr "A gépnév címcsaládja nem támogatott"
+
+#: ../gnulib/lib/gai_strerror.c:45
+msgid "Temporary failure in name resolution"
+msgstr "Ideiglenes névfeloldási hiba"
+
+#: ../gnulib/lib/gai_strerror.c:46
+msgid "Bad value for ai_flags"
+msgstr "Az ai_flags értéke hibás"
+
+#: ../gnulib/lib/gai_strerror.c:47
+msgid "Non-recoverable failure in name resolution"
+msgstr "Helyrehozhatatlan névfeloldási hiba"
+
+#: ../gnulib/lib/gai_strerror.c:48
+msgid "ai_family not supported"
+msgstr "Az ai_family nem támogatott"
+
+#: ../gnulib/lib/gai_strerror.c:49
+msgid "Memory allocation failure"
+msgstr "Memóriafoglalási hiba"
+
+#: ../gnulib/lib/gai_strerror.c:50
+msgid "No address associated with hostname"
+msgstr "A gépnévhez nem tartozik cím"
+
+#: ../gnulib/lib/gai_strerror.c:51
+msgid "Name or service not known"
+msgstr "A név vagy szolgáltatás ismeretlen"
+
+#: ../gnulib/lib/gai_strerror.c:52
+msgid "Servname not supported for ai_socktype"
+msgstr "A kiszolgálónév nem támogatott az ai_socktype-hoz"
+
+#: ../gnulib/lib/gai_strerror.c:53
+msgid "ai_socktype not supported"
+msgstr "Az ai_socktype nem támogatott"
+
+#: ../gnulib/lib/gai_strerror.c:54
+msgid "System error"
+msgstr "Rendszerhiba"
+
+#: ../gnulib/lib/gai_strerror.c:55
+msgid "Argument buffer too small"
+msgstr "A paraméterpuffer túl kicsi"
+
+#: ../gnulib/lib/gai_strerror.c:57
+msgid "Processing request in progress"
+msgstr "Kérés feldolgozása folyamatban"
+
+#: ../gnulib/lib/gai_strerror.c:58
+msgid "Request canceled"
+msgstr "Kérés megszakítva"
+
+#: ../gnulib/lib/gai_strerror.c:59
+msgid "Request not canceled"
+msgstr "Kérés nincs megszakítva"
+
+#: ../gnulib/lib/gai_strerror.c:60
+msgid "All requests done"
+msgstr "Minden kérés kész"
+
+#: ../gnulib/lib/gai_strerror.c:61
+msgid "Interrupted by a signal"
+msgstr "Szignál által megszakítva"
+
+#: ../gnulib/lib/gai_strerror.c:62
+msgid "Parameter string not correctly encoded"
+msgstr "A paraméter-karakterlánc nem megfelelő kódolású"
+
+#: ../gnulib/lib/gai_strerror.c:74
+msgid "Unknown error"
+msgstr "Ismeretlen hiba"
+
+#: ../src/vncdisplay.c:170
+msgid "Enables debug output"
+msgstr "Hibakeresési kimenet engedélyezése"
+
+#: ../src/vncdisplay.c:2212
+msgid "GTK-VNC Options:"
+msgstr "A GTK-VNC kapcsolói:"
+
+#: ../src/vncdisplay.c:2212
+msgid "Show GTK-VNC Options"
+msgstr "A GTK-VNC kapcsolóinak megjelenítése"
+
