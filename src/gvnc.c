@@ -3575,12 +3575,12 @@ gboolean gvnc_initialize(struct gvnc *gvnc, gboolean shared_flag)
 	if (gvnc_has_error(gvnc))
 		return FALSE;
 
-	if (!gvnc->fmt.true_color_flag && gvnc->ops.get_preferred_pixel_format) {
-		if (gvnc->ops.get_preferred_pixel_format(gvnc->ops_data, &gvnc->fmt))
-			gvnc_set_pixel_format(gvnc, &gvnc->fmt);
-		else
-			goto fail;
-	}
+	if (!gvnc->ops.get_preferred_pixel_format)
+		goto fail;
+	if (gvnc->ops.get_preferred_pixel_format(gvnc->ops_data, &gvnc->fmt))
+		gvnc_set_pixel_format(gvnc, &gvnc->fmt);
+	else
+		goto fail;
 	memset(&gvnc->strm, 0, sizeof(gvnc->strm));
 	/* FIXME what level? */
 	for (i = 0; i < 5; i++)

@@ -77,6 +77,15 @@ typedef enum
 	VNC_DISPLAY_KEY_EVENT_CLICK = 3,
 } VncDisplayKeyEvent;
 
+typedef enum
+{
+	VNC_DISPLAY_DEPTH_COLOR_DEFAULT = 0,
+	VNC_DISPLAY_DEPTH_COLOR_FULL,
+	VNC_DISPLAY_DEPTH_COLOR_MEDIUM,
+	VNC_DISPLAY_DEPTH_COLOR_LOW,
+	VNC_DISPLAY_DEPTH_COLOR_ULTRA_LOW
+} VncDisplayDepthColor;
+
 G_BEGIN_DECLS
 
 GType		vnc_display_get_type(void);
@@ -127,6 +136,9 @@ gboolean	vnc_display_get_force_size(VncDisplay *obj);
 
 void		vnc_display_set_shared_flag(VncDisplay *obj, gboolean shared);
 gboolean	vnc_display_get_shared_flag(VncDisplay *obj);
+
+void			vnc_display_set_depth(VncDisplay *obj, VncDisplayDepthColor depth);
+VncDisplayDepthColor	vnc_display_get_depth(VncDisplay *obj);
 
 void		vnc_display_force_grab(VncDisplay *obj, gboolean enable);
 
