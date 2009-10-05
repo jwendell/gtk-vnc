@@ -2179,6 +2179,7 @@ static void gvnc_framebuffer_update(struct gvnc *gvnc, int32_t etype,
 		gvnc_update(gvnc, x, y, width, height);
 		break;
 	case GVNC_ENCODING_DESKTOP_RESIZE:
+		gvnc_framebuffer_update_request (gvnc, 0, 0, 0, width, height);
 		gvnc_resize(gvnc, width, height);
 		break;
 	case GVNC_ENCODING_POINTER_CHANGE:
