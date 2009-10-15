@@ -2311,6 +2311,23 @@ vnc_display_get_option_entries (void)
 	return gtk_vnc_args;
 }
 
+gboolean
+vnc_display_request_update(VncDisplay *obj)
+{
+	g_return_val_if_fail (VNC_IS_DISPLAY (obj), FALSE);
+
+	if (!obj->priv->gvnc || !gvnc_is_initialized(obj->priv->gvnc))
+		return FALSE;
+
+	GVNC_DEBUG ("Requesting a full update");
+	return gvnc_framebuffer_update_request(obj->priv->gvnc,
+					       0,
+					       0,
+					       0,
+					       obj->priv->fb.width,
+					       obj->priv->fb.height);
+}
+
 #ifdef WIN32
 
 /* On Windows, we must call WSAStartup before using any sockets and we

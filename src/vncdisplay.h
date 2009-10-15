@@ -147,6 +147,8 @@ gboolean	vnc_display_is_pointer_absolute(VncDisplay *obj);
 GOptionGroup *  vnc_display_get_option_group(void);
 const GOptionEntry *  vnc_display_get_option_entries(void);
 
+gboolean	vnc_display_request_update(VncDisplay *obj);
+
 G_END_DECLS
 
 #endif
