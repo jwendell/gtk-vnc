@@ -1,6 +1,40 @@
     GTK VNC News
     ============
 
+Oct 20, 2009: Release 0.3.10
+============================
+
+Bug fixes:
+
+ o Fix check for SASL on Solaris
+ o Improvements on autoconf stuff such as drop some warnings, use silent
+   Makefile rules, etc.
+ o Improvements on the example program
+ o Request a full screen update when receives a desktop-resize encoding
+
+New features:
+
+ o Add internationalization (i18n) support
+ o Add ability to set the depth color
+ o Add ability to request a full screen update
+
+Translations:
+
+ o António Lima (pt)
+ o Claude Paroz (fr)
+ o Daniel Nylander (sv)
+ o Fran Diéguez (gl)
+ o Gabor Kelemen (hu)
+ o Henrique P. Machado (pt_BR)
+ o Inaki Larranaga (eu)
+ o Jonh Wendell (pt_BR)
+ o Jorge González (es)
+ o Luca Ferretti (it)
+ o Mario Blättermann (de)
+ o Pavlos Tournaris (el)
+ o Philip Withnall (en_GB)
+ o Piotr Drąg (pl)
+
 Aug 10, 2009: Release 0.3.9
 ===========================
 

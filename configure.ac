@@ -1,6 +1,6 @@
 dnl Process this file with autoconf to produce a configure script.
 
-AC_INIT([gtk-vnc], [0.3.9])
+AC_INIT([gtk-vnc], [0.3.10])
 AC_CONFIG_SRCDIR([src/gvnc.c])
 dnl Causes problems with RHEL-5 vintage intltool
 dnl AC_CONFIG_AUX_DIR([build-aux])
