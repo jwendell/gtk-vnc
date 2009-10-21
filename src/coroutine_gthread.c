@@ -106,7 +106,7 @@ int coroutine_init(struct coroutine *co)
 	return 0;
 }
 
-int coroutine_release(struct coroutine *co)
+int coroutine_release(struct coroutine *co G_GNUC_UNUSED)
 {
 	return 0;
 }
