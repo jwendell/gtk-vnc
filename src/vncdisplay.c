@@ -1633,6 +1633,11 @@ static void vnc_display_finalize (GObject *obj)
 		priv->null_cursor = NULL;
 	}
 
+	if (priv->remote_cursor) {
+		gdk_cursor_unref(priv->remote_cursor);
+		priv->remote_cursor = NULL;
+	}
+
 	if (priv->gc) {
 		g_object_unref (priv->gc);
 		priv->gc = NULL;
