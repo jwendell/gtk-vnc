@@ -986,7 +986,8 @@ static gboolean do_resize(void *opaque, int width, int height, gboolean quiet)
 	}
 
 	if (priv->gc == NULL) {
-		priv->null_cursor = create_null_cursor();
+		if (!priv->null_cursor)
+			priv->null_cursor = create_null_cursor();
 		if (priv->local_pointer)
 			do_pointer_show(obj);
 		else if (priv->in_pointer_grab || priv->absolute)
@@ -1619,6 +1620,11 @@ static void vnc_display_finalize (GObject *obj)
 	if (priv->image) {
 		g_object_unref(priv->image);
 		priv->image = NULL;
+	}
+
+	if (priv->null_cursor) {
+		gdk_cursor_unref (priv->null_cursor);
+		priv->null_cursor = NULL;
 	}
 
 	g_free (priv->host);
