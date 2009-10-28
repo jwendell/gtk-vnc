@@ -1621,6 +1621,9 @@ static void vnc_display_finalize (GObject *obj)
 		priv->image = NULL;
 	}
 
+	g_free (priv->host);
+	g_free (priv->port);
+
 	g_slist_free (priv->preferable_auths);
 
 	G_OBJECT_CLASS (vnc_display_parent_class)->finalize (obj);
