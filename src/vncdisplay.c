@@ -1633,6 +1633,11 @@ static void vnc_display_finalize (GObject *obj)
 		priv->null_cursor = NULL;
 	}
 
+	if (priv->gc) {
+		g_object_unref (priv->gc);
+		priv->gc = NULL;
+	}
+
 	g_free (priv->host);
 	g_free (priv->port);
 
