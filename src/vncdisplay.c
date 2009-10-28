@@ -1281,7 +1281,13 @@ static gboolean check_pixbuf_support(const char *name)
 
 	for (i = list; i; i = i->next) {
 		GdkPixbufFormat *fmt = i->data;
-		if (!strcmp(gdk_pixbuf_format_get_name(fmt), name))
+		gchar *fmt_name = gdk_pixbuf_format_get_name(fmt);
+		int cmp;
+
+		cmp = strcmp(fmt_name, name);
+		g_free (fmt_name);
+
+		if (!cmp)
 			break;
 	}
 
