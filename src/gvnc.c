@@ -3441,6 +3441,8 @@ void gvnc_close(struct gvnc *gvnc)
 		gvnc->name = NULL;
 	}
 
+	g_free (gvnc->xmit_buffer);
+
 	if (gvnc->cred_username) {
 		g_free(gvnc->cred_username);
 		gvnc->cred_username = NULL;
