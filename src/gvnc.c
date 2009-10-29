@@ -1017,7 +1017,9 @@ gboolean gvnc_set_pixel_format(struct gvnc *gvnc,
 
 	gvnc_write(gvnc, pad, 3);
 	gvnc_flush(gvnc);
-	memcpy(&gvnc->fmt, fmt, sizeof(*fmt));
+
+	if (&gvnc->fmt != fmt)
+		memcpy(&gvnc->fmt, fmt, sizeof(*fmt));
 
 	return !gvnc_has_error(gvnc);
 }
