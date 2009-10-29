@@ -164,7 +164,6 @@ typedef enum
 static guint signals[LAST_SIGNAL] = { 0, 0, 0, 0,
 				      0, 0, 0, 0,
 				      0, 0, 0, 0, 0,};
-static GParamSpec *signalCredParam;
 gboolean debug_enabled = FALSE;
 
 static const GOptionEntry gtk_vnc_args[] =
@@ -1119,17 +1118,17 @@ static gboolean on_auth_cred(void *opaque)
 
 	cred_list = g_value_array_new(0);
 	if (gvnc_wants_credential_username(obj->priv->gvnc)) {
-		g_value_init(&username, G_PARAM_SPEC_VALUE_TYPE(signalCredParam));
+		g_value_init(&username, VNC_TYPE_DISPLAY_CREDENTIAL);
 		g_value_set_enum(&username, VNC_DISPLAY_CREDENTIAL_USERNAME);
 		cred_list = g_value_array_append(cred_list, &username);
 	}
 	if (gvnc_wants_credential_password(obj->priv->gvnc)) {
-		g_value_init(&password, G_PARAM_SPEC_VALUE_TYPE(signalCredParam));
+		g_value_init(&password, VNC_TYPE_DISPLAY_CREDENTIAL);
 		g_value_set_enum(&password, VNC_DISPLAY_CREDENTIAL_PASSWORD);
 		cred_list = g_value_array_append(cred_list, &password);
 	}
 	if (gvnc_wants_credential_x509(obj->priv->gvnc)) {
-		g_value_init(&clientname, G_PARAM_SPEC_VALUE_TYPE(signalCredParam));
+		g_value_init(&clientname, VNC_TYPE_DISPLAY_CREDENTIAL);
 		g_value_set_enum(&clientname, VNC_DISPLAY_CREDENTIAL_CLIENTNAME);
 		cred_list = g_value_array_append(cred_list, &clientname);
 	}
@@ -1809,13 +1808,6 @@ static void vnc_display_class_init(VncDisplayClass *klass)
 								G_PARAM_STATIC_NAME |
 								G_PARAM_STATIC_NICK |
 								G_PARAM_STATIC_BLURB));
-
-	signalCredParam = g_param_spec_enum("credential",
-					    "credential",
-					    "credential",
-					    VNC_TYPE_DISPLAY_CREDENTIAL,
-					    0,
-					    G_PARAM_READABLE);
 
 	signals[VNC_CONNECTED] =
 		g_signal_new ("vnc-connected",
