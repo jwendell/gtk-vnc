@@ -24,13 +24,13 @@
 #include <glib.h>
 #include <stdint.h>
 
-struct gvnc;
+typedef struct _VncConnection VncConnection;
 
-struct gvnc_pixel_format;
+struct vnc_pixel_format;
 
 typedef void (rgb24_render_func)(void *, int, int, int, int, guint8 *, int);
 
-struct gvnc_ops
+struct vnc_connection_ops
 {
 	gboolean (*auth_cred)(void *);
 	gboolean (*auth_type)(void *, unsigned int, unsigned int *);
@@ -41,16 +41,16 @@ struct gvnc_ops
 	gboolean (*bell)(void *);
 	gboolean (*server_cut_text)(void *, const void *, size_t);
 	gboolean (*resize)(void *, int, int);
-        gboolean (*pixel_format)(void *, struct gvnc_pixel_format *);
+        gboolean (*pixel_format)(void *, struct vnc_pixel_format *);
 	gboolean (*pointer_type_change)(void *, int);
 	gboolean (*local_cursor)(void *, int, int, int, int, guint8 *);
 	gboolean (*auth_unsupported)(void *, unsigned int);
 	gboolean (*render_jpeg)(void *, rgb24_render_func *render, void *,
 				int, int, int, int, guint8 *, int);
-	gboolean (*get_preferred_pixel_format)(void *, struct gvnc_pixel_format *);
+	gboolean (*get_preferred_pixel_format)(void *, struct vnc_pixel_format *);
 };
 
-struct gvnc_pixel_format
+struct vnc_pixel_format
 {
 	guint8 bits_per_pixel;
 	guint8 depth;
@@ -64,7 +64,7 @@ struct gvnc_pixel_format
 	guint8 blue_shift;
 };
 
-struct gvnc_framebuffer
+struct vnc_framebuffer
 {
 	guint8 *data;
 
@@ -117,7 +117,7 @@ typedef enum {
 
 	GVNC_ENCODING_POINTER_CHANGE = -257,
 	GVNC_ENCODING_EXT_KEY_EVENT = -258,
-} gvnc_encoding;
+} vnc_connection_encoding;
 
 typedef enum {
 	GVNC_AUTH_INVALID = 0,
@@ -131,7 +131,7 @@ typedef enum {
 	GVNC_AUTH_VENCRYPT = 19, /* Used by VeNCrypt and QEMU */
  	GVNC_AUTH_SASL = 20, /* SASL type used by VINO and QEMU */
 	GVNC_AUTH_MSLOGON = 0xfffffffa, /* Used by UltraVNC */
-} gvnc_auth;
+} vnc_connection_auth;
 
 typedef enum {
 	GVNC_AUTH_VENCRYPT_PLAIN = 256,
@@ -143,69 +143,69 @@ typedef enum {
 	GVNC_AUTH_VENCRYPT_X509PLAIN = 262,
 	GVNC_AUTH_VENCRYPT_X509SASL = 263,
 	GVNC_AUTH_VENCRYPT_TLSSASL = 264,
-} gvnc_auth_vencrypt;
+} vnc_connection_auth_vencrypt;
 
 
-struct gvnc *gvnc_new(const struct gvnc_ops *ops, gpointer ops_data);
-void gvnc_free(struct gvnc *gvnc);
+VncConnection *vnc_connection_new(const struct vnc_connection_ops *ops, gpointer ops_data);
+void vnc_connection_free(VncConnection *conn);
 
-void gvnc_close(struct gvnc *gvnc);
-void gvnc_shutdown(struct gvnc *gvnc);
+void vnc_connection_close(VncConnection *conn);
+void vnc_connection_shutdown(VncConnection *conn);
 
-gboolean gvnc_open_fd(struct gvnc *gvnc, int fd);
-gboolean gvnc_open_host(struct gvnc *gvnc, const char *host, const char *port);
-gboolean gvnc_is_open(struct gvnc *gvnc);
+gboolean vnc_connection_open_fd(VncConnection *conn, int fd);
+gboolean vnc_connection_open_host(VncConnection *conn, const char *host, const char *port);
+gboolean vnc_connection_is_open(VncConnection *conn);
 
-gboolean gvnc_set_auth_type(struct gvnc *gvnc, unsigned int type);
-gboolean gvnc_set_auth_subtype(struct gvnc *gvnc, unsigned int type);
+gboolean vnc_connection_set_auth_type(VncConnection *conn, unsigned int type);
+gboolean vnc_connection_set_auth_subtype(VncConnection *conn, unsigned int type);
 
-gboolean gvnc_set_credential_password(struct gvnc *gvnc, const char *password);
-gboolean gvnc_set_credential_username(struct gvnc *gvnc, const char *username);
-gboolean gvnc_set_credential_x509_cacert(struct gvnc *gvnc, const char *file);
-gboolean gvnc_set_credential_x509_cacrl(struct gvnc *gvnc, const char *file);
-gboolean gvnc_set_credential_x509_key(struct gvnc *gvnc, const char *file);
-gboolean gvnc_set_credential_x509_cert(struct gvnc *gvnc, const char *file);
+gboolean vnc_connection_set_credential_password(VncConnection *conn, const char *password);
+gboolean vnc_connection_set_credential_username(VncConnection *conn, const char *username);
+gboolean vnc_connection_set_credential_x509_cacert(VncConnection *conn, const char *file);
+gboolean vnc_connection_set_credential_x509_cacrl(VncConnection *conn, const char *file);
+gboolean vnc_connection_set_credential_x509_key(VncConnection *conn, const char *file);
+gboolean vnc_connection_set_credential_x509_cert(VncConnection *conn, const char *file);
 
-gboolean gvnc_wants_credential_password(struct gvnc *gvnc);
-gboolean gvnc_wants_credential_username(struct gvnc *gvnc);
-gboolean gvnc_wants_credential_x509(struct gvnc *gvnc);
+gboolean vnc_connection_wants_credential_password(VncConnection *conn);
+gboolean vnc_connection_wants_credential_username(VncConnection *conn);
+gboolean vnc_connection_wants_credential_x509(VncConnection *conn);
 
-gboolean gvnc_initialize(struct gvnc *gvnc, gboolean shared_flag);
-gboolean gvnc_is_initialized(struct gvnc *gvnc);
+gboolean vnc_connection_initialize(VncConnection *conn, gboolean shared_flag);
+gboolean vnc_connection_is_initialized(VncConnection *conn);
 
-gboolean gvnc_server_message(struct gvnc *gvnc);
+gboolean vnc_connection_server_message(VncConnection *conn);
 
-gboolean gvnc_client_cut_text(struct gvnc *gvnc,
-			      const void *data, size_t length);
+gboolean vnc_connection_client_cut_text(VncConnection *conn,
+					const void *data, size_t length);
 
-gboolean gvnc_pointer_event(struct gvnc *gvnc, guint8 button_mask,
-			    guint16 x, guint16 y);
+gboolean vnc_connection_pointer_event(VncConnection *conn, uint8_t button_mask,
+				      guint16 x, guint16 y);
 
-gboolean gvnc_key_event(struct gvnc *gvnc, guint8 down_flag,
-			guint32 key, guint16 scancode);
+gboolean vnc_connection_key_event(VncConnection *conn, uint8_t down_flag,
+				  guint32 key, guint16 scancode);
 
-gboolean gvnc_framebuffer_update_request(struct gvnc *gvnc,
-					 guint8 incremental,
-					 guint16 x, guint16 y,
-					 guint16 width, guint16 height);
+gboolean vnc_connection_framebuffer_update_request(VncConnection *conn,
+						   guint8 incremental,
+						   guint16 x, guint16 y,
+						   guint16 width, guint16 height);
 
-gboolean gvnc_set_encodings(struct gvnc *gvnc, int n_encoding, gint32 *encoding);
+gboolean vnc_connection_set_encodings(VncConnection *conn, int n_encoding, gint32 *encoding);
 
-gboolean gvnc_set_pixel_format(struct gvnc *gvnc,
-			       const struct gvnc_pixel_format *fmt);
+gboolean vnc_connection_set_pixel_format(VncConnection *conn,
+					 const struct vnc_pixel_format *fmt);
 
-gboolean gvnc_has_error(struct gvnc *gvnc);
+gboolean vnc_connection_has_error(VncConnection *conn);
 
-gboolean gvnc_set_local(struct gvnc *gvnc, struct gvnc_framebuffer *fb);
+gboolean vnc_connection_set_local(VncConnection *conn, struct vnc_framebuffer *fb);
 
-gboolean gvnc_shared_memory_enabled(struct gvnc *gvnc);
+gboolean vnc_connection_shared_memory_enabled(VncConnection *conn);
 
-const char *gvnc_get_name(struct gvnc *gvnc);
-int gvnc_get_width(struct gvnc *gvnc);
-int gvnc_get_height(struct gvnc *gvnc);
+const char *vnc_connection_get_name(VncConnection *conn);
+int vnc_connection_get_width(VncConnection *conn);
+int vnc_connection_get_height(VncConnection *conn);
 
 /* HACK this is temporary */
-gboolean gvnc_using_raw_keycodes(struct gvnc *gvnc);
+gboolean vnc_connection_using_raw_keycodes(VncConnection *conn);
 
 #endif
 /*

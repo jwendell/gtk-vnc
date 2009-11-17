@@ -46,7 +46,7 @@
  *
  */
 
-struct gvnc_dh {
+struct vnc_dh {
        gcry_mpi_t gen;  /* g */
        gcry_mpi_t mod;  /* p */
 
@@ -56,11 +56,11 @@ struct gvnc_dh {
        gcry_mpi_t key;  /*     X ^ y mod p */
 };
 
-#define GVNC_DH_MAX_BITS 31
+#define VNC_DH_MAX_BITS 31
 
-struct gvnc_dh *gvnc_dh_new(gcry_mpi_t gen, gcry_mpi_t mod)
+struct vnc_dh *vnc_dh_new(gcry_mpi_t gen, gcry_mpi_t mod)
 {
-       struct gvnc_dh *ret = g_new0(struct gvnc_dh, 1);
+       struct vnc_dh *ret = g_new0(struct vnc_dh, 1);
 
        ret->gen = gcry_mpi_copy(gen);
        ret->mod = gcry_mpi_copy(mod);
@@ -69,16 +69,16 @@ struct gvnc_dh *gvnc_dh_new(gcry_mpi_t gen, gcry_mpi_t mod)
 }
 
 
-gcry_mpi_t gvnc_dh_gen_secret(struct gvnc_dh *dh)
+gcry_mpi_t vnc_dh_gen_secret(struct vnc_dh *dh)
 {
-       if (!(dh->priv = gcry_mpi_new(GVNC_DH_MAX_BITS)))
+       if (!(dh->priv = gcry_mpi_new(VNC_DH_MAX_BITS)))
                abort();
 
        do {
-               gcry_mpi_randomize (dh->priv, (GVNC_DH_MAX_BITS / 8) * 8, GCRY_STRONG_RANDOM);
+               gcry_mpi_randomize (dh->priv, (VNC_DH_MAX_BITS / 8) * 8, GCRY_STRONG_RANDOM);
        } while (gcry_mpi_cmp_ui (dh->priv, 0) == 0);
 
-       if (!(dh->pub = gcry_mpi_new(GVNC_DH_MAX_BITS)))
+       if (!(dh->pub = gcry_mpi_new(VNC_DH_MAX_BITS)))
                abort();
 
        gcry_mpi_powm(dh->pub, dh->gen, dh->priv, dh->mod);
@@ -86,9 +86,9 @@ gcry_mpi_t gvnc_dh_gen_secret(struct gvnc_dh *dh)
        return dh->pub;
 }
 
-gcry_mpi_t gvnc_dh_gen_key(struct gvnc_dh *dh, gcry_mpi_t inter)
+gcry_mpi_t vnc_dh_gen_key(struct vnc_dh *dh, gcry_mpi_t inter)
 {
-       if (!(dh->key = gcry_mpi_new(GVNC_DH_MAX_BITS)))
+       if (!(dh->key = gcry_mpi_new(VNC_DH_MAX_BITS)))
                abort();
 
        gcry_mpi_powm(dh->key, inter, dh->priv, dh->mod);
@@ -96,7 +96,7 @@ gcry_mpi_t gvnc_dh_gen_key(struct gvnc_dh *dh, gcry_mpi_t inter)
        return dh->key;
 }
 
-void gvnc_dh_free(struct gvnc_dh *dh)
+void vnc_dh_free(struct vnc_dh *dh)
 {
        if (dh->key)
                gcry_mpi_release(dh->key);
@@ -131,13 +131,13 @@ static void convert (unsigned char *input, int size)
     }
 }
 
-void gvnc_mpi_to_bytes(const gcry_mpi_t value, guchar* result)
+void vnc_mpi_to_bytes(const gcry_mpi_t value, guchar* result)
 {
        gcry_mpi_print(GCRYMPI_FMT_STD, result, 8, NULL, value);
        convert (result, 8);
 }
 
-gcry_mpi_t gvnc_bytes_to_mpi(const guchar* value)
+gcry_mpi_t vnc_bytes_to_mpi(const guchar* value)
 {
        gcry_mpi_t ret;
        gcry_error_t error;
