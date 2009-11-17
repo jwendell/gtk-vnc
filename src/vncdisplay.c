@@ -23,7 +23,7 @@
 
 #include "vncdisplay.h"
 #include "coroutine.h"
-#include "gvnc.h"
+#include "vncconnection.h"
 #include "utils.h"
 #include "vncmarshal.h"
 #include "config.h"

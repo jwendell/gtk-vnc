@@ -24,7 +24,7 @@ libgtk_vnc_1_0_la_SOURCES = blt.h blt1.h \
 	coroutine.h \
 	d3des.h d3des.c \
 	dh.h dh.c \
-	gvnc.h gvnc.c \
+	vncconnection.h vncconnection.c \
 	vncdisplay.h vncdisplay.c \
         vncmarshal.h vncmarshal.c \
 	x_keymap.h x_keymap.c vnc_keycodes.h \
