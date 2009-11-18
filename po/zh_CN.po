@@ -1,0 +1,105 @@
+# Chinese (China) translation for gtk-vnc.
+# Copyright (C) 2009 gtk-vnc's COPYRIGHT HOLDER
+# This file is distributed under the same license as the gtk-vnc package.
+# Lyper Lai <lyp069@gmail.com>, 2009.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: gtk-vnc master\n"
+"Report-Msgid-Bugs-To: http://bugzilla.gnome.org/enter_bug.cgi?product=gtk-"
+"vnc&component=general\n"
+"POT-Creation-Date: 2009-11-10 11:27+0000\n"
+"PO-Revision-Date: 2009-11-18 14:19+0800\n"
+"Last-Translator: Lyper Lai <lyp069@gmail.com>\n"
+"Language-Team: Chinese (China) <i18n-zh@googlegroups.com>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: ../gnulib/lib/gai_strerror.c:44
+msgid "Address family for hostname not supported"
+msgstr "主机地址分类不支持"
+
+#: ../gnulib/lib/gai_strerror.c:45
+msgid "Temporary failure in name resolution"
+msgstr "名字解析中的临时错误"
+
+#: ../gnulib/lib/gai_strerror.c:46
+msgid "Bad value for ai_flags"
+msgstr "错误的 ai_flags 值"
+
+#: ../gnulib/lib/gai_strerror.c:47
+msgid "Non-recoverable failure in name resolution"
+msgstr "名子解析中不可恢复的失败"
+
+#: ../gnulib/lib/gai_strerror.c:48
+msgid "ai_family not supported"
+msgstr "ai_family 不支持"
+
+#: ../gnulib/lib/gai_strerror.c:49
+msgid "Memory allocation failure"
+msgstr "内存分配失败"
+
+#: ../gnulib/lib/gai_strerror.c:50
+msgid "No address associated with hostname"
+msgstr "主机无地址分配"
+
+#: ../gnulib/lib/gai_strerror.c:51
+msgid "Name or service not known"
+msgstr "名字或服务未知"
+
+#: ../gnulib/lib/gai_strerror.c:52
+msgid "Servname not supported for ai_socktype"
+msgstr "ai_socktype 不支持服务名"
+
+#: ../gnulib/lib/gai_strerror.c:53
+msgid "ai_socktype not supported"
+msgstr "ai_socktype 不支持"
+
+#: ../gnulib/lib/gai_strerror.c:54
+msgid "System error"
+msgstr "系统错误"
+
+#: ../gnulib/lib/gai_strerror.c:55
+msgid "Argument buffer too small"
+msgstr "参数缓冲区太小"
+
+#: ../gnulib/lib/gai_strerror.c:57
+msgid "Processing request in progress"
+msgstr "正在处理请求"
+
+#: ../gnulib/lib/gai_strerror.c:58
+msgid "Request canceled"
+msgstr "请求已取消"
+
+#: ../gnulib/lib/gai_strerror.c:59
+msgid "Request not canceled"
+msgstr "请求未取消"
+
+#: ../gnulib/lib/gai_strerror.c:60
+msgid "All requests done"
+msgstr "所有请求完成"
+
+#: ../gnulib/lib/gai_strerror.c:61
+msgid "Interrupted by a signal"
+msgstr "被信号中断"
+
+#: ../gnulib/lib/gai_strerror.c:62
+msgid "Parameter string not correctly encoded"
+msgstr "参数字符串未正确编码"
+
+#: ../gnulib/lib/gai_strerror.c:74
+msgid "Unknown error"
+msgstr "未知错误"
+
+#: ../src/vncdisplay.c:171
+msgid "Enables debug output"
+msgstr "启用调式输出"
+
+#: ../src/vncdisplay.c:2317
+msgid "GTK-VNC Options:"
+msgstr "GTK-VNC 选项："
+
+#: ../src/vncdisplay.c:2317
+msgid "Show GTK-VNC Options"
+msgstr "显示 GTK-VNC 选项"
