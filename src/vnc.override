@@ -3,7 +3,7 @@ headers
 #include <Python.h>
 #include "pygobject.h"
 #include "vncdisplay.h"
-#include "enums.h"
+#include "vncdisplayenums.h"
 %%
 modulename gtkvnc
 %%

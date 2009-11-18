@@ -21,6 +21,7 @@
 #include <config.h>
 
 #include "vncconnection.h"
+#include "vncconnectionenums.h"
 
 #include <sys/socket.h>
 #include <netinet/in.h>

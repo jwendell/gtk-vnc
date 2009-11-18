@@ -81,7 +81,7 @@ typedef enum {
 
 	GVNC_ENCODING_POINTER_CHANGE = -257,
 	GVNC_ENCODING_EXT_KEY_EVENT = -258,
-} vnc_connection_encoding;
+} VncConnectionEncoding;
 
 typedef enum {
 	GVNC_AUTH_INVALID = 0,
@@ -95,7 +95,7 @@ typedef enum {
 	GVNC_AUTH_VENCRYPT = 19, /* Used by VeNCrypt and QEMU */
  	GVNC_AUTH_SASL = 20, /* SASL type used by VINO and QEMU */
 	GVNC_AUTH_MSLOGON = 0xfffffffa, /* Used by UltraVNC */
-} vnc_connection_auth;
+} VncConnectionAuth;
 
 typedef enum {
 	GVNC_AUTH_VENCRYPT_PLAIN = 256,
@@ -107,7 +107,7 @@ typedef enum {
 	GVNC_AUTH_VENCRYPT_X509PLAIN = 262,
 	GVNC_AUTH_VENCRYPT_X509SASL = 263,
 	GVNC_AUTH_VENCRYPT_TLSSASL = 264,
-} vnc_connection_auth_vencrypt;
+} VncConnectionAuthVencrypt;
 
 
 VncConnection *vnc_connection_new(const struct vnc_connection_ops *ops, gpointer ops_data);

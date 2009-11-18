@@ -29,7 +29,7 @@
 #include "vncmarshal.h"
 #include "config.h"
 #include "x_keymap.h"
-#include "enums.h"
+#include "vncdisplayenums.h"
 
 #include <gtk/gtk.h>
 #include <glib/gi18n.h>
@@ -1152,7 +1152,7 @@ static gboolean on_auth_type(void *opaque, unsigned int ntype, unsigned int *typ
 		return TRUE;
 
 	for (l = priv->preferable_auths; l; l=l->next) {
-		vnc_connection_auth pref = GPOINTER_TO_UINT (l->data);
+		int pref = GPOINTER_TO_UINT (l->data);
 
 		for (i=0; i<ntype; i++) {
 			if (pref == types[i]) {
@@ -1178,7 +1178,7 @@ static gboolean on_auth_subtype(void *opaque, unsigned int ntype, unsigned int *
 		return TRUE;
 
 	for (l = priv->preferable_auths; l; l=l->next) {
-		vnc_connection_auth pref = GPOINTER_TO_UINT (l->data);
+		int pref = GPOINTER_TO_UINT (l->data);
 
 		for (i=0; i<ntype; i++) {
 			if (pref == types[i]) {
