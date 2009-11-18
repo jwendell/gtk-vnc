@@ -897,7 +897,7 @@ static void setup_gdk_image(VncDisplay *obj, gint width, gint height)
 	priv->fb.width = priv->image->width;
 	priv->fb.height = priv->image->height;
 	priv->fb.linesize = priv->image->bpl;
-	priv->fb.data = (uint8_t *)priv->image->mem;
+	priv->fb.data = (guint8 *)priv->image->mem;
 	priv->fb.byte_order = priv->image->byte_order == GDK_LSB_FIRST ? G_LITTLE_ENDIAN : G_BIG_ENDIAN;
 
 	if (priv->force_size)
@@ -1241,7 +1241,7 @@ static gboolean on_bell(void *opaque)
 	return TRUE;
 }
 
-static gboolean on_local_cursor(void *opaque, int x, int y, int width, int height, uint8_t *image)
+static gboolean on_local_cursor(void *opaque, int x, int y, int width, int height, guint8 *image)
 {
 	VncDisplay *obj = VNC_DISPLAY(opaque);
 	VncDisplayPrivate *priv = obj->priv;
@@ -1298,11 +1298,11 @@ static gboolean check_pixbuf_support(const char *name)
 static gboolean on_render_jpeg(void *opaque G_GNUC_UNUSED,
 			       rgb24_render_func *render, void *render_opaque,
 			       int x, int y, int w, int h,
-			       uint8_t *data, int size)
+			       guint8 *data, int size)
 {
 	GdkPixbufLoader *loader = gdk_pixbuf_loader_new();
 	GdkPixbuf *p;
-	uint8_t *pixels;
+	guint8 *pixels;
 
 	if (!gdk_pixbuf_loader_write(loader, data, size, NULL))
 		return FALSE;
@@ -1370,7 +1370,7 @@ static void *vnc_coroutine(void *opaque)
 	VncDisplayPrivate *priv = obj->priv;
 
 	/* this order is extremely important! */
-	int32_t encodings[] = {	GVNC_ENCODING_TIGHT_JPEG5,
+	gint32 encodings[] = {	GVNC_ENCODING_TIGHT_JPEG5,
 				GVNC_ENCODING_TIGHT,
 				GVNC_ENCODING_EXT_KEY_EVENT,
 				GVNC_ENCODING_DESKTOP_RESIZE,
@@ -1383,7 +1383,7 @@ static void *vnc_coroutine(void *opaque)
 				GVNC_ENCODING_RRE,
 				GVNC_ENCODING_COPY_RECT,
 				GVNC_ENCODING_RAW };
-	int32_t *encodingsp;
+	gint32 *encodingsp;
 	int n_encodings;
 	int ret;
 	struct signal_data s;

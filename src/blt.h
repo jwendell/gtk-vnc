@@ -43,7 +43,7 @@
 static void FAST_FILL(struct gvnc *gvnc, src_pixel_t *sp,
 		      int x, int y, int width, int height)
 {
-	uint8_t *dst = gvnc_get_local(gvnc, x, y);
+	guint8 *dst = gvnc_get_local(gvnc, x, y);
 	int i;
 
 	for (i = 0; i < 1; i++) {
@@ -79,7 +79,7 @@ static void SET_PIXEL_AT(struct gvnc *gvnc, int x, int y, src_pixel_t *sp)
 static void FILL(struct gvnc *gvnc, src_pixel_t *sp,
 		 int x, int y, int width, int height)
 {
-	uint8_t *dst = gvnc_get_local(gvnc, x, y);
+	guint8 *dst = gvnc_get_local(gvnc, x, y);
 	int i;
 
 	for (i = 0; i < 1; i++) {
@@ -98,9 +98,9 @@ static void FILL(struct gvnc *gvnc, src_pixel_t *sp,
 	}
 }
 
-static void BLIT(struct gvnc *gvnc, uint8_t *src, int pitch, int x, int y, int w, int h)
+static void BLIT(struct gvnc *gvnc, guint8 *src, int pitch, int x, int y, int w, int h)
 {
-	uint8_t *dst = gvnc_get_local(gvnc, x, y);
+	guint8 *dst = gvnc_get_local(gvnc, x, y);
 	int i;
 
 	for (i = 0; i < h; i++) {
@@ -118,8 +118,8 @@ static void BLIT(struct gvnc *gvnc, uint8_t *src, int pitch, int x, int y, int w
 	}
 }
 
-static void HEXTILE(struct gvnc *gvnc, uint8_t flags, uint16_t x, uint16_t y,
-		    uint16_t width, uint16_t height, src_pixel_t *fg, src_pixel_t *bg)
+static void HEXTILE(struct gvnc *gvnc, guint8 flags, guint16 x, guint16 y,
+		    guint16 width, guint16 height, src_pixel_t *fg, src_pixel_t *bg)
 {
 	int stride = width * sizeof(src_pixel_t);
 	int i;
@@ -127,14 +127,14 @@ static void HEXTILE(struct gvnc *gvnc, uint8_t flags, uint16_t x, uint16_t y,
 	if (flags & 0x01) {
 		/* Raw tile */
 		if (gvnc->perfect_match) {
-			uint8_t *dst = gvnc_get_local(gvnc, x, y);
+			guint8 *dst = gvnc_get_local(gvnc, x, y);
 
 			for (i = 0; i < height; i++) {
 				gvnc_read(gvnc, dst, stride);
 				dst += gvnc->local.linesize;
 			}
 		} else {
-			uint8_t data[16 * 16 * sizeof(src_pixel_t)];
+			guint8 data[16 * 16 * sizeof(src_pixel_t)];
 
 			gvnc_read(gvnc, data, stride * height);
 			BLIT(gvnc, data, stride, x, y, width, height);
@@ -156,10 +156,10 @@ static void HEXTILE(struct gvnc *gvnc, uint8_t flags, uint16_t x, uint16_t y,
 
 		/* AnySubrects */
 		if (flags & 0x08) {
-			uint8_t n_rects = gvnc_read_u8(gvnc);
+			guint8 n_rects = gvnc_read_u8(gvnc);
 
 			for (i = 0; i < n_rects; i++) {
-				uint8_t xy, wh;
+				guint8 xy, wh;
 
 				/* SubrectsColored */
 				if (flags & 0x10)
@@ -184,14 +184,14 @@ static void HEXTILE(struct gvnc *gvnc, uint8_t flags, uint16_t x, uint16_t y,
 
 /* We need to convert to a GdkPixbuf which is always 32-bit */
 #if DST == 32
-static void RICH_CURSOR_BLIT(struct gvnc *gvnc, uint8_t *pixbuf,
-			     uint8_t *image, uint8_t *mask, int pitch,
-			     uint16_t width, uint16_t height)
+static void RICH_CURSOR_BLIT(struct gvnc *gvnc, guint8 *pixbuf,
+			     guint8 *image, guint8 *mask, int pitch,
+			     guint16 width, guint16 height)
 {
 	int x1, y1;
-	uint32_t *dst = (uint32_t *)pixbuf;
-	uint8_t *src = image;
-	uint8_t *alpha = mask;
+	guint32 *dst = (guint32 *)pixbuf;
+	guint8 *src = image;
+	guint8 *alpha = mask;
 	int as, rs, gs, bs, n;
 
 	/*
@@ -225,7 +225,7 @@ static void RICH_CURSOR_BLIT(struct gvnc *gvnc, uint8_t *pixbuf,
 
 	for (y1 = 0; y1 < height; y1++) {
 		src_pixel_t *sp = (src_pixel_t *)src;
-		uint8_t *mp = alpha;
+		guint8 *mp = alpha;
 		for (x1 = 0; x1 < width; x1++) {
 			*dst = (COMPONENT(red, *sp) << rs)
 				| (COMPONENT(green, *sp) << gs)
@@ -245,14 +245,14 @@ static void RICH_CURSOR_BLIT(struct gvnc *gvnc, uint8_t *pixbuf,
 
 #if SRC == 32
 static void RGB24_BLIT(struct gvnc *gvnc, int x, int y, int width, int height,
-		       uint8_t *data, int pitch)
+		       guint8 *data, int pitch)
 {
-	uint8_t *dst = gvnc_get_local(gvnc, x, y);
+	guint8 *dst = gvnc_get_local(gvnc, x, y);
 	int i, j;
 
 	for (j = 0; j < height; j++) {
 		dst_pixel_t *dp = (dst_pixel_t *)dst;
-		uint8_t *sp = data;
+		guint8 *sp = data;
 
 		for (i = 0; i < width; i++) {
 			/*

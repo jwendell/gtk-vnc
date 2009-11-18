@@ -28,7 +28,7 @@ struct gvnc;
 
 struct gvnc_pixel_format;
 
-typedef void (rgb24_render_func)(void *, int, int, int, int, uint8_t *, int);
+typedef void (rgb24_render_func)(void *, int, int, int, int, guint8 *, int);
 
 struct gvnc_ops
 {
@@ -43,37 +43,37 @@ struct gvnc_ops
 	gboolean (*resize)(void *, int, int);
         gboolean (*pixel_format)(void *, struct gvnc_pixel_format *);
 	gboolean (*pointer_type_change)(void *, int);
-	gboolean (*local_cursor)(void *, int, int, int, int, uint8_t *);
+	gboolean (*local_cursor)(void *, int, int, int, int, guint8 *);
 	gboolean (*auth_unsupported)(void *, unsigned int);
 	gboolean (*render_jpeg)(void *, rgb24_render_func *render, void *,
-				int, int, int, int, uint8_t *, int);
+				int, int, int, int, guint8 *, int);
 	gboolean (*get_preferred_pixel_format)(void *, struct gvnc_pixel_format *);
 };
 
 struct gvnc_pixel_format
 {
-	uint8_t bits_per_pixel;
-	uint8_t depth;
-	uint16_t byte_order;
-	uint8_t true_color_flag;
-	uint16_t red_max;
-	uint16_t green_max;
-	uint16_t blue_max;
-	uint8_t red_shift;
-	uint8_t green_shift;
-	uint8_t blue_shift;
+	guint8 bits_per_pixel;
+	guint8 depth;
+	guint16 byte_order;
+	guint8 true_color_flag;
+	guint16 red_max;
+	guint16 green_max;
+	guint16 blue_max;
+	guint8 red_shift;
+	guint8 green_shift;
+	guint8 blue_shift;
 };
 
 struct gvnc_framebuffer
 {
-	uint8_t *data;
+	guint8 *data;
 
 	int width;
 	int height;
 
 	int linesize;
 
-	uint16_t byte_order;
+	guint16 byte_order;
 	int depth;
 	int bpp;
 
@@ -178,18 +178,18 @@ gboolean gvnc_server_message(struct gvnc *gvnc);
 gboolean gvnc_client_cut_text(struct gvnc *gvnc,
 			      const void *data, size_t length);
 
-gboolean gvnc_pointer_event(struct gvnc *gvnc, uint8_t button_mask,
-			    uint16_t x, uint16_t y);
+gboolean gvnc_pointer_event(struct gvnc *gvnc, guint8 button_mask,
+			    guint16 x, guint16 y);
 
-gboolean gvnc_key_event(struct gvnc *gvnc, uint8_t down_flag,
-			uint32_t key, uint16_t scancode);
+gboolean gvnc_key_event(struct gvnc *gvnc, guint8 down_flag,
+			guint32 key, guint16 scancode);
 
 gboolean gvnc_framebuffer_update_request(struct gvnc *gvnc,
-					 uint8_t incremental,
-					 uint16_t x, uint16_t y,
-					 uint16_t width, uint16_t height);
+					 guint8 incremental,
+					 guint16 x, guint16 y,
+					 guint16 width, guint16 height);
 
-gboolean gvnc_set_encodings(struct gvnc *gvnc, int n_encoding, int32_t *encoding);
+gboolean gvnc_set_encodings(struct gvnc *gvnc, int n_encoding, gint32 *encoding);
 
 gboolean gvnc_set_pixel_format(struct gvnc *gvnc,
 			       const struct gvnc_pixel_format *fmt);

@@ -36,7 +36,7 @@
  * THE SOFTWARE.
  */
 
-static const uint8_t x_keycode_to_pc_keycode_table[61] = {
+static const guint8 x_keycode_to_pc_keycode_table[61] = {
 	0xc7,      /*  97  Home   */
 	0xc8,      /*  98  Up     */
 	0xc9,      /*  99  PgUp   */
@@ -105,7 +105,7 @@ static const uint8_t x_keycode_to_pc_keycode_table[61] = {
  * and  /usr/share/X11/xkb/keycodes/xfree86
  */
 
-static const uint8_t evdev_keycode_to_pc_keycode[61] = {
+static const guint8 evdev_keycode_to_pc_keycode[61] = {
 	0,         /*  97 EVDEV - RO   ("Internet" Keyboards) */
 	0,         /*  98 EVDEV - KATA (Katakana) */
 	0,         /*  99 EVDEV - HIRA (Hiragana) */
@@ -223,7 +223,7 @@ static gboolean check_for_evdev(void)
 }
 #endif
 
-const uint8_t const *x_keycode_to_pc_keycode_map(void)
+const guint8 const *x_keycode_to_pc_keycode_map(void)
 {
 	if (check_for_evdev()) {
 		GVNC_DEBUG("Using evdev keycode mapping");
@@ -234,8 +234,8 @@ const uint8_t const *x_keycode_to_pc_keycode_map(void)
 	}
 }
 
-uint16_t x_keycode_to_pc_keycode(const uint8_t const *keycode_map,
-				 uint16_t keycode)
+guint16 x_keycode_to_pc_keycode(const guint8 const *keycode_map,
+				guint16 keycode)
 {
 	if (keycode == GDK_Pause)
 		return VKC_PAUSE;
