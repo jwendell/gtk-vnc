@@ -1016,7 +1016,7 @@ static gboolean on_resize(void *opaque, int width, int height)
 }
 
 static gboolean on_pixel_format(void *opaque,
-	struct vnc_pixel_format *fmt G_GNUC_UNUSED)
+				VncPixelFormat *fmt G_GNUC_UNUSED)
 {
         VncDisplay *obj = VNC_DISPLAY(opaque);
         VncDisplayPrivate *priv = obj->priv;
@@ -1025,7 +1025,7 @@ static gboolean on_pixel_format(void *opaque,
 }
 
 static gboolean on_get_preferred_pixel_format(void *opaque,
-	struct vnc_pixel_format *fmt)
+					      VncPixelFormat *fmt)
 {
 	VncDisplay *obj = VNC_DISPLAY(opaque);
 	GdkVisual *v =  gdk_drawable_get_visual(gtk_widget_get_window(GTK_WIDGET(obj)));

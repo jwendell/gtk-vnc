@@ -22,11 +22,10 @@
 #define _GVNC_H_
 
 #include <glib.h>
-#include <stdint.h>
+
+#include "vncpixelformat.h"
 
 typedef struct _VncConnection VncConnection;
-
-struct vnc_pixel_format;
 
 typedef void (rgb24_render_func)(void *, int, int, int, int, guint8 *, int);
 
@@ -41,28 +40,15 @@ struct vnc_connection_ops
 	gboolean (*bell)(void *);
 	gboolean (*server_cut_text)(void *, const void *, size_t);
 	gboolean (*resize)(void *, int, int);
-        gboolean (*pixel_format)(void *, struct vnc_pixel_format *);
+	gboolean (*pixel_format)(void *, VncPixelFormat *);
 	gboolean (*pointer_type_change)(void *, int);
 	gboolean (*local_cursor)(void *, int, int, int, int, guint8 *);
 	gboolean (*auth_unsupported)(void *, unsigned int);
 	gboolean (*render_jpeg)(void *, rgb24_render_func *render, void *,
 				int, int, int, int, guint8 *, int);
-	gboolean (*get_preferred_pixel_format)(void *, struct vnc_pixel_format *);
+	gboolean (*get_preferred_pixel_format)(void *, VncPixelFormat *);
 };
 
-struct vnc_pixel_format
-{
-	guint8 bits_per_pixel;
-	guint8 depth;
-	guint16 byte_order;
-	guint8 true_color_flag;
-	guint16 red_max;
-	guint16 green_max;
-	guint16 blue_max;
-	guint8 red_shift;
-	guint8 green_shift;
-	guint8 blue_shift;
-};
 
 struct vnc_framebuffer
 {
@@ -178,10 +164,10 @@ gboolean vnc_connection_server_message(VncConnection *conn);
 gboolean vnc_connection_client_cut_text(VncConnection *conn,
 					const void *data, size_t length);
 
-gboolean vnc_connection_pointer_event(VncConnection *conn, uint8_t button_mask,
+gboolean vnc_connection_pointer_event(VncConnection *conn, guint8 button_mask,
 				      guint16 x, guint16 y);
 
-gboolean vnc_connection_key_event(VncConnection *conn, uint8_t down_flag,
+gboolean vnc_connection_key_event(VncConnection *conn, guint8 down_flag,
 				  guint32 key, guint16 scancode);
 
 gboolean vnc_connection_framebuffer_update_request(VncConnection *conn,
@@ -192,13 +178,11 @@ gboolean vnc_connection_framebuffer_update_request(VncConnection *conn,
 gboolean vnc_connection_set_encodings(VncConnection *conn, int n_encoding, gint32 *encoding);
 
 gboolean vnc_connection_set_pixel_format(VncConnection *conn,
-					 const struct vnc_pixel_format *fmt);
+					 const VncPixelFormat *fmt);
 
 gboolean vnc_connection_has_error(VncConnection *conn);
 
 gboolean vnc_connection_set_local(VncConnection *conn, struct vnc_framebuffer *fb);
-
-gboolean vnc_connection_shared_memory_enabled(VncConnection *conn);
 
 const char *vnc_connection_get_name(VncConnection *conn);
 int vnc_connection_get_width(VncConnection *conn);

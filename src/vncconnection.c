@@ -119,7 +119,7 @@ struct _VncConnection
 	int fd;
 	char *host;
 	char *port;
-	struct vnc_pixel_format fmt;
+	VncPixelFormat fmt;
 	gboolean has_error;
 	int width;
 	int height;
@@ -1005,7 +1005,7 @@ static int vnc_connection_validate_certificate(VncConnection *conn)
 }
 
 
-static void vnc_connection_read_pixel_format(VncConnection *conn, struct vnc_pixel_format *fmt)
+static void vnc_connection_read_pixel_format(VncConnection *conn, VncPixelFormat *fmt)
 {
 	guint8 pad[3];
 
@@ -1040,7 +1040,7 @@ gboolean vnc_connection_has_error(VncConnection *conn)
 }
 
 gboolean vnc_connection_set_pixel_format(VncConnection *conn,
-					 const struct vnc_pixel_format *fmt)
+					 const VncPixelFormat *fmt)
 {
 	guint8 pad[3] = {0};
 
