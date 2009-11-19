@@ -71,22 +71,8 @@ struct wait_queue
 };
 
 
-typedef void vnc_connection_blt_func(VncConnection *conn, guint8 *, int, int, int, int, int);
-
-typedef void vnc_connection_fill_func(VncConnection *conn, guint8 *, int, int, int, int);
-
-typedef void vnc_connection_set_pixel_at_func(VncConnection *conn, int, int, guint8 *);
-
-typedef void vnc_connection_hextile_func(VncConnection *conn, guint8 flags,
-					  guint16 x, guint16 y,
-					  guint16 width, guint16 height,
-					  guint8 *fg, guint8 *bg);
-
 typedef void vnc_connection_rich_cursor_blt_func(VncConnection *conn, guint8 *, guint8 *,
 						  guint8 *, int, guint16, guint16);
-
-typedef void vnc_connection_rgb24_blt_func(VncConnection *conn, int, int, int, int,
-					    guint8 *, int);
 
 typedef void vnc_connection_tight_compute_predicted_func(VncConnection *conn, guint8 *,
 							  guint8 *, guint8 *,
@@ -156,19 +142,10 @@ struct _VncConnection
 	char write_buffer[4096];
 	size_t write_offset;
 
-	gboolean perfect_match;
-	struct vnc_framebuffer local;
+	VncFramebuffer *fb;
+	gboolean fbSwapRemote;
 
-	int rm, gm, bm;
-	int rrs, grs, brs;
-	int rls, gls, bls;
-
-	vnc_connection_blt_func *blt;
-	vnc_connection_fill_func *fill;
-	vnc_connection_set_pixel_at_func *set_pixel_at;
-	vnc_connection_hextile_func *hextile;
 	vnc_connection_rich_cursor_blt_func *rich_cursor_blt;
-	vnc_connection_rgb24_blt_func *rgb24_blt;
 	vnc_connection_tight_compute_predicted_func *tight_compute_predicted;
 	vnc_connection_tight_sum_pixel_func *tight_sum_pixel;
 
@@ -1070,6 +1047,11 @@ gboolean vnc_connection_set_pixel_format(VncConnection *conn,
 }
 
 
+const VncPixelFormat *vnc_connection_get_pixel_format(VncConnection *conn)
+{
+	return &conn->fmt;
+}
+
 gboolean vnc_connection_set_encodings(VncConnection *conn, int n_encoding, gint32 *encoding)
 {
 	guint8 pad[1] = {0};
@@ -1215,51 +1197,29 @@ gboolean vnc_connection_client_cut_text(VncConnection *conn,
 	return !vnc_connection_has_error(conn);
 }
 
+
 static inline guint8 *vnc_connection_get_local(VncConnection *conn, int x, int y)
 {
-	return conn->local.data +
-		(y * conn->local.linesize) +
-		(x * conn->local.bpp);
+	const VncPixelFormat *local = vnc_framebuffer_get_local_format(conn->fb);
+	int rowstride = vnc_framebuffer_get_rowstride(conn->fb);
+
+	return vnc_framebuffer_get_buffer(conn->fb) +
+		(y * rowstride) +
+		(x * (local->bits_per_pixel / 8));
 }
 
-static guint8 vnc_connection_swap_img_8(VncConnection *conn G_GNUC_UNUSED, guint8 pixel)
-{
-	return pixel;
-}
 
 static guint8 vnc_connection_swap_rfb_8(VncConnection *conn G_GNUC_UNUSED, guint8 pixel)
 {
 	return pixel;
 }
 
-/* local host native format -> X server image format */
-static guint16 vnc_connection_swap_img_16(VncConnection *conn, guint16 pixel)
-{
-	if (G_BYTE_ORDER != conn->local.byte_order)
-		return  (((pixel >> 8) & 0xFF) << 0) |
-			(((pixel >> 0) & 0xFF) << 8);
-	else
-		return pixel;
-}
-
 /* VNC server RFB  format ->  local host native format */
 static guint16 vnc_connection_swap_rfb_16(VncConnection *conn, guint16 pixel)
 {
-	if (conn->fmt.byte_order != G_BYTE_ORDER)
+	if (conn->fbSwapRemote)
 		return  (((pixel >> 8) & 0xFF) << 0) |
 			(((pixel >> 0) & 0xFF) << 8);
-	else
-		return pixel;
-}
-
-/* local host native format -> X server image format */
-static guint32 vnc_connection_swap_img_32(VncConnection *conn, guint32 pixel)
-{
-	if (G_BYTE_ORDER != conn->local.byte_order)
-		return  (((pixel >> 24) & 0xFF) <<  0) |
-			(((pixel >> 16) & 0xFF) <<  8) |
-			(((pixel >>  8) & 0xFF) << 16) |
-			(((pixel >>  0) & 0xFF) << 24);
 	else
 		return pixel;
 }
@@ -1267,7 +1227,7 @@ static guint32 vnc_connection_swap_img_32(VncConnection *conn, guint32 pixel)
 /* VNC server RFB  format ->  local host native format */
 static guint32 vnc_connection_swap_rfb_32(VncConnection *conn, guint32 pixel)
 {
-	if (conn->fmt.byte_order != G_BYTE_ORDER)
+	if (conn->fbSwapRemote)
 		return  (((pixel >> 24) & 0xFF) <<  0) |
 			(((pixel >> 16) & 0xFF) <<  8) |
 			(((pixel >>  8) & 0xFF) << 16) |
@@ -1276,73 +1236,66 @@ static guint32 vnc_connection_swap_rfb_32(VncConnection *conn, guint32 pixel)
 		return pixel;
 }
 
-#define SPLICE_I(a, b) a ## b
-#define SPLICE(a, b) SPLICE_I(a, b)
+#define SRC 8
+#define DST 8
+#include "vncconnectionblt.h"
+#undef SRC
+#undef DST
 
 #define SRC 8
-#include "blt1.h"
+#define DST 16
+#include "vncconnectionblt.h"
 #undef SRC
+#undef DST
+
+#define SRC 8
+#define DST 32
+#include "vncconnectionblt.h"
+#undef SRC
+#undef DST
+
 
 #define SRC 16
-#include "blt1.h"
+#define DST 8
+#include "vncconnectionblt.h"
 #undef SRC
+#undef DST
+
+#define SRC 16
+#define DST 16
+#include "vncconnectionblt.h"
+#undef SRC
+#undef DST
+
+#define SRC 16
+#define DST 32
+#include "vncconnectionblt.h"
+#undef SRC
+#undef DST
+
 
 #define SRC 32
-#include "blt1.h"
+#define DST 8
+#include "vncconnectionblt.h"
 #undef SRC
+#undef DST
 
-static vnc_connection_blt_func *vnc_connection_blt_table[3][3] = {
-	{  vnc_connection_blt_8x8,  vnc_connection_blt_8x16,  vnc_connection_blt_8x32 },
-	{ vnc_connection_blt_16x8, vnc_connection_blt_16x16, vnc_connection_blt_16x32 },
-	{ vnc_connection_blt_32x8, vnc_connection_blt_32x16, vnc_connection_blt_32x32 },
-};
+#define SRC 32
+#define DST 16
+#include "vncconnectionblt.h"
+#undef SRC
+#undef DST
 
-static vnc_connection_hextile_func *vnc_connection_hextile_table[3][3] = {
-	{ (vnc_connection_hextile_func *)vnc_connection_hextile_8x8,
-	  (vnc_connection_hextile_func *)vnc_connection_hextile_8x16,
-	  (vnc_connection_hextile_func *)vnc_connection_hextile_8x32 },
-	{ (vnc_connection_hextile_func *)vnc_connection_hextile_16x8,
-	  (vnc_connection_hextile_func *)vnc_connection_hextile_16x16,
-	  (vnc_connection_hextile_func *)vnc_connection_hextile_16x32 },
-	{ (vnc_connection_hextile_func *)vnc_connection_hextile_32x8,
-	  (vnc_connection_hextile_func *)vnc_connection_hextile_32x16,
-	  (vnc_connection_hextile_func *)vnc_connection_hextile_32x32 },
-};
-
-static vnc_connection_set_pixel_at_func *vnc_connection_set_pixel_at_table[3][3] = {
-	{ (vnc_connection_set_pixel_at_func *)vnc_connection_set_pixel_at_8x8,
-	  (vnc_connection_set_pixel_at_func *)vnc_connection_set_pixel_at_8x16,
-	  (vnc_connection_set_pixel_at_func *)vnc_connection_set_pixel_at_8x32 },
-	{ (vnc_connection_set_pixel_at_func *)vnc_connection_set_pixel_at_16x8,
-	  (vnc_connection_set_pixel_at_func *)vnc_connection_set_pixel_at_16x16,
-	  (vnc_connection_set_pixel_at_func *)vnc_connection_set_pixel_at_16x32 },
-	{ (vnc_connection_set_pixel_at_func *)vnc_connection_set_pixel_at_32x8,
-	  (vnc_connection_set_pixel_at_func *)vnc_connection_set_pixel_at_32x16,
-	  (vnc_connection_set_pixel_at_func *)vnc_connection_set_pixel_at_32x32 },
-};
-
-static vnc_connection_fill_func *vnc_connection_fill_table[3][3] = {
-	{ (vnc_connection_fill_func *)vnc_connection_fill_8x8,
-	  (vnc_connection_fill_func *)vnc_connection_fill_8x16,
-	  (vnc_connection_fill_func *)vnc_connection_fill_8x32 },
-	{ (vnc_connection_fill_func *)vnc_connection_fill_16x8,
-	  (vnc_connection_fill_func *)vnc_connection_fill_16x16,
-	  (vnc_connection_fill_func *)vnc_connection_fill_16x32 },
-	{ (vnc_connection_fill_func *)vnc_connection_fill_32x8,
-	  (vnc_connection_fill_func *)vnc_connection_fill_32x16,
-	  (vnc_connection_fill_func *)vnc_connection_fill_32x32 },
-};
+#define SRC 32
+#define DST 32
+#include "vncconnectionblt.h"
+#undef SRC
+#undef DST
 
 static vnc_connection_rich_cursor_blt_func *vnc_connection_rich_cursor_blt_table[3] = {
 	vnc_connection_rich_cursor_blt_8x32,
 	vnc_connection_rich_cursor_blt_16x32,
 	vnc_connection_rich_cursor_blt_32x32,
-};
-
-static vnc_connection_rgb24_blt_func *vnc_connection_rgb24_blt_table[3] = {
-	(vnc_connection_rgb24_blt_func *)vnc_connection_rgb24_blt_32x8,
-	(vnc_connection_rgb24_blt_func *)vnc_connection_rgb24_blt_32x16,
-	(vnc_connection_rgb24_blt_func *)vnc_connection_rgb24_blt_32x32,
 };
 
 static vnc_connection_tight_compute_predicted_func *vnc_connection_tight_compute_predicted_table[3] = {
@@ -1357,52 +1310,39 @@ static vnc_connection_tight_sum_pixel_func *vnc_connection_tight_sum_pixel_table
 	(vnc_connection_tight_sum_pixel_func *)vnc_connection_tight_sum_pixel_32x32,
 };
 
-/* a fast blit for the perfect match scenario */
-static void vnc_connection_blt_fast(VncConnection *conn, guint8 *src, int pitch,
-				    int x, int y, int width, int height)
-{
-	guint8 *dst = vnc_connection_get_local(conn, x, y);
-	int i;
-	for (i = 0; i < height; i++) {
-		memcpy(dst, src, width * conn->local.bpp);
-		dst += conn->local.linesize;
-		src += pitch;
-	}
-}
-
-static void vnc_connection_blt(VncConnection *conn, guint8 *src, int pitch,
-			       int x, int y, int width, int height)
-{
-	conn->blt(conn, src, pitch, x, y, width, height);
-}
 
 static void vnc_connection_raw_update(VncConnection *conn,
 				      guint16 x, guint16 y,
 				      guint16 width, guint16 height)
 {
-	guint8 *dst;
-	int i;
-
 	/* optimize for perfect match between server/client
 	   FWIW, in the local case, we ought to be doing a write
 	   directly from the source framebuffer and a read directly
 	   into the client framebuffer
 	*/
-	if (conn->perfect_match) {
-		dst = vnc_connection_get_local(conn, x, y);
-		for (i = 0; i < height; i++) {
-			vnc_connection_read(conn, dst, width * conn->local.bpp);
-			dst += conn->local.linesize;
-		}
-		return;
-	}
+	if (vnc_framebuffer_perfect_format_match(conn->fb)) {
+		int i;
+		int rowstride = vnc_framebuffer_get_rowstride(conn->fb);
+		guint8 *dst = vnc_framebuffer_get_buffer(conn->fb);
 
-	dst = g_malloc(width * (conn->fmt.bits_per_pixel / 8));
-	for (i = 0; i < height; i++) {
-		vnc_connection_read(conn, dst, width * (conn->fmt.bits_per_pixel / 8));
-		vnc_connection_blt(conn, dst, 0, x, y + i, width, 1);
+		dst += (y * rowstride) + (x * (conn->fmt.bits_per_pixel/8));
+
+		for (i = 0; i < height; i++) {
+			vnc_connection_read(conn, dst,
+					    width * (conn->fmt.bits_per_pixel/8));
+			dst += rowstride;
+		}
+	} else {
+		guint8 *dst;
+		int i;
+
+		dst = g_malloc(width * (conn->fmt.bits_per_pixel / 8));
+		for (i = 0; i < height; i++) {
+			vnc_connection_read(conn, dst, width * (conn->fmt.bits_per_pixel / 8));
+			vnc_framebuffer_blt(conn->fb, dst, 0, x, y + i, width, 1);
+		}
+		g_free(dst);
 	}
-	g_free(dst);
 }
 
 static void vnc_connection_copyrect_update(VncConnection *conn,
@@ -1410,27 +1350,59 @@ static void vnc_connection_copyrect_update(VncConnection *conn,
 					   guint16 width, guint16 height)
 {
 	int src_x, src_y;
-	guint8 *dst, *src;
-	int pitch = conn->local.linesize;
-	int i;
 
 	src_x = vnc_connection_read_u16(conn);
 	src_y = vnc_connection_read_u16(conn);
 
-	if (src_y < dst_y) {
-		pitch = -pitch;
-		src_y += (height - 1);
-		dst_y += (height - 1);
-	}
+	vnc_framebuffer_copyrect(conn->fb,
+				 src_x, src_y,
+				 dst_x, dst_y,
+				 width, height);
+}
 
-	dst = vnc_connection_get_local(conn, dst_x, dst_y);
-	src = vnc_connection_get_local(conn, src_x, src_y);
-	for (i = 0; i < height; i++) {
-		memmove(dst, src, width * conn->local.bpp);
-		dst += pitch;
-		src += pitch;
+static void vnc_connection_hextile_rect(VncConnection *conn,
+					guint8 flags,
+					guint16 x, guint16 y,
+					guint16 width, guint16 height,
+					guint8 *fg, guint8 *bg)
+{
+	int i;
+
+	if (flags & 0x01) {
+		vnc_connection_raw_update(conn, x, y, width, height);
+	} else {
+		/* Background Specified */
+		if (flags & 0x02)
+			vnc_connection_read_pixel(conn, bg);
+
+		/* Foreground Specified */
+		if (flags & 0x04)
+			vnc_connection_read_pixel(conn, fg);
+
+		vnc_framebuffer_fill(conn->fb, bg, x, y, width, height);
+
+		/* AnySubrects */
+		if (flags & 0x08) {
+			guint8 n_rects = vnc_connection_read_u8(conn);
+
+			for (i = 0; i < n_rects; i++) {
+				guint8 xy, wh;
+
+				/* SubrectsColored */
+				if (flags & 0x10)
+					vnc_connection_read_pixel(conn, fg);
+
+				xy = vnc_connection_read_u8(conn);
+				wh = vnc_connection_read_u8(conn);
+
+				vnc_framebuffer_fill(conn->fb, fg,
+						     x + nibhi(xy), y + niblo(xy),
+						     nibhi(wh) + 1, niblo(wh) + 1);
+			}
+		}
 	}
 }
+
 
 static void vnc_connection_hextile_update(VncConnection *conn,
 					  guint16 x, guint16 y,
@@ -1448,20 +1420,12 @@ static void vnc_connection_hextile_update(VncConnection *conn,
 			int h = MIN(16, height - j);
 
 			flags = vnc_connection_read_u8(conn);
-			conn->hextile(conn, flags, x + i, y + j, w, h, fg, bg);
+			vnc_connection_hextile_rect(conn, flags,
+						    x + i, y + j,
+						    w, h,
+						    fg, bg);
 		}
 	}
-}
-
-static void vnc_connection_fill(VncConnection *conn, guint8 *color,
-				guint16 x, guint16 y, guint16 width, guint16 height)
-{
-	conn->fill(conn, color, x, y, width, height);
-}
-
-static void vnc_connection_set_pixel_at(VncConnection *conn, int x, int y, guint8 *pixel)
-{
-	conn->set_pixel_at(conn, x, y, pixel);
 }
 
 static void vnc_connection_rre_update(VncConnection *conn,
@@ -1474,7 +1438,7 @@ static void vnc_connection_rre_update(VncConnection *conn,
 
 	num = vnc_connection_read_u32(conn);
 	vnc_connection_read_pixel(conn, bg);
-	vnc_connection_fill(conn, bg, x, y, width, height);
+	vnc_framebuffer_fill(conn->fb, bg, x, y, width, height);
 
 	for (i = 0; i < num; i++) {
 		guint8 fg[4];
@@ -1486,8 +1450,8 @@ static void vnc_connection_rre_update(VncConnection *conn,
 		sub_w = vnc_connection_read_u16(conn);
 		sub_h = vnc_connection_read_u16(conn);
 
-		vnc_connection_fill(conn, fg,
-				    x + sub_x, y + sub_y, sub_w, sub_h);
+		vnc_framebuffer_fill(conn->fb, fg,
+				     x + sub_x, y + sub_y, sub_w, sub_h);
 	}
 }
 
@@ -1536,7 +1500,7 @@ static void vnc_connection_zrle_update_tile_blit(VncConnection *conn,
 	for (i = 0; i < width * height; i++)
 		vnc_connection_read_cpixel(conn, blit_data + (i * bpp));
 
-	vnc_connection_blt(conn, blit_data, width * bpp, x, y, width, height);
+	vnc_framebuffer_blt(conn->fb, blit_data, width * bpp, x, y, width, height);
 }
 
 static guint8 vnc_connection_read_zrle_pi(VncConnection *conn, int palette_size)
@@ -1579,8 +1543,8 @@ static void vnc_connection_zrle_update_tile_palette(VncConnection *conn,
 		for (i = 0; i < width; i++) {
 			int ind = vnc_connection_read_zrle_pi(conn, palette_size);
 
-			vnc_connection_set_pixel_at(conn, x + i, y + j,
-						    palette[ind & 0x7F]);
+			vnc_framebuffer_set_pixel_at(conn->fb, palette[ind & 0x7F],
+						     x + i, y + j);
 		}
 	}
 }
@@ -1611,7 +1575,7 @@ static void vnc_connection_zrle_update_tile_rle(VncConnection *conn,
 				vnc_connection_read_cpixel(conn, pixel);
 				rl = vnc_connection_read_zrle_rl(conn);
 			}
-			vnc_connection_set_pixel_at(conn, x + i, y + j, pixel);
+			vnc_framebuffer_set_pixel_at(conn->fb, pixel, x + i, y + j);
 			rl -= 1;
 		}
 	}
@@ -1640,7 +1604,7 @@ static void vnc_connection_zrle_update_tile_prle(VncConnection *conn,
 					rl = 1;
 			}
 
-			vnc_connection_set_pixel_at(conn, x + i, y + j, palette[pi]);
+			vnc_framebuffer_set_pixel_at(conn->fb, palette[pi], x + i, y + j);
 			rl -= 1;
 		}
 	}
@@ -1658,7 +1622,7 @@ static void vnc_connection_zrle_update_tile(VncConnection *conn, guint16 x, guin
 	} else if (subencoding == 1) {
 		/* Solid tile of a single color */
 		vnc_connection_read_cpixel(conn, pixel);
-		vnc_connection_fill(conn, pixel, x, y, width, height);
+		vnc_framebuffer_fill(conn->fb, pixel, x, y, width, height);
 	} else if ((subencoding >= 2) && (subencoding <= 16)) {
 		/* Packed palette types */
 		vnc_connection_zrle_update_tile_palette(conn, subencoding,
@@ -1713,12 +1677,6 @@ static void vnc_connection_zrle_update(VncConnection *conn,
 	conn->compressed_buffer = NULL;
 
 	g_free(zlib_data);
-}
-
-static void vnc_connection_rgb24_blt(VncConnection *conn, int x, int y,
-				     int width, int height, guint8 *data, int pitch)
-{
-	conn->rgb24_blt(conn, x, y, width, height, data, pitch);
 }
 
 static guint32 vnc_connection_read_cint(VncConnection *conn)
@@ -1779,7 +1737,7 @@ static void vnc_connection_tight_update_copy(VncConnection *conn,
 	for (j = 0; j < height; j++) {
 		for (i = 0; i < width; i++) {
 			vnc_connection_read_tpixel(conn, pixel);
-			vnc_connection_set_pixel_at(conn, x + i, y + j, pixel);
+			vnc_framebuffer_set_pixel_at(conn->fb, pixel, x + i, y + j);
 		}
 	}
 }
@@ -1810,8 +1768,7 @@ static void vnc_connection_tight_update_palette(VncConnection *conn,
 			guint8 ind;
 
 			ind = vnc_connection_tight_get_pi(conn, &ra, i, palette_size);
-			vnc_connection_set_pixel_at(conn, x + i, y + j,
-						    &palette[ind * 4]);
+			vnc_framebuffer_set_pixel_at(conn->fb, &palette[ind * 4], x + i, y + j);
 		}
 	}
 }
@@ -1874,7 +1831,7 @@ static void vnc_connection_tight_update_gradient(VncConnection *conn,
 		}
 
 		/* write out row of pixel data */
-		vnc_connection_blt(conn, row, width * bpp, x, y + j, width, 1);
+		vnc_framebuffer_blt(conn->fb, row, width * bpp, x, y + j, width, 1);
 
 		/* swap last row and current row */
 		tmp_row = last_row;
@@ -1891,7 +1848,7 @@ static void jpeg_draw(void *opaque, int x, int y, int w, int h,
 {
 	VncConnection *conn = opaque;
 
-	vnc_connection_rgb24_blt(conn, x, y, w, h, data, stride);
+	vnc_framebuffer_rgb24_blt(conn->fb, data, stride, x, y, w, h);
 }
 
 static void vnc_connection_tight_update_jpeg(VncConnection *conn, guint16 x, guint16 y,
@@ -1995,7 +1952,7 @@ static void vnc_connection_tight_update(VncConnection *conn,
 		/* fill */
 		/* FIXME check each width; endianness */
 		vnc_connection_read_tpixel(conn, pixel);
-		vnc_connection_fill(conn, pixel, x, y, width, height);
+		vnc_framebuffer_fill(conn->fb, pixel, x, y, width, height);
 	} else if (ccontrol == 9) {
 		/* jpeg */
 		guint32 length;
@@ -2018,6 +1975,7 @@ static void vnc_connection_update(VncConnection *conn, int x, int y, int width, 
 {
 	if (conn->has_error || !conn->ops.update)
 		return;
+	GVNC_DEBUG("Notify update area (%dx%d) at location %d,%d", width, height, x, y);
 	if (!conn->ops.update(conn->ops_data, x, y, width, height)) {
 		GVNC_DEBUG("Closing the connection: vnc_connection_update");
 		conn->has_error = TRUE;
@@ -2198,8 +2156,8 @@ static void vnc_connection_framebuffer_update(VncConnection *conn, gint32 etype,
 					      guint16 x, guint16 y,
 					      guint16 width, guint16 height)
 {
-	GVNC_DEBUG("FramebufferUpdate(%d, %d, %d, %d, %d)",
-		   etype, x, y, width, height);
+	GVNC_DEBUG("FramebufferUpdate type=%d area (%dx%d) at location %d,%d",
+		   etype, width, height, x, y);
 
 	switch (etype) {
 	case GVNC_ENCODING_RAW:
@@ -3448,6 +3406,9 @@ void vnc_connection_free(VncConnection *conn)
 	if (vnc_connection_is_open(conn))
 		vnc_connection_close(conn);
 
+	if (conn->fb)
+		g_object_unref(G_OBJECT(conn->fb));
+
 	g_free(conn);
 	conn = NULL;
 }
@@ -3898,85 +3859,27 @@ gboolean vnc_connection_set_credential_x509_cert(VncConnection *conn, const char
 }
 
 
-gboolean vnc_connection_set_local(VncConnection *conn, struct vnc_framebuffer *fb)
+gboolean vnc_connection_set_framebuffer(VncConnection *conn, VncFramebuffer *fb)
 {
-	int i, j, n;
-	int depth;
+	const VncPixelFormat *remote;
+	int i;
 
-	memcpy(&conn->local, fb, sizeof(*fb));
+	if (conn->fb)
+		g_object_unref(G_OBJECT(conn->fb));
+	conn->fb = fb;
+	g_object_ref(G_OBJECT(conn->fb));
 
-	if (fb->bpp == (conn->fmt.bits_per_pixel / 8) &&
-	    fb->red_mask == conn->fmt.red_max &&
-	    fb->green_mask == conn->fmt.green_max &&
-	    fb->blue_mask == conn->fmt.blue_max &&
-	    fb->red_shift == conn->fmt.red_shift &&
-	    fb->green_shift == conn->fmt.green_shift &&
-	    fb->blue_shift == conn->fmt.blue_shift &&
-	    fb->byte_order == G_BYTE_ORDER &&
-	    conn->fmt.byte_order == G_BYTE_ORDER)
-		conn->perfect_match = TRUE;
-	else
-		conn->perfect_match = FALSE;
+	remote = vnc_framebuffer_get_remote_format(conn->fb);
 
-	depth = conn->fmt.depth;
-	if (depth == 32)
-		depth = 24;
+	conn->fbSwapRemote = remote->byte_order != G_BYTE_ORDER;
 
-	conn->rm = conn->local.red_mask & conn->fmt.red_max;
-	conn->gm = conn->local.green_mask & conn->fmt.green_max;
-	conn->bm = conn->local.blue_mask & conn->fmt.blue_max;
-	GVNC_DEBUG("Mask local: %3d %3d %3d\n"
-		   "    remote: %3d %3d %3d\n"
-		   "    merged: %3d %3d %3d",
-		   conn->local.red_mask, conn->local.green_mask, conn->local.blue_mask,
-		   conn->fmt.red_max, conn->fmt.green_max, conn->fmt.blue_max,
-		   conn->rm, conn->gm, conn->bm);
+        i = conn->fmt.bits_per_pixel / 8;
 
-	/* Setup shifts assuming matched bpp (but not necessarily match rgb order)*/
-	conn->rrs = conn->fmt.red_shift;
-	conn->grs = conn->fmt.green_shift;
-	conn->brs = conn->fmt.blue_shift;
+        if (i == 4) i = 3;
 
-	conn->rls = conn->local.red_shift;
-	conn->gls = conn->local.green_shift;
-	conn->bls = conn->local.blue_shift;
-
-	/* This adjusts for remote having more bpp than local */
-	for (n = conn->fmt.red_max; n > conn->local.red_mask ; n>>= 1)
-		conn->rrs++;
-	for (n = conn->fmt.green_max; n > conn->local.green_mask ; n>>= 1)
-		conn->grs++;
-	for (n = conn->fmt.blue_max; n > conn->local.blue_mask ; n>>= 1)
-		conn->brs++;
-
-	/* This adjusts for remote having less bpp than remote */
-	for (n = conn->local.red_mask ; n > conn->fmt.red_max ; n>>= 1)
-		conn->rls++;
-	for (n = conn->local.green_mask ; n > conn->fmt.green_max ; n>>= 1)
-		conn->gls++;
-	for (n = conn->local.blue_mask ; n > conn->fmt.blue_max ; n>>= 1)
-		conn->bls++;
-	GVNC_DEBUG("Pixel shifts\n   right: %3d %3d %3d\n    left: %3d %3d %3d",
-		   conn->rrs, conn->grs, conn->brs,
-		   conn->rls, conn->gls, conn->bls);
-
-	i = conn->fmt.bits_per_pixel / 8;
-	j = conn->local.bpp;
-
-	if (i == 4) i = 3;
-	if (j == 4) j = 3;
-
-	conn->blt = vnc_connection_blt_table[i - 1][j - 1];
-	conn->fill = vnc_connection_fill_table[i - 1][j - 1];
-	conn->set_pixel_at = vnc_connection_set_pixel_at_table[i - 1][j - 1];
-	conn->hextile = vnc_connection_hextile_table[i - 1][j - 1];
 	conn->rich_cursor_blt = vnc_connection_rich_cursor_blt_table[i - 1];
-	conn->rgb24_blt = vnc_connection_rgb24_blt_table[i - 1];
 	conn->tight_compute_predicted = vnc_connection_tight_compute_predicted_table[i - 1];
 	conn->tight_sum_pixel = vnc_connection_tight_sum_pixel_table[i - 1];
-
-	if (conn->perfect_match)
-		conn->blt = vnc_connection_blt_fast;
 
 	return !vnc_connection_has_error(conn);
 }

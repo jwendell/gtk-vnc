@@ -351,6 +351,15 @@ static const VncPixelFormat *vnc_base_framebuffer_get_remote_format(VncFramebuff
 }
 
 
+static gboolean vnc_base_framebuffer_perfect_format_match(VncFramebuffer *iface)
+{
+	VncBaseFramebuffer *fb = VNC_BASE_FRAMEBUFFER(iface);
+	VncBaseFramebufferPrivate *priv = fb->priv;
+
+	return priv->perfect_match;
+}
+
+
 static guint8 vnc_base_framebuffer_swap_img_8(VncBaseFramebufferPrivate *priv G_GNUC_UNUSED, guint8 pixel)
 {
 	return pixel;
@@ -710,6 +719,7 @@ static void vnc_base_framebuffer_interface_init(gpointer g_iface,
     iface->get_buffer = vnc_base_framebuffer_get_buffer;
     iface->get_local_format = vnc_base_framebuffer_get_local_format;
     iface->get_remote_format = vnc_base_framebuffer_get_remote_format;
+    iface->perfect_format_match = vnc_base_framebuffer_perfect_format_match;
 
     iface->set_pixel_at = vnc_base_framebuffer_set_pixel_at;
     iface->fill = vnc_base_framebuffer_fill;

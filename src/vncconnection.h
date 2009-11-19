@@ -23,7 +23,7 @@
 
 #include <glib.h>
 
-#include "vncpixelformat.h"
+#include "vncframebuffer.h"
 
 typedef struct _VncConnection VncConnection;
 
@@ -49,28 +49,6 @@ struct vnc_connection_ops
 	gboolean (*get_preferred_pixel_format)(void *, VncPixelFormat *);
 };
 
-
-struct vnc_framebuffer
-{
-	guint8 *data;
-
-	int width;
-	int height;
-
-	int linesize;
-
-	guint16 byte_order;
-	int depth;
-	int bpp;
-
-	int red_mask;
-	int green_mask;
-	int blue_mask;
-
-	int red_shift;
-	int blue_shift;
-	int green_shift;
-};
 
 typedef enum {
 	GVNC_ENCODING_RAW = 0,
@@ -180,9 +158,12 @@ gboolean vnc_connection_set_encodings(VncConnection *conn, int n_encoding, gint3
 gboolean vnc_connection_set_pixel_format(VncConnection *conn,
 					 const VncPixelFormat *fmt);
 
+const VncPixelFormat *vnc_connection_get_pixel_format(VncConnection *conn);
+
 gboolean vnc_connection_has_error(VncConnection *conn);
 
-gboolean vnc_connection_set_local(VncConnection *conn, struct vnc_framebuffer *fb);
+gboolean vnc_connection_set_framebuffer(VncConnection *conn,
+					VncFramebuffer *fb);
 
 const char *vnc_connection_get_name(VncConnection *conn);
 int vnc_connection_get_width(VncConnection *conn);

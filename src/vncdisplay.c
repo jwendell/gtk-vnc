@@ -24,6 +24,7 @@
 #include "vncdisplay.h"
 #include "coroutine.h"
 #include "vncconnection.h"
+#include "vncimageframebuffer.h"
 #include "utils.h"
 #include "vncmarshal.h"
 #include "config.h"
@@ -59,14 +60,13 @@ struct _VncDisplayPrivate
 	char *host;
 	char *port;
 	GdkGC *gc;
-	GdkImage *image;
 	GdkPixmap *pixmap;
 	GdkCursor *null_cursor;
 	GdkCursor *remote_cursor;
 
-	struct vnc_framebuffer fb;
 	struct coroutine coroutine;
 	VncConnection *conn;
+	VncImageFramebuffer *fb;
 
 	guint open_id;
 	VncDisplayDepthColor depth;
@@ -304,19 +304,23 @@ static gboolean expose_event(GtkWidget *widget, GdkEventExpose *expose)
 	GdkRectangle drawn;
 	GdkRegion *clear, *copy;
 #endif
+	int fbw, fbh;
 
-	GVNC_DEBUG("Expose %dx%d @ %d,%d",
-		   expose->area.x,
-		   expose->area.y,
+	fbw = vnc_framebuffer_get_width(VNC_FRAMEBUFFER(priv->fb));
+	fbh = vnc_framebuffer_get_height(VNC_FRAMEBUFFER(priv->fb));
+
+	GVNC_DEBUG("Expose area %dx%d at location %d,%d",
 		   expose->area.width,
-		   expose->area.height);
+		   expose->area.height,
+		   expose->area.x,
+		   expose->area.y);
 
 	gdk_drawable_get_size(gtk_widget_get_window(widget), &ww, &wh);
 
-	if (ww > priv->fb.width)
-		mx = (ww - priv->fb.width) / 2;
-	if (wh > priv->fb.height)
-		my = (wh - priv->fb.height) / 2;
+	if (ww > fbw)
+		mx = (ww - fbw) / 2;
+	if (wh > fbh)
+		my = (wh - fbh) / 2;
 
 #if WITH_GTK_CAIRO
 	cr = gdk_cairo_create(gtk_widget_get_window(GTK_WIDGET(obj)));
@@ -338,8 +342,8 @@ static gboolean expose_event(GtkWidget *widget, GdkEventExpose *expose)
 		   behaviour of drawing the rectangle from right to left
 		   to cut out the whole */
 		if (priv->pixmap)
-			cairo_rectangle(cr, mx + priv->fb.width, my,
-					-1 * priv->fb.width, priv->fb.height);
+			cairo_rectangle(cr, mx + fbw, my,
+					-1 * fbw, fbh);
 		cairo_fill(cr);
 	}
 
@@ -348,8 +352,8 @@ static gboolean expose_event(GtkWidget *widget, GdkEventExpose *expose)
 		if (priv->allow_scaling) {
 			double sx, sy;
 			/* Scale to fill window */
-			sx = (double)ww / (double)priv->fb.width;
-			sy = (double)wh / (double)priv->fb.height;
+			sx = (double)ww / (double)fbw;
+			sy = (double)wh / (double)fbh;
 			cairo_scale(cr, sx, sy);
 			gdk_cairo_set_source_pixmap(cr,
 						    priv->pixmap,
@@ -364,10 +368,10 @@ static gboolean expose_event(GtkWidget *widget, GdkEventExpose *expose)
 
 	cairo_destroy(cr);
 #else
-	x = MIN(expose->area.x - mx, priv->fb.width);
-	y = MIN(expose->area.y - my, priv->fb.height);
-	w = MIN(expose->area.x + expose->area.width - mx, priv->fb.width);
-	h = MIN(expose->area.y + expose->area.height - my, priv->fb.height);
+	x = MIN(expose->area.x - mx, fbw);
+	y = MIN(expose->area.y - my, fbh);
+	w = MIN(expose->area.x + expose->area.width - mx, fbw);
+	h = MIN(expose->area.y + expose->area.height - my, fbh);
 	x = MAX(0, x);
 	y = MAX(0, y);
 	w = MAX(0, w);
@@ -590,6 +594,10 @@ static gboolean motion_event(GtkWidget *widget, GdkEventMotion *motion)
 {
 	VncDisplayPrivate *priv = VNC_DISPLAY(widget)->priv;
 	int ww, wh;
+	int fbw, fbh;
+
+	fbw = vnc_framebuffer_get_width(VNC_FRAMEBUFFER(priv->fb));
+	fbh = vnc_framebuffer_get_height(VNC_FRAMEBUFFER(priv->fb));
 
 	if (priv->conn == NULL || !vnc_connection_is_initialized(priv->conn))
 		return FALSE;
@@ -607,8 +615,8 @@ static gboolean motion_event(GtkWidget *widget, GdkEventMotion *motion)
 	/* First apply adjustments to the coords in the motion event */
 	if (priv->allow_scaling) {
 		double sx, sy;
-		sx = (double)priv->fb.width / (double)ww;
-		sy = (double)priv->fb.height / (double)wh;
+		sx = (double)fbw / (double)ww;
+		sy = (double)fbh / (double)wh;
 
 		/* Scaling the desktop, so scale the mouse coords
 		 * by same ratio */
@@ -617,10 +625,10 @@ static gboolean motion_event(GtkWidget *widget, GdkEventMotion *motion)
 	} else {
 		int mw = 0, mh = 0;
 
-		if (ww > priv->fb.width)
-			mw = (ww - priv->fb.width) / 2;
-		if (wh > priv->fb.height)
-			mh = (wh - priv->fb.height) / 2;
+		if (ww > fbw)
+			mw = (ww - fbw) / 2;
+		if (wh > fbh)
+			mh = (wh - fbh) / 2;
 
 		/* Not scaling, drawing the desktop centered
 		 * in the larger window, so offset the mouse
@@ -666,8 +674,8 @@ static gboolean motion_event(GtkWidget *widget, GdkEventMotion *motion)
 
 			/* Drop out of bounds motion to avoid upsetting
 			 * the server */
-			if (dx < 0 || dx >= priv->fb.width ||
-			    dy < 0 || dy >= priv->fb.height)
+			if (dx < 0 || dx >= fbw ||
+			    dy < 0 || dy >= fbh)
 				return FALSE;
 		} else {
 			/* Just send the delta since last motion event */
@@ -833,10 +841,15 @@ static gboolean on_update(void *opaque, int x, int y, int w, int h)
 	VncDisplayPrivate *priv = obj->priv;
 	int ww, wh;
 	GdkRectangle r = { x, y, w, h };
+	int fbw, fbh;
+
+	fbw = vnc_framebuffer_get_width(VNC_FRAMEBUFFER(priv->fb));
+	fbh = vnc_framebuffer_get_height(VNC_FRAMEBUFFER(priv->fb));
 
 	/* Copy pixbuf to pixmap */
 	gdk_gc_set_clip_rectangle(priv->gc, &r);
-	gdk_draw_image(priv->pixmap, priv->gc, priv->image,
+	gdk_draw_image(priv->pixmap, priv->gc,
+		       vnc_image_framebuffer_get_image(priv->fb),
 		       x, y, x, y, w, h);
 
 	gdk_drawable_get_size(gtk_widget_get_window(widget), &ww, &wh);
@@ -846,8 +859,8 @@ static gboolean on_update(void *opaque, int x, int y, int w, int h)
 
 		/* Scale the VNC region to produce expose region */
 
-		sx = (double)ww / (double)priv->fb.width;
-		sy = (double)wh / (double)priv->fb.height;
+		sx = (double)ww / (double)fbw;
+		sy = (double)wh / (double)fbh;
 		x *= sx;
 		y *= sy;
 		w *= sx;
@@ -857,10 +870,10 @@ static gboolean on_update(void *opaque, int x, int y, int w, int h)
 
 		/* Offset the VNC region to produce expose region */
 
-		if (ww > priv->fb.width)
-			mw = (ww - priv->fb.width) / 2;
-		if (wh > priv->fb.height)
-			mh = (wh - priv->fb.height) / 2;
+		if (ww > fbw)
+			mw = (ww - fbw) / 2;
+		if (wh > fbh)
+			mh = (wh - fbh) / 2;
 
 		x += mw;
 		y += mh;
@@ -869,42 +882,6 @@ static gboolean on_update(void *opaque, int x, int y, int w, int h)
 	gtk_widget_queue_draw_area(widget, x, y, w + 1, h + 1);
 
 	return TRUE;
-}
-
-static void setup_gdk_image(VncDisplay *obj, gint width, gint height)
-{
-	VncDisplayPrivate *priv = obj->priv;
-	GdkVisual *visual;
-
-	visual = gdk_drawable_get_visual(gtk_widget_get_window(GTK_WIDGET(obj)));
-
-	priv->image = gdk_image_new(GDK_IMAGE_FASTEST, visual, width, height);
-	priv->pixmap = gdk_pixmap_new(gtk_widget_get_window(GTK_WIDGET(obj)), width, height, -1);
-
-	GVNC_DEBUG("Visual mask: %3d %3d %3d\n      shift: %3d %3d %3d",
-		   visual->red_mask,
-		   visual->green_mask,
-		   visual->blue_mask,
-		   visual->red_shift,
-		   visual->green_shift,
-		   visual->blue_shift);
-
-	priv->fb.red_mask = visual->red_mask >> visual->red_shift;
-	priv->fb.green_mask = visual->green_mask >> visual->green_shift;
-	priv->fb.blue_mask = visual->blue_mask >> visual->blue_shift;
-	priv->fb.red_shift = visual->red_shift;
-	priv->fb.green_shift = visual->green_shift;
-	priv->fb.blue_shift = visual->blue_shift;
-	priv->fb.depth = priv->image->depth;
-	priv->fb.bpp = priv->image->bpp;
-	priv->fb.width = priv->image->width;
-	priv->fb.height = priv->image->height;
-	priv->fb.linesize = priv->image->bpl;
-	priv->fb.data = (guint8 *)priv->image->mem;
-	priv->fb.byte_order = priv->image->byte_order == GDK_LSB_FIRST ? G_LITTLE_ENDIAN : G_BIG_ENDIAN;
-
-	if (priv->force_size)
-		gtk_widget_set_size_request(GTK_WIDGET(obj), width, height);
 }
 
 
@@ -969,18 +946,21 @@ static void emit_signal_delayed(VncDisplay *obj, int signum,
 	coroutine_yield(NULL);
 }
 
-static gboolean do_resize(void *opaque, int width, int height, gboolean quiet)
+static gboolean do_framebuffer_init(VncDisplay *obj,
+				    const VncPixelFormat *remoteFormat,
+				    int width, int height, gboolean quiet)
 {
-	VncDisplay *obj = VNC_DISPLAY(opaque);
 	VncDisplayPrivate *priv = obj->priv;
 	struct signal_data s;
+	GdkVisual *visual;
+	GdkImage *image;
 
 	if (priv->conn == NULL || !vnc_connection_is_initialized(priv->conn))
 		return TRUE;
 
-	if (priv->image) {
-		g_object_unref(priv->image);
-		priv->image = NULL;
+	if (priv->fb) {
+		g_object_unref(priv->fb);
+		priv->fb = NULL;
 	}
 	if (priv->pixmap) {
 		g_object_unref(priv->pixmap);
@@ -997,9 +977,18 @@ static gboolean do_resize(void *opaque, int width, int height, gboolean quiet)
 		priv->gc = gdk_gc_new(gtk_widget_get_window(GTK_WIDGET(obj)));
 	}
 
-	setup_gdk_image(obj, width, height);
+	visual = gdk_drawable_get_visual(gtk_widget_get_window(GTK_WIDGET(obj)));
+	image = gdk_image_new(GDK_IMAGE_FASTEST, visual, width, height);
 
-	vnc_connection_set_local(priv->conn, &priv->fb);
+	priv->fb = vnc_image_framebuffer_new(image, remoteFormat);
+	priv->pixmap = gdk_pixmap_new(gtk_widget_get_window(GTK_WIDGET(obj)), width, height, -1);
+
+	g_object_unref(G_OBJECT(image));
+
+	vnc_connection_set_framebuffer(priv->conn, VNC_FRAMEBUFFER(priv->fb));
+
+	if (priv->force_size)
+		gtk_widget_set_size_request(GTK_WIDGET(obj), width, height);
 
 	if (!quiet) {
 		s.width = width;
@@ -1012,16 +1001,24 @@ static gboolean do_resize(void *opaque, int width, int height, gboolean quiet)
 
 static gboolean on_resize(void *opaque, int width, int height)
 {
-	return do_resize(opaque, width, height, FALSE);
+        VncDisplay *obj = VNC_DISPLAY(opaque);
+	VncDisplayPrivate *priv = obj->priv;
+	const VncPixelFormat *remoteFormat;
+
+	remoteFormat = vnc_connection_get_pixel_format(priv->conn);
+
+	return do_framebuffer_init(opaque, remoteFormat, width, height, FALSE);
 }
 
 static gboolean on_pixel_format(void *opaque,
-				VncPixelFormat *fmt G_GNUC_UNUSED)
+				VncPixelFormat *remoteFormat)
 {
         VncDisplay *obj = VNC_DISPLAY(opaque);
         VncDisplayPrivate *priv = obj->priv;
+	gint16 width = vnc_connection_get_width(priv->conn);
+	gint16 height = vnc_connection_get_height(priv->conn);
 
-        return do_resize(opaque, priv->fb.width, priv->fb.height, TRUE);
+        return do_framebuffer_init(opaque, remoteFormat, width, height, TRUE);
 }
 
 static gboolean on_get_preferred_pixel_format(void *opaque,
@@ -1351,9 +1348,9 @@ static gboolean delayed_unref_object(gpointer data)
 
 	g_assert(obj->priv->coroutine.exited == TRUE);
 
-	if (obj->priv->image) {
-		g_object_unref(obj->priv->image);
-		obj->priv->image = NULL;
+	if (obj->priv->fb) {
+		g_object_unref(obj->priv->fb);
+		obj->priv->fb = NULL;
 	}
 	if (obj->priv->pixmap) {
 		g_object_unref(obj->priv->pixmap);
@@ -1431,13 +1428,16 @@ static void *vnc_coroutine(void *opaque)
 	if (!vnc_connection_set_encodings(priv->conn, n_encodings, encodingsp))
 			goto cleanup;
 
-	if (!vnc_connection_framebuffer_update_request(priv->conn, 0, 0, 0, priv->fb.width, priv->fb.height))
+	if (!vnc_connection_framebuffer_update_request(priv->conn, 0, 0, 0,
+						       vnc_connection_get_width(priv->conn),
+						       vnc_connection_get_height(priv->conn)))
 		goto cleanup;
 
 	GVNC_DEBUG("Running main loop");
 	while ((ret = vnc_connection_server_message(priv->conn))) {
 		if (!vnc_connection_framebuffer_update_request(priv->conn, 1, 0, 0,
-						     priv->fb.width, priv->fb.height))
+							       vnc_connection_get_width(priv->conn),
+							       vnc_connection_get_height(priv->conn)))
 			goto cleanup;
 	}
 
@@ -1625,9 +1625,9 @@ static void vnc_display_finalize (GObject *obj)
 	vnc_connection_free(priv->conn);
 	display->priv->conn = NULL;
 
-	if (priv->image) {
-		g_object_unref(priv->image);
-		priv->image = NULL;
+	if (priv->fb) {
+		g_object_unref(priv->fb);
+		priv->fb = NULL;
 	}
 
 	if (priv->null_cursor) {
@@ -2144,20 +2144,23 @@ GdkPixbuf *vnc_display_get_pixbuf(VncDisplay *obj)
 {
 	VncDisplayPrivate *priv = obj->priv;
 	GdkPixbuf *pixbuf;
+	GdkImage *image;
 
 	if (!priv->conn ||
 	    !vnc_connection_is_initialized(priv->conn))
 		return NULL;
 
+	image = vnc_image_framebuffer_get_image(priv->fb);
+
 	pixbuf = gdk_pixbuf_new(GDK_COLORSPACE_RGB, FALSE, 8,
-				priv->image->width, priv->image->height);
+				image->width, image->height);
 
 	if (!gdk_pixbuf_get_from_image(pixbuf,
-				       priv->image,
+				       image,
 				       gdk_colormap_get_system(),
 				       0, 0, 0, 0,
-				       priv->image->width,
-				       priv->image->height))
+				       image->width,
+				       image->height))
 		return NULL;
 
 	return pixbuf;
@@ -2346,11 +2349,11 @@ vnc_display_request_update(VncDisplay *obj)
 
 	GVNC_DEBUG ("Requesting a full update");
 	return vnc_connection_framebuffer_update_request(obj->priv->conn,
-					       0,
-					       0,
-					       0,
-					       obj->priv->fb.width,
-					       obj->priv->fb.height);
+							 0,
+							 0,
+							 0,
+							 vnc_connection_get_width(obj->priv->conn),
+							 vnc_connection_get_width(obj->priv->conn));
 }
 
 #ifdef WIN32
