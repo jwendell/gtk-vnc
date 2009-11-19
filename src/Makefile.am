@@ -25,6 +25,9 @@ libgtk_vnc_1_0_la_SOURCES = blt.h blt1.h \
 	d3des.h d3des.c \
 	dh.h dh.c \
 	vncpixelformat.h \
+	vncframebuffer.h vncframebuffer.c \
+	vncbaseframebufferblt.h \
+	vncbaseframebuffer.h vncbaseframebuffer.c \
 	vncconnection.h vncconnection.c \
 	vncdisplay.h vncdisplay.c \
         vncmarshal.h vncmarshal.c \
