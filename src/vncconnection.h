@@ -18,8 +18,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
  */
 
-#ifndef _GVNC_H_
-#define _GVNC_H_
+#ifndef VNC_CONNECTION_H
+#define VNC_CONNECTION_H
 
 #include <glib.h>
 
@@ -198,7 +198,7 @@ gboolean vnc_connection_using_raw_keycodes(VncConnection *conn);
 
 G_END_DECLS
 
-#endif
+#endif /* VNC_CONNECTION_H */
 /*
  * Local variables:
  *  c-indent-level: 8
