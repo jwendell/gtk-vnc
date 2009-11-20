@@ -1095,55 +1095,63 @@ static void on_auth_cred(VncConnection *conn G_GNUC_UNUSED,
 	g_signal_emit(G_OBJECT(obj), signals[VNC_AUTH_CREDENTIAL], 0, creds);
 }
 
-static gboolean on_auth_type(void *opaque, unsigned int ntype, unsigned int *types)
+static void on_auth_choose_type(VncConnection *conn G_GNUC_UNUSED,
+				GValueArray *types,
+				gpointer opaque)
 {
 	VncDisplay *obj = VNC_DISPLAY(opaque);
 	VncDisplayPrivate *priv = obj->priv;
 	GSList *l;
 	guint i;
 
-	if (!ntype)
-		return TRUE;
+	if (!types->n_values)
+		return;
 
 	for (l = priv->preferable_auths; l; l=l->next) {
 		int pref = GPOINTER_TO_UINT (l->data);
 
-		for (i=0; i<ntype; i++) {
-			if (pref == types[i]) {
-				vnc_connection_set_auth_type(priv->conn, types[i]);
-				return TRUE;
+		for (i=0; i< types->n_values; i++) {
+			GValue *type = g_value_array_get_nth(types, i);
+			if (pref == g_value_get_enum(type)) {
+				vnc_connection_set_auth_type(priv->conn, pref);
+				return;
 			}
 		}
 	}
 
-	vnc_connection_set_auth_type(priv->conn, types[0]);
-	return TRUE;
+	GValue *type = g_value_array_get_nth(types, 0);
+	vnc_connection_set_auth_type(priv->conn, g_value_get_enum(type));
 }
 
-static gboolean on_auth_subtype(void *opaque, unsigned int ntype, unsigned int *types)
+static void on_auth_choose_subtype(VncConnection *conn G_GNUC_UNUSED,
+				   unsigned int type,
+				   GValueArray *subtypes,
+				   gpointer opaque)
 {
 	VncDisplay *obj = VNC_DISPLAY(opaque);
 	VncDisplayPrivate *priv = obj->priv;
-
 	GSList *l;
 	guint i;
 
-	if (!ntype)
-		return TRUE;
+	if (!subtypes->n_values)
+		return;
 
-	for (l = priv->preferable_auths; l; l=l->next) {
-		int pref = GPOINTER_TO_UINT (l->data);
+	if (type == GVNC_AUTH_TLS) {
+		for (l = priv->preferable_auths; l; l=l->next) {
+			int pref = GPOINTER_TO_UINT (l->data);
 
-		for (i=0; i<ntype; i++) {
-			if (pref == types[i]) {
-				vnc_connection_set_auth_subtype(priv->conn, types[i]);
-				return TRUE;
+			for (i=0; i< subtypes->n_values; i++) {
+				GValue *subtype = g_value_array_get_nth(subtypes, i);
+				if (pref == g_value_get_enum(subtype)) {
+					vnc_connection_set_auth_type(priv->conn, pref);
+					return;
+				}
 			}
 		}
 	}
 
-	vnc_connection_set_auth_subtype(priv->conn, types[0]);
-	return TRUE;
+	GValue *subtype = g_value_array_get_nth(subtypes, 0);
+	vnc_connection_set_auth_subtype(priv->conn, g_value_get_enum(subtype));
 }
 
 static void on_auth_failure(VncConnection *conn G_GNUC_UNUSED,
@@ -1277,8 +1285,6 @@ static gboolean on_render_jpeg(void *opaque G_GNUC_UNUSED,
 }
 
 static const struct vnc_connection_ops vnc_display_ops = {
-	.auth_type = on_auth_type,
-	.auth_subtype = on_auth_subtype,
 	.render_jpeg = on_render_jpeg,
 };
 
@@ -1988,6 +1994,10 @@ static void vnc_display_init(VncDisplay *display)
 			 G_CALLBACK(on_auth_unsupported), display);
 	g_signal_connect(G_OBJECT(priv->conn), "vnc-auth-credential",
 			 G_CALLBACK(on_auth_cred), display);
+	g_signal_connect(G_OBJECT(priv->conn), "vnc-auth-choose-type",
+			 G_CALLBACK(on_auth_choose_type), display);
+	g_signal_connect(G_OBJECT(priv->conn), "vnc-auth-choose-subtype",
+			 G_CALLBACK(on_auth_choose_subtype), display);
 }
 
 gboolean vnc_display_set_credential(VncDisplay *obj, int type, const gchar *data)

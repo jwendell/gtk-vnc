@@ -203,13 +203,15 @@ enum {
 	VNC_AUTH_FAILURE,
 	VNC_AUTH_UNSUPPORTED,
 	VNC_AUTH_CREDENTIAL,
+	VNC_AUTH_CHOOSE_TYPE,
+	VNC_AUTH_CHOOSE_SUBTYPE,
 
 	VNC_LAST_SIGNAL,
 };
 
 static guint signals[VNC_LAST_SIGNAL] = { 0, 0, 0, 0,
 					  0, 0, 0, 0,
-					  0, 0, };
+					  0, 0, 0, 0};
 
 #define nibhi(a) (((a) >> 4) & 0x0F)
 #define niblo(a) ((a) & 0x0F)
@@ -396,6 +398,7 @@ struct signal_data
 		const char *authReason;
 		unsigned int authUnsupported;
 		GValueArray *authCred;
+		GValueArray *authTypes;
 	} params;
 };
 
@@ -475,6 +478,21 @@ static gboolean do_vnc_connection_emit_main_context(gpointer opaque)
 			      signals[data->signum],
 			      0,
 			      data->params.authCred);
+		break;
+
+	case VNC_AUTH_CHOOSE_TYPE:
+		g_signal_emit(G_OBJECT(data->conn),
+			      signals[data->signum],
+			      0,
+			      data->params.authTypes);
+		break;
+
+	case VNC_AUTH_CHOOSE_SUBTYPE:
+		g_signal_emit(G_OBJECT(data->conn),
+			      signals[data->signum],
+			      0,
+			      data->conn->priv->auth_type,
+			      data->params.authTypes);
 		break;
 
 	}
@@ -3452,6 +3470,37 @@ static gboolean vnc_connection_has_auth_subtype(gpointer data)
 	return TRUE;
 }
 
+static void vnc_connection_choose_auth(VncConnection *conn,
+				       int signum,
+				       unsigned int ntypes,
+				       unsigned int *types)
+{
+	VncConnectionPrivate *priv = conn->priv;
+	struct signal_data sigdata;
+	GValueArray *authTypes;
+	GValue authType;
+
+	authTypes = g_value_array_new(0);
+
+	for (int i = 0 ; i < ntypes ; i++) {
+		memset(&authType, 0, sizeof(authType));
+
+		if (signum == VNC_AUTH_CHOOSE_TYPE) {
+			g_value_init(&authType, VNC_TYPE_CONNECTION_AUTH);
+		} else {
+			if (priv->auth_type == GVNC_AUTH_VENCRYPT)
+				g_value_init(&authType, VNC_TYPE_CONNECTION_AUTH_VENCRYPT);
+			else
+				g_value_init(&authType, VNC_TYPE_CONNECTION_AUTH);
+		}
+		g_value_set_enum(&authType, types[i]);
+		authTypes = g_value_array_append(authTypes, &authType);
+	}
+
+	sigdata.params.authCred = authTypes;
+	vnc_connection_emit_main_context(conn, signum, &sigdata);
+	g_value_array_free(authTypes);
+}
 
 static gboolean vnc_connection_perform_auth_tls(VncConnection *conn)
 {
@@ -3489,11 +3538,9 @@ static gboolean vnc_connection_perform_auth_tls(VncConnection *conn)
 		GVNC_DEBUG("Possible sub-auth %d", auth[i]);
 	}
 
-	if (priv->has_error || !priv->ops.auth_subtype)
+	if (priv->has_error)
 		return FALSE;
-
-	if (!priv->ops.auth_subtype(priv->ops_data, nauth, auth))
-		priv->has_error = TRUE;
+	vnc_connection_choose_auth(conn, VNC_AUTH_CHOOSE_TYPE, nauth, auth);
 	if (priv->has_error)
 		return FALSE;
 
@@ -3564,11 +3611,9 @@ static gboolean vnc_connection_perform_auth_vencrypt(VncConnection *conn)
 		GVNC_DEBUG("Possible auth %d", auth[i]);
 	}
 
-	if (priv->has_error || !priv->ops.auth_subtype)
+	if (priv->has_error)
 		return FALSE;
-
-	if (!priv->ops.auth_subtype(priv->ops_data, nauth, auth))
-		priv->has_error = TRUE;
+	vnc_connection_choose_auth(conn, VNC_AUTH_CHOOSE_SUBTYPE, nauth, auth);
 	if (priv->has_error)
 		return FALSE;
 
@@ -3682,11 +3727,9 @@ static gboolean vnc_connection_perform_auth(VncConnection *conn)
 		GVNC_DEBUG("Possible auth %u", auth[i]);
 	}
 
-	if (priv->has_error || !priv->ops.auth_type)
+	if (priv->has_error)
 		return FALSE;
-
-	if (!priv->ops.auth_type(priv->ops_data, nauth, auth))
-		priv->has_error = TRUE;
+	vnc_connection_choose_auth(conn, VNC_AUTH_CHOOSE_TYPE, nauth, auth);
 	if (priv->has_error)
 		return FALSE;
 
@@ -3890,6 +3933,29 @@ static void vnc_connection_class_init(VncConnectionClass *klass)
 			      g_cclosure_marshal_VOID__BOXED,
 			      G_TYPE_NONE,
 			      1,
+			      G_TYPE_VALUE_ARRAY);
+
+	signals[VNC_AUTH_CHOOSE_TYPE] =
+		g_signal_new ("vnc-auth-choose-type",
+			      G_OBJECT_CLASS_TYPE (object_class),
+			      G_SIGNAL_RUN_FIRST,
+			      G_STRUCT_OFFSET (VncConnectionClass, vnc_auth_choose_type),
+			      NULL, NULL,
+			      g_cclosure_marshal_VOID__BOXED,
+			      G_TYPE_NONE,
+			      1,
+			      G_TYPE_VALUE_ARRAY);
+
+	signals[VNC_AUTH_CHOOSE_SUBTYPE] =
+		g_signal_new ("vnc-auth-choose-subtype",
+			      G_OBJECT_CLASS_TYPE (object_class),
+			      G_SIGNAL_RUN_FIRST,
+			      G_STRUCT_OFFSET (VncConnectionClass, vnc_auth_choose_subtype),
+			      NULL, NULL,
+			      g_cclosure_user_marshal_VOID__UINT_BOXED,
+			      G_TYPE_NONE,
+			      2,
+			      G_TYPE_UINT,
 			      G_TYPE_VALUE_ARRAY);
 
 

@@ -62,14 +62,14 @@ struct _VncConnectionClass
 	void (*vnc_auth_failure)(VncConnection *conn, const char *reason);
 	void (*vnc_auth_unsupported)(VncConnection *conn, unsigned int authType);
 	void (*vnc_auth_credential)(VncConnection *conn, GValueArray *creds);
+	void (*vnc_auth_choose_type)(VncConnection *conn, GValueArray *types);
+	void (*vnc_auth_choose_subtype)(VncConnection *conn, unsigned int type, GValueArray *subtypes);
 };
 
 typedef void (rgb24_render_func)(void *, int, int, int, int, guint8 *, int);
 
 struct vnc_connection_ops
 {
-	gboolean (*auth_type)(void *, unsigned int, unsigned int *);
-	gboolean (*auth_subtype)(void *, unsigned int, unsigned int *);
 	gboolean (*set_color_map_entry)(void *, int, int, int, int);
 	gboolean (*render_jpeg)(void *, rgb24_render_func *render, void *,
 				int, int, int, int, guint8 *, int);
