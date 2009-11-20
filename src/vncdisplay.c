@@ -1256,38 +1256,6 @@ static gboolean check_pixbuf_support(const char *name)
 	return !!(i);
 }
 
-static gboolean on_render_jpeg(void *opaque G_GNUC_UNUSED,
-			       rgb24_render_func *render, void *render_opaque,
-			       int x, int y, int w, int h,
-			       guint8 *data, int size)
-{
-	GdkPixbufLoader *loader = gdk_pixbuf_loader_new();
-	GdkPixbuf *p;
-	guint8 *pixels;
-
-	if (!gdk_pixbuf_loader_write(loader, data, size, NULL))
-		return FALSE;
-
-	gdk_pixbuf_loader_close(loader, NULL);
-
-	p = g_object_ref(gdk_pixbuf_loader_get_pixbuf(loader));
-	g_object_unref(loader);
-
-	pixels = gdk_pixbuf_get_pixels(p);
-
-	render(render_opaque, x, y, w, h,
-	       gdk_pixbuf_get_pixels(p),
-	       gdk_pixbuf_get_rowstride(p));
-
-	g_object_unref(p);
-
-	return TRUE;
-}
-
-static const struct vnc_connection_ops vnc_display_ops = {
-	.render_jpeg = on_render_jpeg,
-};
-
 /* we use an idle function to allow the coroutine to exit before we actually
  * unref the object since the coroutine's state is part of the object */
 static gboolean delayed_unref_object(gpointer data)
@@ -1972,7 +1940,7 @@ static void vnc_display_init(VncDisplay *display)
 	 */
 	priv->preferable_auths = g_slist_append (priv->preferable_auths, GUINT_TO_POINTER (GVNC_AUTH_NONE));
 
-	priv->conn = vnc_connection_new(&vnc_display_ops, obj);
+	priv->conn = vnc_connection_new();
 
 	g_signal_connect(G_OBJECT(priv->conn), "vnc-cursor-changed",
 			 G_CALLBACK(on_cursor_changed), display);

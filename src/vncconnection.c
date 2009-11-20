@@ -47,6 +47,7 @@
 #include "utils.h"
 #include <gnutls/gnutls.h>
 #include <gnutls/x509.h>
+#include <gdk-pixbuf/gdk-pixbuf.h>
 
 #if HAVE_SASL
 #include <sasl/sasl.h>
@@ -58,7 +59,7 @@
 
 #include <zlib.h>
 
-#include <gdk/gdkkeysyms.h>
+//#include <gdk/gdkkeysyms.h>
 
 #include "getaddrinfo.h"
 #include "dh.h"
@@ -2133,26 +2134,34 @@ static void vnc_connection_tight_update_gradient(VncConnection *conn,
 	g_free(last_row);
 }
 
-static void jpeg_draw(void *opaque, int x, int y, int w, int h,
-		      guint8 *data, int stride)
-{
-	VncConnection *conn = opaque;
-	VncConnectionPrivate *priv = conn->priv;
-
-	vnc_framebuffer_rgb24_blt(priv->fb, data, stride, x, y, w, h);
-}
 
 static void vnc_connection_tight_update_jpeg(VncConnection *conn, guint16 x, guint16 y,
 					     guint16 width, guint16 height,
 					     guint8 *data, size_t length)
 {
 	VncConnectionPrivate *priv = conn->priv;
+	GdkPixbufLoader *loader = gdk_pixbuf_loader_new();
+	GdkPixbuf *p;
+	guint8 *pixels;
 
-	if (priv->ops.render_jpeg == NULL)
+	if (!gdk_pixbuf_loader_write(loader, data, length, NULL)) {
+		priv->has_error = TRUE;
 		return;
+	}
 
-	priv->ops.render_jpeg(priv->ops_data, jpeg_draw, conn,
-			      x, y, width, height, data, length);
+	gdk_pixbuf_loader_close(loader, NULL);
+
+	p = g_object_ref(gdk_pixbuf_loader_get_pixbuf(loader));
+	g_object_unref(loader);
+
+	pixels = gdk_pixbuf_get_pixels(p);
+
+	vnc_framebuffer_rgb24_blt(priv->fb,
+				  gdk_pixbuf_get_pixels(p),
+				  gdk_pixbuf_get_rowstride(p),
+				  x, y, width, height);
+
+	g_object_unref(p);
 }
 
 static void vnc_connection_tight_update(VncConnection *conn,
@@ -3977,21 +3986,10 @@ void vnc_connection_init(VncConnection *fb)
 }
 
 
-VncConnection *vnc_connection_new(const struct vnc_connection_ops *ops, gpointer ops_data)
+VncConnection *vnc_connection_new(void)
 {
-	VncConnection *conn;
-	VncConnectionPrivate *priv;
-
-	conn = VNC_CONNECTION(g_object_new(VNC_TYPE_CONNECTION,
+	return VNC_CONNECTION(g_object_new(VNC_TYPE_CONNECTION,
 					   NULL));
-
-	priv = conn->priv;
-
-	/* XXX kill this */
-	memcpy(&priv->ops, ops, sizeof(*ops));
-	priv->ops_data = ops_data;
-
-	return conn;
 }
 
 void vnc_connection_close(VncConnection *conn)

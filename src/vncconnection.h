@@ -66,13 +66,9 @@ struct _VncConnectionClass
 	void (*vnc_auth_choose_subtype)(VncConnection *conn, unsigned int type, GValueArray *subtypes);
 };
 
-typedef void (rgb24_render_func)(void *, int, int, int, int, guint8 *, int);
-
 struct vnc_connection_ops
 {
 	gboolean (*set_color_map_entry)(void *, int, int, int, int);
-	gboolean (*render_jpeg)(void *, rgb24_render_func *render, void *,
-				int, int, int, int, guint8 *, int);
 };
 
 
@@ -145,7 +141,7 @@ typedef enum
 
 GType vnc_connection_get_type(void) G_GNUC_CONST;
 
-VncConnection *vnc_connection_new(const struct vnc_connection_ops *ops, gpointer ops_data);
+VncConnection *vnc_connection_new(void);
 
 void vnc_connection_close(VncConnection *conn);
 void vnc_connection_shutdown(VncConnection *conn);
