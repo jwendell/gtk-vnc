@@ -942,6 +942,7 @@ static void emit_signal_delayed(VncDisplay *obj, int signum,
 	data->obj = obj;
 	data->caller = coroutine_self();
 	data->signum = signum;
+
 	g_idle_add(emit_signal_auth_cred, data);
 	coroutine_yield(NULL);
 }
@@ -1241,24 +1242,38 @@ static gboolean on_bell(void *opaque)
 	return TRUE;
 }
 
-static gboolean on_local_cursor(void *opaque, int x, int y, int width, int height, guint8 *image)
+static void on_cursor_changed(VncConnection *conn G_GNUC_UNUSED,
+			      VncCursor *cursor,
+			      gpointer opaque)
 {
 	VncDisplay *obj = VNC_DISPLAY(opaque);
 	VncDisplayPrivate *priv = obj->priv;
+
+	GVNC_DEBUG("Cursor changed %p x=%d y=%d w=%d h=%d",
+		   cursor,
+		   cursor ? vnc_cursor_get_hotx(cursor) : -1,
+		   cursor ? vnc_cursor_get_hoty(cursor) : -1,
+		   cursor ? vnc_cursor_get_width(cursor) : -1,
+		   cursor ? vnc_cursor_get_height(cursor) : -1);
 
 	if (priv->remote_cursor) {
 		gdk_cursor_unref(priv->remote_cursor);
 		priv->remote_cursor = NULL;
 	}
 
-	if (width && height) {
+	if (cursor) {
 		GdkDisplay *display = gdk_drawable_get_display(GDK_DRAWABLE(gtk_widget_get_window(GTK_WIDGET(obj))));
-		GdkPixbuf *pixbuf = gdk_pixbuf_new_from_data(image, GDK_COLORSPACE_RGB,
-							     TRUE, 8, width, height,
-							     width * 4, NULL, NULL);
+		GdkPixbuf *pixbuf = gdk_pixbuf_new_from_data(vnc_cursor_get_data(cursor),
+							     GDK_COLORSPACE_RGB,
+							     TRUE, 8,
+							     vnc_cursor_get_width(cursor),
+							     vnc_cursor_get_height(cursor),
+							     vnc_cursor_get_width(cursor) * 4,
+							     NULL, NULL);
 		priv->remote_cursor = gdk_cursor_new_from_pixbuf(display,
 								 pixbuf,
-								 x, y);
+								 vnc_cursor_get_hotx(cursor),
+								 vnc_cursor_get_hoty(cursor));
 		g_object_unref(pixbuf);
 	}
 
@@ -1268,8 +1283,6 @@ static gboolean on_local_cursor(void *opaque, int x, int y, int width, int heigh
 	} else if (priv->absolute) {
 		do_pointer_hide(obj);
 	}
-
-	return TRUE;
 }
 
 static gboolean check_pixbuf_support(const char *name)
@@ -1332,7 +1345,6 @@ static const struct vnc_connection_ops vnc_display_ops = {
 	.resize = on_resize,
         .pixel_format = on_pixel_format,
 	.pointer_type_change = on_pointer_type_change,
-	.local_cursor = on_local_cursor,
 	.auth_unsupported = on_auth_unsupported,
 	.server_cut_text = on_server_cut_text,
 	.bell = on_bell,
@@ -2016,6 +2028,9 @@ static void vnc_display_init(VncDisplay *display)
 	priv->preferable_auths = g_slist_append (priv->preferable_auths, GUINT_TO_POINTER (GVNC_AUTH_NONE));
 
 	priv->conn = vnc_connection_new(&vnc_display_ops, obj);
+
+	g_signal_connect(G_OBJECT(priv->conn), "vnc-cursor-changed",
+			 G_CALLBACK(on_cursor_changed), display);
 }
 
 static char *

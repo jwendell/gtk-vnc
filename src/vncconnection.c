@@ -150,6 +150,8 @@ struct _VncConnectionPrivate
 	VncFramebuffer *fb;
 	gboolean fbSwapRemote;
 
+	VncCursor *cursor;
+
 	vnc_connection_rich_cursor_blt_func *rich_cursor_blt;
 	vnc_connection_tight_compute_predicted_func *tight_compute_predicted;
 	vnc_connection_tight_sum_pixel_func *tight_sum_pixel;
@@ -183,6 +185,15 @@ struct _VncConnectionPrivate
 };
 
 G_DEFINE_TYPE(VncConnection, vnc_connection, G_TYPE_OBJECT);
+
+
+enum {
+	VNC_CURSOR_CHANGED,
+
+	VNC_LAST_SIGNAL,
+};
+
+static guint signals[VNC_LAST_SIGNAL] = { 0, };
 
 #define nibhi(a) (((a) >> 4) & 0x0F)
 #define niblo(a) ((a) & 0x0F)
@@ -342,6 +353,55 @@ static void vnc_connection_set_property(GObject *object,
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
         }
+}
+
+struct signal_data
+{
+	VncConnection *conn;
+	struct coroutine *caller;
+
+	int signum;
+
+	union {
+		VncCursor *cursor;
+	} params;
+};
+
+static gboolean do_vnc_connection_emit_main_context(gpointer opaque)
+{
+	struct signal_data *data = opaque;
+
+	switch (data->signum) {
+	case VNC_CURSOR_CHANGED:
+		g_signal_emit(G_OBJECT(data->conn),
+			      signals[data->signum],
+			      0,
+			      data->params.cursor);
+		break;
+	}
+
+	coroutine_yieldto(data->caller, NULL);
+
+	return FALSE;
+}
+
+static void vnc_connection_emit_main_context(VncConnection *conn,
+					     int signum,
+					     struct signal_data *data)
+{
+	data->conn = conn;
+	data->caller = coroutine_self();
+	data->signum = signum;
+
+	g_idle_add(do_vnc_connection_emit_main_context, data);
+
+	/* This switches to the system coroutine context, lets
+	 * the idle function run to dispatch the signal, and
+	 * finally returns once complete. ie this is synchronous
+	 * from the POV of the VNC coroutine despite there being
+	 * an idle function involved
+	 */
+	coroutine_yield(NULL);
 }
 
 
@@ -2199,10 +2259,16 @@ static void vnc_connection_rich_cursor_blt(VncConnection *conn, guint8 *pixbuf,
 static void vnc_connection_rich_cursor(VncConnection *conn, int x, int y, int width, int height)
 {
 	VncConnectionPrivate *priv = conn->priv;
-	guint8 *pixbuf = NULL;
+	struct signal_data sigdata;
+
+	if (priv->cursor) {
+		g_object_unref(priv->cursor);
+		priv->cursor = NULL;
+	}
 
 	if (width && height) {
-		guint8 *image, *mask;
+		guint8 *pixbuf = NULL;
+		guint8 *image = NULL, *mask = NULL;
 		int imagelen, masklen;
 
 		imagelen = width * height * (priv->fmt.bits_per_pixel / 8);
@@ -2221,24 +2287,30 @@ static void vnc_connection_rich_cursor(VncConnection *conn, int x, int y, int wi
 
 		g_free(image);
 		g_free(mask);
+
+		priv->cursor = vnc_cursor_new(pixbuf, x, y, width, height);
 	}
 
-	if (priv->has_error || !priv->ops.local_cursor)
+	if (priv->has_error)
 		return;
-	if (!priv->ops.local_cursor(priv->ops_data, x, y, width, height, pixbuf)) {
-		GVNC_DEBUG("Closing the connection: vnc_connection_rich_cursor() - !ops.local_cursor()");
-		priv->has_error = TRUE;
-	}
 
-	g_free(pixbuf);
+	sigdata.params.cursor = priv->cursor;
+
+	vnc_connection_emit_main_context(conn, VNC_CURSOR_CHANGED, &sigdata);
 }
 
 static void vnc_connection_xcursor(VncConnection *conn, int x, int y, int width, int height)
 {
 	VncConnectionPrivate *priv = conn->priv;
-	guint8 *pixbuf = NULL;
+	struct signal_data sigdata;
+
+	if (priv->cursor) {
+		g_object_unref(priv->cursor);
+		priv->cursor = NULL;
+	}
 
 	if (width && height) {
+		guint8 *pixbuf = NULL;
 		guint8 *data, *mask, *datap, *maskp;
 		guint32 *pixp;
 		int rowlen;
@@ -2270,16 +2342,16 @@ static void vnc_connection_xcursor(VncConnection *conn, int x, int y, int width,
 		}
 		g_free(data);
 		g_free(mask);
+
+		priv->cursor = vnc_cursor_new(pixbuf, x, y, width, height);
 	}
 
-	if (priv->has_error || !priv->ops.local_cursor)
+	if (priv->has_error)
 		return;
-	if (!priv->ops.local_cursor(priv->ops_data, x, y, width, height, pixbuf)) {
-		GVNC_DEBUG("Closing the connection: vnc_connection_xcursor() - !ops.local_cursor()");
-		priv->has_error = TRUE;
-	}
 
-	g_free(pixbuf);
+	sigdata.params.cursor = priv->cursor;
+
+	vnc_connection_emit_main_context(conn, VNC_CURSOR_CHANGED, &sigdata);
 }
 
 static void vnc_connection_ext_key_event(VncConnection *conn)
@@ -3555,6 +3627,9 @@ static void vnc_connection_finalize (GObject *object)
 	if (vnc_connection_is_open(conn))
 		vnc_connection_close(conn);
 
+	if (priv->cursor)
+		g_object_unref(G_OBJECT(priv->cursor));
+
 	if (priv->fb)
 		g_object_unref(G_OBJECT(priv->fb));
 
@@ -3580,6 +3655,17 @@ static void vnc_connection_class_init(VncConnectionClass *klass)
 							    G_PARAM_STATIC_NAME |
 							    G_PARAM_STATIC_NICK |
 							    G_PARAM_STATIC_BLURB));
+
+	signals[VNC_CURSOR_CHANGED] =
+		g_signal_new ("vnc-cursor-changed",
+			      G_OBJECT_CLASS_TYPE (object_class),
+			      G_SIGNAL_RUN_FIRST,
+			      G_STRUCT_OFFSET (VncConnectionClass, vnc_cursor_changed),
+			      NULL, NULL,
+			      g_cclosure_marshal_VOID__OBJECT,
+			      G_TYPE_NONE,
+			      1,
+			      VNC_TYPE_CURSOR);
 
 	g_type_class_add_private(klass, sizeof(VncConnectionPrivate));
 }
@@ -4150,6 +4236,14 @@ gboolean vnc_connection_using_raw_keycodes(VncConnection *conn)
 
 	return priv->has_ext_key_event;
 }
+
+VncCursor *vnc_connection_get_cursor(VncConnection *conn)
+{
+	VncConnectionPrivate *priv = conn->priv;
+
+	return priv->cursor;
+}
+
 
 /*
  * Local variables:
