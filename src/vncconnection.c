@@ -190,11 +190,12 @@ enum {
 	VNC_CURSOR_CHANGED,
 	VNC_POINTER_MODE_CHANGED,
 	VNC_BELL,
+	VNC_SERVER_CUT_TEXT,
 
 	VNC_LAST_SIGNAL,
 };
 
-static guint signals[VNC_LAST_SIGNAL] = { 0, 0, 0, };
+static guint signals[VNC_LAST_SIGNAL] = { 0, 0, 0, 0, };
 
 #define nibhi(a) (((a) >> 4) & 0x0F)
 #define niblo(a) ((a) & 0x0F)
@@ -366,6 +367,7 @@ struct signal_data
 	union {
 		VncCursor *cursor;
 		gboolean absPointer;
+		GString *text;
 	} params;
 };
 
@@ -392,6 +394,13 @@ static gboolean do_vnc_connection_emit_main_context(gpointer opaque)
 		g_signal_emit(G_OBJECT(data->conn),
 			      signals[data->signum],
 			      0);
+		break;
+
+	case VNC_SERVER_CUT_TEXT:
+		g_signal_emit(G_OBJECT(data->conn),
+			      signals[data->signum],
+			      0,
+			      data->params.text);
 		break;
 	}
 
@@ -2205,18 +2214,23 @@ static void vnc_connection_bell(VncConnection *conn)
 	vnc_connection_emit_main_context(conn, VNC_BELL, &sigdata);
 }
 
-static void vnc_connection_server_cut_text(VncConnection *conn, const void *data,
+static void vnc_connection_server_cut_text(VncConnection *conn,
+					   const void *data,
 					   size_t len)
 {
 	VncConnectionPrivate *priv = conn->priv;
+	struct signal_data sigdata;
+	GString *text;
 
-	if (priv->has_error || !priv->ops.server_cut_text)
+	if (priv->has_error)
 		return;
 
-	if (!priv->ops.server_cut_text(priv->ops_data, data, len)) {
-		GVNC_DEBUG("Closing the connection: vnc_connection_server_cut_text");
-		priv->has_error = TRUE;
-	}
+	text = g_string_new_len ((const gchar *)data, len);
+	sigdata.params.text = text;
+
+	vnc_connection_emit_main_context(conn, VNC_SERVER_CUT_TEXT, &sigdata);
+
+	g_free(text);
 }
 
 static void vnc_connection_resize(VncConnection *conn, int width, int height)
@@ -3704,6 +3718,17 @@ static void vnc_connection_class_init(VncConnectionClass *klass)
 			      g_cclosure_marshal_VOID__VOID,
 			      G_TYPE_NONE,
 			      0);
+
+	signals[VNC_SERVER_CUT_TEXT] =
+		g_signal_new ("vnc-server-cut-text",
+			      G_OBJECT_CLASS_TYPE (object_class),
+			      G_SIGNAL_RUN_FIRST,
+			      G_STRUCT_OFFSET (VncConnectionClass, vnc_server_cut_text),
+			      NULL, NULL,
+			      g_cclosure_marshal_VOID__STRING,
+			      G_TYPE_NONE,
+			      1,
+			      G_TYPE_STRING);
 
 	g_type_class_add_private(klass, sizeof(VncConnectionPrivate));
 }

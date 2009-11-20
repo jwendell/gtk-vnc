@@ -114,7 +114,6 @@ struct signal_data
 	int height;
 	const char *msg;
 	unsigned int auth_type;
-	GString *str;
 };
 
 G_DEFINE_TYPE(VncDisplay, vnc_display, GTK_TYPE_DRAWING_AREA)
@@ -914,12 +913,6 @@ static gboolean emit_signal_auth_cred(gpointer opaque)
 			      0,
 			      s->auth_type);
 		break;
-	case VNC_SERVER_CUT_TEXT:
-		g_signal_emit(G_OBJECT(s->obj),
-			      signals[VNC_SERVER_CUT_TEXT],
-			      0,
-			      s->str->str);
-		break;
 	case VNC_CONNECTED:
 	case VNC_INITIALIZED:
 	case VNC_DISCONNECTED:
@@ -1214,21 +1207,14 @@ static gboolean on_auth_unsupported(void *opaque, unsigned int auth_type)
 	return TRUE;
 }
 
-static gboolean on_server_cut_text(void *opaque, const void* text, size_t len)
+static void on_server_cut_text(void *opaque, const gchar *text)
 {
 	VncDisplay *obj = VNC_DISPLAY(opaque);
-	GString *str;
-	struct signal_data s;
 
 	if (obj->priv->read_only)
-		return TRUE;
+		return;
 
-	str = g_string_new_len ((const gchar *)text, len);
-	s.str = str;
-	emit_signal_delayed(obj, VNC_SERVER_CUT_TEXT, &s);
-
-	g_string_free (str, TRUE);
-	return TRUE;
+	g_signal_emit(G_OBJECT(obj), signals[VNC_SERVER_CUT_TEXT], 0, text);
 }
 
 static void on_bell(VncConnection *conn G_GNUC_UNUSED,
@@ -1342,7 +1328,6 @@ static const struct vnc_connection_ops vnc_display_ops = {
 	.resize = on_resize,
         .pixel_format = on_pixel_format,
 	.auth_unsupported = on_auth_unsupported,
-	.server_cut_text = on_server_cut_text,
 	.render_jpeg = on_render_jpeg,
 	.get_preferred_pixel_format = on_get_preferred_pixel_format
 };
@@ -2030,6 +2015,8 @@ static void vnc_display_init(VncDisplay *display)
 			 G_CALLBACK(on_pointer_mode_changed), display);
 	g_signal_connect(G_OBJECT(priv->conn), "vnc-bell",
 			 G_CALLBACK(on_bell), display);
+	g_signal_connect(G_OBJECT(priv->conn), "vnc-server-cut-text",
+			 G_CALLBACK(on_server_cut_text), display);
 }
 
 static char *
