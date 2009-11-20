@@ -22,6 +22,7 @@
 
 #include "vncconnection.h"
 #include "vncconnectionenums.h"
+#include "vncmarshal.h"
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -191,11 +192,15 @@ enum {
 	VNC_POINTER_MODE_CHANGED,
 	VNC_BELL,
 	VNC_SERVER_CUT_TEXT,
+	VNC_FRAMEBUFFER_UPDATE,
+	VNC_DESKTOP_RESIZE,
+	VNC_PIXEL_FORMAT_CHANGED,
 
 	VNC_LAST_SIGNAL,
 };
 
-static guint signals[VNC_LAST_SIGNAL] = { 0, 0, 0, 0, };
+static guint signals[VNC_LAST_SIGNAL] = { 0, 0, 0, 0,
+					  0, 0, 0, };
 
 #define nibhi(a) (((a) >> 4) & 0x0F)
 #define niblo(a) ((a) & 0x0F)
@@ -368,6 +373,17 @@ struct signal_data
 		VncCursor *cursor;
 		gboolean absPointer;
 		GString *text;
+		struct {
+			int x;
+			int y;
+			int width;
+			int height;
+		} area;
+		struct {
+			int width;
+			int height;
+		} size;
+		VncPixelFormat *pixelFormat;
 	} params;
 };
 
@@ -401,6 +417,31 @@ static gboolean do_vnc_connection_emit_main_context(gpointer opaque)
 			      signals[data->signum],
 			      0,
 			      data->params.text);
+		break;
+
+	case VNC_FRAMEBUFFER_UPDATE:
+		g_signal_emit(G_OBJECT(data->conn),
+			      signals[data->signum],
+			      0,
+			      data->params.area.x,
+			      data->params.area.y,
+			      data->params.area.width,
+			      data->params.area.height);
+		break;
+
+	case VNC_DESKTOP_RESIZE:
+		g_signal_emit(G_OBJECT(data->conn),
+			      signals[data->signum],
+			      0,
+			      data->params.size.width,
+			      data->params.size.height);
+		break;
+
+	case VNC_PIXEL_FORMAT_CHANGED:
+		g_signal_emit(G_OBJECT(data->conn),
+			      signals[data->signum],
+			      0,
+			      data->params.pixelFormat);
 		break;
 	}
 
@@ -2176,14 +2217,18 @@ static void vnc_connection_tight_update(VncConnection *conn,
 static void vnc_connection_update(VncConnection *conn, int x, int y, int width, int height)
 {
 	VncConnectionPrivate *priv = conn->priv;
+	struct signal_data sigdata;
 
-	if (priv->has_error || !priv->ops.update)
+	if (priv->has_error)
 		return;
+
 	GVNC_DEBUG("Notify update area (%dx%d) at location %d,%d", width, height, x, y);
-	if (!priv->ops.update(priv->ops_data, x, y, width, height)) {
-		GVNC_DEBUG("Closing the connection: vnc_connection_update");
-		priv->has_error = TRUE;
-	}
+
+	sigdata.params.area.x = x;
+	sigdata.params.area.y = y;
+	sigdata.params.area.width = width;
+	sigdata.params.area.height = height;
+	vnc_connection_emit_main_context(conn, VNC_FRAMEBUFFER_UPDATE, &sigdata);
 }
 
 static void vnc_connection_set_color_map_entry(VncConnection *conn, guint16 color,
@@ -2236,6 +2281,7 @@ static void vnc_connection_server_cut_text(VncConnection *conn,
 static void vnc_connection_resize(VncConnection *conn, int width, int height)
 {
 	VncConnectionPrivate *priv = conn->priv;
+	struct signal_data sigdata;
 
 	if (priv->has_error)
 		return;
@@ -2243,23 +2289,21 @@ static void vnc_connection_resize(VncConnection *conn, int width, int height)
 	priv->width = width;
 	priv->height = height;
 
-	if (!priv->ops.resize)
-		return;
-
-	if (!priv->ops.resize(priv->ops_data, width, height)) {
-		GVNC_DEBUG("Closing the connection: vnc_connection_resize");
-		priv->has_error = TRUE;
-	}
+	sigdata.params.size.width = width;
+	sigdata.params.size.height = height;
+	vnc_connection_emit_main_context(conn, VNC_DESKTOP_RESIZE, &sigdata);
 }
 
 static void vnc_connection_pixel_format(VncConnection *conn)
 {
 	VncConnectionPrivate *priv = conn->priv;
+	struct signal_data sigdata;
 
-        if (priv->has_error || !priv->ops.pixel_format)
+        if (priv->has_error)
                 return;
-        if (!priv->ops.pixel_format(priv->ops_data, &priv->fmt))
-                priv->has_error = TRUE;
+
+	sigdata.params.pixelFormat = &priv->fmt;
+	vnc_connection_emit_main_context(conn, VNC_PIXEL_FORMAT_CHANGED, &sigdata);
 }
 
 static void vnc_connection_pointer_type_change(VncConnection *conn, gboolean absPointer)
@@ -3729,6 +3773,43 @@ static void vnc_connection_class_init(VncConnectionClass *klass)
 			      G_TYPE_NONE,
 			      1,
 			      G_TYPE_STRING);
+
+	signals[VNC_FRAMEBUFFER_UPDATE] =
+		g_signal_new ("vnc-framebuffer-update",
+			      G_OBJECT_CLASS_TYPE (object_class),
+			      G_SIGNAL_RUN_FIRST,
+			      G_STRUCT_OFFSET (VncConnectionClass, vnc_framebuffer_update),
+			      NULL, NULL,
+			      g_cclosure_user_marshal_VOID__INT_INT_INT_INT,
+			      G_TYPE_NONE,
+			      4,
+			      G_TYPE_INT,
+			      G_TYPE_INT,
+			      G_TYPE_INT,
+			      G_TYPE_INT);
+
+	signals[VNC_DESKTOP_RESIZE] =
+		g_signal_new ("vnc-desktop-resize",
+			      G_OBJECT_CLASS_TYPE (object_class),
+			      G_SIGNAL_RUN_FIRST,
+			      G_STRUCT_OFFSET (VncConnectionClass, vnc_desktop_resize),
+			      NULL, NULL,
+			      g_cclosure_user_marshal_VOID__INT_INT,
+			      G_TYPE_NONE,
+			      2,
+			      G_TYPE_INT,
+			      G_TYPE_INT);
+
+	signals[VNC_PIXEL_FORMAT_CHANGED] =
+		g_signal_new ("vnc-pixel-format-changed",
+			      G_OBJECT_CLASS_TYPE (object_class),
+			      G_SIGNAL_RUN_FIRST,
+			      G_STRUCT_OFFSET (VncConnectionClass, vnc_pixel_format_changed),
+			      NULL, NULL,
+			      g_cclosure_marshal_VOID__POINTER,
+			      G_TYPE_NONE,
+			      1,
+			      G_TYPE_POINTER);
 
 	g_type_class_add_private(klass, sizeof(VncConnectionPrivate));
 }

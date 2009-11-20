@@ -110,8 +110,6 @@ struct signal_data
 
 	int signum;
 	GValueArray *cred_list;
-	int width;
-	int height;
 	const char *msg;
 	unsigned int auth_type;
 };
@@ -833,7 +831,9 @@ static gboolean focus_event(GtkWidget *widget, GdkEventFocus *focus G_GNUC_UNUSE
         return TRUE;
 }
 
-static gboolean on_update(void *opaque, int x, int y, int w, int h)
+static void on_framebuffer_update(VncConnection *conn G_GNUC_UNUSED,
+				  int x, int y, int w, int h,
+				  gpointer opaque)
 {
 	GtkWidget *widget = GTK_WIDGET(opaque);
 	VncDisplay *obj = VNC_DISPLAY(widget);
@@ -879,8 +879,6 @@ static gboolean on_update(void *opaque, int x, int y, int w, int h)
 	}
 
 	gtk_widget_queue_draw_area(widget, x, y, w + 1, h + 1);
-
-	return TRUE;
 }
 
 
@@ -894,12 +892,6 @@ static gboolean emit_signal_auth_cred(gpointer opaque)
 			      signals[VNC_AUTH_CREDENTIAL],
 			      0,
 			      s->cred_list);
-		break;
-	case VNC_DESKTOP_RESIZE:
-		g_signal_emit(G_OBJECT(s->obj),
-			      signals[VNC_DESKTOP_RESIZE],
-			      0,
-			      s->width, s->height);
 		break;
 	case VNC_AUTH_FAILURE:
 		g_signal_emit(G_OBJECT(s->obj),
@@ -939,17 +931,16 @@ static void emit_signal_delayed(VncDisplay *obj, int signum,
 	coroutine_yield(NULL);
 }
 
-static gboolean do_framebuffer_init(VncDisplay *obj,
-				    const VncPixelFormat *remoteFormat,
-				    int width, int height, gboolean quiet)
+static void do_framebuffer_init(VncDisplay *obj,
+				const VncPixelFormat *remoteFormat,
+				int width, int height, gboolean quiet)
 {
 	VncDisplayPrivate *priv = obj->priv;
-	struct signal_data s;
 	GdkVisual *visual;
 	GdkImage *image;
 
 	if (priv->conn == NULL || !vnc_connection_is_initialized(priv->conn))
-		return TRUE;
+		return;
 
 	if (priv->fb) {
 		g_object_unref(priv->fb);
@@ -984,15 +975,16 @@ static gboolean do_framebuffer_init(VncDisplay *obj,
 		gtk_widget_set_size_request(GTK_WIDGET(obj), width, height);
 
 	if (!quiet) {
-		s.width = width;
-		s.height = height;
-		emit_signal_delayed(obj, VNC_DESKTOP_RESIZE, &s);
+		g_signal_emit(G_OBJECT(obj),
+			      signals[VNC_DESKTOP_RESIZE],
+			      0,
+			      width, height);
 	}
-
-	return TRUE;
 }
 
-static gboolean on_resize(void *opaque, int width, int height)
+static void on_desktop_resize(VncConnection *conn G_GNUC_UNUSED,
+			      int width, int height,
+			      gpointer opaque)
 {
         VncDisplay *obj = VNC_DISPLAY(opaque);
 	VncDisplayPrivate *priv = obj->priv;
@@ -1000,18 +992,19 @@ static gboolean on_resize(void *opaque, int width, int height)
 
 	remoteFormat = vnc_connection_get_pixel_format(priv->conn);
 
-	return do_framebuffer_init(opaque, remoteFormat, width, height, FALSE);
+	do_framebuffer_init(opaque, remoteFormat, width, height, FALSE);
 }
 
-static gboolean on_pixel_format(void *opaque,
-				VncPixelFormat *remoteFormat)
+static void on_pixel_format_changed(VncConnection *conn G_GNUC_UNUSED,
+				    VncPixelFormat *remoteFormat,
+				    gpointer opaque)
 {
         VncDisplay *obj = VNC_DISPLAY(opaque);
         VncDisplayPrivate *priv = obj->priv;
 	gint16 width = vnc_connection_get_width(priv->conn);
 	gint16 height = vnc_connection_get_height(priv->conn);
 
-        return do_framebuffer_init(opaque, remoteFormat, width, height, TRUE);
+	do_framebuffer_init(opaque, remoteFormat, width, height, TRUE);
 }
 
 static gboolean on_get_preferred_pixel_format(void *opaque,
@@ -1324,9 +1317,6 @@ static const struct vnc_connection_ops vnc_display_ops = {
 	.auth_type = on_auth_type,
 	.auth_subtype = on_auth_subtype,
 	.auth_failure = on_auth_failure,
-	.update = on_update,
-	.resize = on_resize,
-        .pixel_format = on_pixel_format,
 	.auth_unsupported = on_auth_unsupported,
 	.render_jpeg = on_render_jpeg,
 	.get_preferred_pixel_format = on_get_preferred_pixel_format
@@ -2017,6 +2007,12 @@ static void vnc_display_init(VncDisplay *display)
 			 G_CALLBACK(on_bell), display);
 	g_signal_connect(G_OBJECT(priv->conn), "vnc-server-cut-text",
 			 G_CALLBACK(on_server_cut_text), display);
+	g_signal_connect(G_OBJECT(priv->conn), "vnc-framebuffer-update",
+			 G_CALLBACK(on_framebuffer_update), display);
+	g_signal_connect(G_OBJECT(priv->conn), "vnc-desktop-resize",
+			 G_CALLBACK(on_desktop_resize), display);
+	g_signal_connect(G_OBJECT(priv->conn), "vnc-pixel-format-changed",
+			 G_CALLBACK(on_pixel_format_changed), display);
 }
 
 static char *
