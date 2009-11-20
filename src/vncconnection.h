@@ -54,6 +54,7 @@ struct _VncConnectionClass
 	/* Signals */
 	void (*vnc_cursor_changed)(VncConnection *conn, VncCursor *cursor);
 	void (*vnc_pointer_mode_changed)(VncConnection *conn, gboolean absPointer);
+	void (*vnc_bell)(VncConnection *conn);
 };
 
 typedef void (rgb24_render_func)(void *, int, int, int, int, guint8 *, int);
@@ -66,7 +67,6 @@ struct vnc_connection_ops
 	gboolean (*auth_failure)(void *, const char *);
 	gboolean (*update)(void *, int, int, int, int);
 	gboolean (*set_color_map_entry)(void *, int, int, int, int);
-	gboolean (*bell)(void *);
 	gboolean (*server_cut_text)(void *, const void *, size_t);
 	gboolean (*resize)(void *, int, int);
 	gboolean (*pixel_format)(void *, VncPixelFormat *);

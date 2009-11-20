@@ -920,7 +920,6 @@ static gboolean emit_signal_auth_cred(gpointer opaque)
 			      0,
 			      s->str->str);
 		break;
-	case VNC_BELL:
 	case VNC_CONNECTED:
 	case VNC_INITIALIZED:
 	case VNC_DISCONNECTED:
@@ -1232,14 +1231,12 @@ static gboolean on_server_cut_text(void *opaque, const void* text, size_t len)
 	return TRUE;
 }
 
-static gboolean on_bell(void *opaque)
+static void on_bell(VncConnection *conn G_GNUC_UNUSED,
+		    gpointer opaque)
 {
 	VncDisplay *obj = VNC_DISPLAY(opaque);
-	struct signal_data s;
 
-	emit_signal_delayed(obj, VNC_BELL, &s);
-
-	return TRUE;
+	g_signal_emit(G_OBJECT(obj), signals[VNC_BELL], 0);
 }
 
 static void on_cursor_changed(VncConnection *conn G_GNUC_UNUSED,
@@ -1346,7 +1343,6 @@ static const struct vnc_connection_ops vnc_display_ops = {
         .pixel_format = on_pixel_format,
 	.auth_unsupported = on_auth_unsupported,
 	.server_cut_text = on_server_cut_text,
-	.bell = on_bell,
 	.render_jpeg = on_render_jpeg,
 	.get_preferred_pixel_format = on_get_preferred_pixel_format
 };
@@ -2032,6 +2028,8 @@ static void vnc_display_init(VncDisplay *display)
 			 G_CALLBACK(on_cursor_changed), display);
 	g_signal_connect(G_OBJECT(priv->conn), "vnc-pointer-mode-changed",
 			 G_CALLBACK(on_pointer_mode_changed), display);
+	g_signal_connect(G_OBJECT(priv->conn), "vnc-bell",
+			 G_CALLBACK(on_bell), display);
 }
 
 static char *

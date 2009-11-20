@@ -189,11 +189,12 @@ G_DEFINE_TYPE(VncConnection, vnc_connection, G_TYPE_OBJECT);
 enum {
 	VNC_CURSOR_CHANGED,
 	VNC_POINTER_MODE_CHANGED,
+	VNC_BELL,
 
 	VNC_LAST_SIGNAL,
 };
 
-static guint signals[VNC_LAST_SIGNAL] = { 0, 0, };
+static guint signals[VNC_LAST_SIGNAL] = { 0, 0, 0, };
 
 #define nibhi(a) (((a) >> 4) & 0x0F)
 #define niblo(a) ((a) & 0x0F)
@@ -385,6 +386,12 @@ static gboolean do_vnc_connection_emit_main_context(gpointer opaque)
 			      signals[data->signum],
 			      0,
 			      data->params.absPointer);
+		break;
+
+	case VNC_BELL:
+		g_signal_emit(G_OBJECT(data->conn),
+			      signals[data->signum],
+			      0);
 		break;
 	}
 
@@ -2188,16 +2195,14 @@ static void vnc_connection_set_color_map_entry(VncConnection *conn, guint16 colo
 static void vnc_connection_bell(VncConnection *conn)
 {
 	VncConnectionPrivate *priv = conn->priv;
+	struct signal_data sigdata;
 
-	if (priv->has_error || !priv->ops.bell)
+	if (priv->has_error)
 		return;
 
 	GVNC_DEBUG("Server beep");
 
-	if (!priv->ops.bell(priv->ops_data)) {
-		GVNC_DEBUG("Closing the connection: vnc_connection_bell");
-		priv->has_error = TRUE;
-	}
+	vnc_connection_emit_main_context(conn, VNC_BELL, &sigdata);
 }
 
 static void vnc_connection_server_cut_text(VncConnection *conn, const void *data,
@@ -3689,6 +3694,16 @@ static void vnc_connection_class_init(VncConnectionClass *klass)
 			      G_TYPE_NONE,
 			      1,
 			      G_TYPE_BOOLEAN);
+
+	signals[VNC_BELL] =
+		g_signal_new ("vnc-bell",
+			      G_OBJECT_CLASS_TYPE (object_class),
+			      G_SIGNAL_RUN_FIRST,
+			      G_STRUCT_OFFSET (VncConnectionClass, vnc_bell),
+			      NULL, NULL,
+			      g_cclosure_marshal_VOID__VOID,
+			      G_TYPE_NONE,
+			      0);
 
 	g_type_class_add_private(klass, sizeof(VncConnectionPrivate));
 }
