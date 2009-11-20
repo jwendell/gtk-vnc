@@ -1622,7 +1622,7 @@ static void vnc_display_finalize (GObject *obj)
 	if (vnc_connection_is_open(priv->conn)) {
 		g_warning("VNC widget finalized before the connection finished shutting down\n");
 	}
-	vnc_connection_free(priv->conn);
+	g_object_unref(G_OBJECT(priv->conn));
 	display->priv->conn = NULL;
 
 	if (priv->fb) {

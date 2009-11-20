@@ -25,7 +25,31 @@
 
 #include "vncframebuffer.h"
 
+G_BEGIN_DECLS
+
+#define VNC_TYPE_CONNECTION            (vnc_connection_get_type ())
+#define VNC_CONNECTION(obj)            (G_TYPE_CHECK_INSTANCE_CAST ((obj), VNC_TYPE_CONNECTION, VncConnection))
+#define VNC_CONNECTION_CLASS(klass)    (G_TYPE_CHECK_CLASS_CAST ((klass), VNC_TYPE_CONNECTION, VncConnectionClass))
+#define VNC_IS_CONNECTION(obj)         (G_TYPE_CHECK_INSTANCE_TYPE ((obj), VNC_TYPE_CONNECTION))
+#define VNC_IS_CONNECTION_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE ((klass), VNC_TYPE_CONNECTION))
+#define VNC_CONNECTION_GET_CLASS(obj)  (G_TYPE_INSTANCE_GET_CLASS ((obj), VNC_TYPE_CONNECTION, VncConnectionClass))
+
+
 typedef struct _VncConnection VncConnection;
+typedef struct _VncConnectionPrivate VncConnectionPrivate;
+typedef struct _VncConnectionClass VncConnectionClass;
+
+struct _VncConnection
+{
+	GObject parent;
+
+	VncConnectionPrivate *priv;
+};
+
+struct _VncConnectionClass
+{
+	GObjectClass parent_class;
+};
 
 typedef void (rgb24_render_func)(void *, int, int, int, int, guint8 *, int);
 
@@ -109,9 +133,9 @@ typedef enum {
 	GVNC_AUTH_VENCRYPT_TLSSASL = 264,
 } VncConnectionAuthVencrypt;
 
+GType vnc_connection_get_type(void) G_GNUC_CONST;
 
 VncConnection *vnc_connection_new(const struct vnc_connection_ops *ops, gpointer ops_data);
-void vnc_connection_free(VncConnection *conn);
 
 void vnc_connection_close(VncConnection *conn);
 void vnc_connection_shutdown(VncConnection *conn);
@@ -171,6 +195,8 @@ int vnc_connection_get_height(VncConnection *conn);
 
 /* HACK this is temporary */
 gboolean vnc_connection_using_raw_keycodes(VncConnection *conn);
+
+G_END_DECLS
 
 #endif
 /*
