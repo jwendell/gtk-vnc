@@ -40,9 +40,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#ifdef HAVE_PWD_H
-#include <pwd.h>
-#endif
 
 #ifdef HAVE_WINSOCK2_H
 #include <winsock2.h>
@@ -885,12 +882,6 @@ static gboolean emit_signal_auth_cred(gpointer opaque)
 	struct signal_data *s = opaque;
 
 	switch (s->signum) {
-	case VNC_AUTH_CREDENTIAL:
-		g_signal_emit(G_OBJECT(s->obj),
-			      signals[VNC_AUTH_CREDENTIAL],
-			      0,
-			      s->cred_list);
-		break;
 	case VNC_CONNECTED:
 	case VNC_INITIALIZED:
 	case VNC_DISCONNECTED:
@@ -1095,40 +1086,13 @@ static void on_pointer_mode_changed(VncConnection *conn G_GNUC_UNUSED,
 		do_pointer_show(obj);
 }
 
-static gboolean on_auth_cred(void *opaque)
+static void on_auth_cred(VncConnection *conn G_GNUC_UNUSED,
+			 GValueArray *creds,
+			 gpointer opaque)
 {
 	VncDisplay *obj = VNC_DISPLAY(opaque);
-	GValueArray *cred_list;
-	GValue username, password, clientname;
-	struct signal_data s;
 
-	memset(&username, 0, sizeof(username));
-	memset(&password, 0, sizeof(password));
-	memset(&clientname, 0, sizeof(clientname));
-
-	cred_list = g_value_array_new(0);
-	if (vnc_connection_wants_credential_username(obj->priv->conn)) {
-		g_value_init(&username, VNC_TYPE_DISPLAY_CREDENTIAL);
-		g_value_set_enum(&username, VNC_DISPLAY_CREDENTIAL_USERNAME);
-		cred_list = g_value_array_append(cred_list, &username);
-	}
-	if (vnc_connection_wants_credential_password(obj->priv->conn)) {
-		g_value_init(&password, VNC_TYPE_DISPLAY_CREDENTIAL);
-		g_value_set_enum(&password, VNC_DISPLAY_CREDENTIAL_PASSWORD);
-		cred_list = g_value_array_append(cred_list, &password);
-	}
-	if (vnc_connection_wants_credential_x509(obj->priv->conn)) {
-		g_value_init(&clientname, VNC_TYPE_DISPLAY_CREDENTIAL);
-		g_value_set_enum(&clientname, VNC_DISPLAY_CREDENTIAL_CLIENTNAME);
-		cred_list = g_value_array_append(cred_list, &clientname);
-	}
-
-	s.cred_list = cred_list;
-	emit_signal_delayed(obj, VNC_AUTH_CREDENTIAL, &s);
-
-	g_value_array_free(cred_list);
-
-	return TRUE;
+	g_signal_emit(G_OBJECT(obj), signals[VNC_AUTH_CREDENTIAL], 0, creds);
 }
 
 static gboolean on_auth_type(void *opaque, unsigned int ntype, unsigned int *types)
@@ -1313,7 +1277,6 @@ static gboolean on_render_jpeg(void *opaque G_GNUC_UNUSED,
 }
 
 static const struct vnc_connection_ops vnc_display_ops = {
-	.auth_cred = on_auth_cred,
 	.auth_type = on_auth_type,
 	.auth_subtype = on_auth_subtype,
 	.render_jpeg = on_render_jpeg,
@@ -2023,94 +1986,13 @@ static void vnc_display_init(VncDisplay *display)
 			 G_CALLBACK(on_auth_failure), display);
 	g_signal_connect(G_OBJECT(priv->conn), "vnc-auth-unsupported",
 			 G_CALLBACK(on_auth_unsupported), display);
-}
-
-static char *
-vnc_display_best_path(const char *basedir,
-		      const char *basefile,
-		      char **dirs,
-		      unsigned int ndirs)
-{
-	unsigned int i;
-	char *path;
-	for (i = 0 ; i < ndirs ; i++) {
-		struct stat sb;
-		path = g_strdup_printf ("%s/%s/%s", dirs[i], basedir, basefile);
-		if (stat(path, &sb) == 0)
-			return path;
-		g_free (path);
-	}
-	return NULL;
-}
-
-static int vnc_display_set_x509_credential(VncDisplay *obj, const char *name)
-{
-	gboolean ret = FALSE;
-	char *file;
-	char *sysdir = g_strdup_printf("%s/pki", SYSCONFDIR);
-#ifndef WIN32
-	struct passwd *pw;
-
-	if (!(pw = getpwuid(getuid())))
-		return TRUE;
-
-	char *userdir = g_strdup_printf("%s/.pki", pw->pw_dir);
-	char *dirs[] = { sysdir, userdir };
-#else
-	char *dirs[] = { sysdir };
-#endif
-
-	if ((file = vnc_display_best_path("CA", "cacert.pem", dirs,
-				  sizeof(dirs)/sizeof(dirs[0]))) == NULL) {
-		ret = TRUE;
-		goto ret;
-	}
-	vnc_connection_set_credential_x509_cacert(obj->priv->conn, file);
-	g_free (file);
-
-	/* Don't mind failures of CRL */
-	if ((file = vnc_display_best_path("CA", "cacrl.pem", dirs,
-				  sizeof(dirs)/sizeof(dirs[0]))) != NULL)
-		vnc_connection_set_credential_x509_cacert(obj->priv->conn, file);
-	g_free (file);
-
-	/* Set client key & cert if we have them. Server will reject auth
-	 * if it decides it requires them*/
-	if ((file = vnc_display_best_path(name, "private/clientkey.pem", dirs,
-				  sizeof(dirs)/sizeof(dirs[0]))) != NULL)
-		vnc_connection_set_credential_x509_key(obj->priv->conn, file);
-	g_free (file);
-	if ((file = vnc_display_best_path(name, "clientcert.pem", dirs,
-				  sizeof(dirs)/sizeof(dirs[0]))) != NULL)
-		vnc_connection_set_credential_x509_cert(obj->priv->conn, file);
-	g_free (file);
-
-     ret:
-#ifndef WIN32
-	g_free (userdir);
-#endif
-	g_free (sysdir);
-	return ret;
+	g_signal_connect(G_OBJECT(priv->conn), "vnc-auth-credential",
+			 G_CALLBACK(on_auth_cred), display);
 }
 
 gboolean vnc_display_set_credential(VncDisplay *obj, int type, const gchar *data)
 {
-	switch (type) {
-	case VNC_DISPLAY_CREDENTIAL_PASSWORD:
-		if (vnc_connection_set_credential_password(obj->priv->conn, data))
-			return FALSE;
-		return TRUE;
-
-	case VNC_DISPLAY_CREDENTIAL_USERNAME:
-		if (vnc_connection_set_credential_username(obj->priv->conn, data))
-			return FALSE;
-		return TRUE;
-
-	case VNC_DISPLAY_CREDENTIAL_CLIENTNAME:
-		return vnc_display_set_x509_credential(obj, data);
-	}
-
-	return FALSE;
+	return !vnc_connection_set_credential(obj->priv->conn, type, data);
 }
 
 void vnc_display_set_pointer_local(VncDisplay *obj, gboolean enable)

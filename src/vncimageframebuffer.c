@@ -150,6 +150,8 @@ VncImageFramebuffer *vnc_image_framebuffer_new(GdkImage *image,
 	localFormat.bits_per_pixel = image->bpp * 8;
 	localFormat.byte_order = image->byte_order == GDK_LSB_FIRST ? G_LITTLE_ENDIAN : G_BIG_ENDIAN;
 
+	memset(image->mem, 0, image->bpl * image->height);
+
 	return VNC_IMAGE_FRAMEBUFFER(g_object_new(VNC_TYPE_IMAGE_FRAMEBUFFER,
 						  "image", image,
 						  "buffer", (guint8 *)image->mem,

@@ -52,6 +52,10 @@
 #include <sasl/sasl.h>
 #endif
 
+#ifdef HAVE_PWD_H
+#include <pwd.h>
+#endif
+
 #include <zlib.h>
 
 #include <gdk/gdkkeysyms.h>
@@ -198,13 +202,14 @@ enum {
 
 	VNC_AUTH_FAILURE,
 	VNC_AUTH_UNSUPPORTED,
+	VNC_AUTH_CREDENTIAL,
 
 	VNC_LAST_SIGNAL,
 };
 
 static guint signals[VNC_LAST_SIGNAL] = { 0, 0, 0, 0,
 					  0, 0, 0, 0,
-					  0, };
+					  0, 0, };
 
 #define nibhi(a) (((a) >> 4) & 0x0F)
 #define niblo(a) ((a) & 0x0F)
@@ -390,6 +395,7 @@ struct signal_data
 		VncPixelFormat *pixelFormat;
 		const char *authReason;
 		unsigned int authUnsupported;
+		GValueArray *authCred;
 	} params;
 };
 
@@ -462,6 +468,13 @@ static gboolean do_vnc_connection_emit_main_context(gpointer opaque)
 			      signals[data->signum],
 			      0,
 			      data->params.authUnsupported);
+		break;
+
+	case VNC_AUTH_CREDENTIAL:
+		g_signal_emit(G_OBJECT(data->conn),
+			      signals[data->signum],
+			      0,
+			      data->params.authCred);
 		break;
 
 	}
@@ -2621,27 +2634,6 @@ gboolean vnc_connection_server_message(VncConnection *conn)
 	return !vnc_connection_has_error(conn);
 }
 
-gboolean vnc_connection_wants_credential_password(VncConnection *conn)
-{
-	VncConnectionPrivate *priv = conn->priv;
-
-	return priv->want_cred_password;
-}
-
-gboolean vnc_connection_wants_credential_username(VncConnection *conn)
-{
-	VncConnectionPrivate *priv = conn->priv;
-
-	return priv->want_cred_username;
-}
-
-gboolean vnc_connection_wants_credential_x509(VncConnection *conn)
-{
-	VncConnectionPrivate *priv = conn->priv;
-
-	return priv->want_cred_x509;
-}
-
 static gboolean vnc_connection_has_credentials(gpointer data)
 {
 	VncConnection *conn = data;
@@ -2649,9 +2641,9 @@ static gboolean vnc_connection_has_credentials(gpointer data)
 
 	if (priv->has_error)
 		return TRUE;
-	if (vnc_connection_wants_credential_username(conn) && !priv->cred_username)
+	if (priv->want_cred_username && !priv->cred_username)
 		return FALSE;
-	if (vnc_connection_wants_credential_password(conn) && !priv->cred_password)
+	if (priv->want_cred_password && !priv->cred_password)
 		return FALSE;
 	/*
 	 * For x509 we require a minimum of the CA cert.
@@ -2661,7 +2653,7 @@ static gboolean vnc_connection_has_credentials(gpointer data)
 	 * alone though - we'll merely find out when TLS
 	 * negotiation takes place.
 	 */
-	if (vnc_connection_wants_credential_x509(conn) && !priv->cred_x509_cacert)
+	if (priv->want_cred_x509 && !priv->cred_x509_cacert)
 		return FALSE;
 	return TRUE;
 }
@@ -2670,14 +2662,41 @@ static gboolean vnc_connection_gather_credentials(VncConnection *conn)
 {
 	VncConnectionPrivate *priv = conn->priv;
 
+	if (priv->has_error)
+		return FALSE;
+
 	if (!vnc_connection_has_credentials(conn)) {
-		GVNC_DEBUG("Requesting missing credentials");
-		if (priv->has_error || !priv->ops.auth_cred) {
-			priv->has_error = TRUE;
-			return FALSE;
+		GValueArray *authCred;
+		GValue username, password, clientname;
+		struct signal_data sigdata;
+
+		memset(&username, 0, sizeof(username));
+		memset(&password, 0, sizeof(password));
+		memset(&clientname, 0, sizeof(clientname));
+
+		authCred = g_value_array_new(0);
+		if (priv->want_cred_username) {
+			g_value_init(&username, VNC_TYPE_CONNECTION_CREDENTIAL);
+			g_value_set_enum(&username, VNC_CONNECTION_CREDENTIAL_USERNAME);
+			authCred = g_value_array_append(authCred, &username);
 		}
-		if (!priv->ops.auth_cred(priv->ops_data))
-			priv->has_error = TRUE;
+		if (priv->want_cred_password) {
+			g_value_init(&password, VNC_TYPE_CONNECTION_CREDENTIAL);
+			g_value_set_enum(&password, VNC_CONNECTION_CREDENTIAL_PASSWORD);
+			authCred = g_value_array_append(authCred, &password);
+		}
+		if (priv->want_cred_x509) {
+			g_value_init(&clientname, VNC_TYPE_CONNECTION_CREDENTIAL);
+			g_value_set_enum(&clientname, VNC_CONNECTION_CREDENTIAL_CLIENTNAME);
+			authCred = g_value_array_append(authCred, &clientname);
+		}
+
+		sigdata.params.authCred = authCred;
+		GVNC_DEBUG("Requesting missing credentials");
+		vnc_connection_emit_main_context(conn, VNC_AUTH_CREDENTIAL, &sigdata);
+
+		g_value_array_free(authCred);
+
 		if (priv->has_error)
 			return FALSE;
 		GVNC_DEBUG("Waiting for missing credentials");
@@ -3862,6 +3881,17 @@ static void vnc_connection_class_init(VncConnectionClass *klass)
 			      1,
 			      G_TYPE_UINT);
 
+	signals[VNC_AUTH_CREDENTIAL] =
+		g_signal_new ("vnc-auth-credential",
+			      G_OBJECT_CLASS_TYPE (object_class),
+			      G_SIGNAL_RUN_FIRST,
+			      G_STRUCT_OFFSET (VncConnectionClass, vnc_auth_credential),
+			      NULL, NULL,
+			      g_cclosure_marshal_VOID__BOXED,
+			      G_TYPE_NONE,
+			      1,
+			      G_TYPE_VALUE_ARRAY);
+
 
 	g_type_class_add_private(klass, sizeof(VncConnectionPrivate));
 }
@@ -4287,88 +4317,92 @@ gboolean vnc_connection_set_auth_subtype(VncConnection *conn, unsigned int type)
 	return !vnc_connection_has_error(conn);
 }
 
-gboolean vnc_connection_set_credential_password(VncConnection *conn, const char *password)
-{
-	VncConnectionPrivate *priv = conn->priv;
 
-        GVNC_DEBUG("Set password credential %s", password);
-        if (priv->cred_password)
-                g_free(priv->cred_password);
-        if (!(priv->cred_password = g_strdup(password))) {
-                priv->has_error = TRUE;
-                return FALSE;
-        }
-        return TRUE;
+static int vnc_connection_best_path(char **buf,
+				    const char *basedir,
+				    const char *basefile,
+				    char **dirs,
+				    unsigned int ndirs)
+{
+	unsigned int i;
+	gchar *tmp;
+	for (i = 0 ; i < ndirs ; i++) {
+		struct stat sb;
+		tmp = g_strdup_printf("%s/%s/%s", dirs[i], basedir, basefile);
+		if (stat(tmp, &sb) == 0) {
+			*buf = tmp;
+			return 0;
+		}
+		g_free(tmp);
+	}
+	return -1;
 }
 
-gboolean vnc_connection_set_credential_username(VncConnection *conn, const char *username)
+
+
+static gboolean vnc_connection_set_credential_x509(VncConnection *conn,
+						   const gchar *name)
 {
 	VncConnectionPrivate *priv = conn->priv;
+	char *sysdir = g_strdup_printf("%s/pki", SYSCONFDIR);
+#ifndef WIN32
+	struct passwd *pw;
 
-        GVNC_DEBUG("Set username credential %s", username);
-        if (priv->cred_username)
-                g_free(priv->cred_username);
-        if (!(priv->cred_username = g_strdup(username))) {
-                priv->has_error = TRUE;
-                return FALSE;
-        }
-        return TRUE;
+	if (!(pw = getpwuid(getuid())))
+		return TRUE;
+
+	char *userdir = g_strdup_printf("%s/.pki", pw->pw_dir);
+	char *dirs[] = { sysdir, userdir };
+#else
+	char *dirs[] = { sysdir };
+#endif
+
+	if (vnc_connection_best_path(&priv->cred_x509_cacert, "CA", "cacert.pem",
+				     dirs, sizeof(dirs)/sizeof(dirs[0])) < 0)
+		return FALSE;
+
+	/* Don't mind failures of CRL */
+	vnc_connection_best_path(&priv->cred_x509_cacrl, "CA", "cacrl.pem",
+				 dirs, sizeof(dirs)/sizeof(dirs[0]));
+
+	/* Set client key & cert if we have them. Server will reject auth
+	 * if it decides it requires them*/
+	vnc_connection_best_path(&priv->cred_x509_key, name, "private/clientkey.pem",
+				 dirs, sizeof(dirs)/sizeof(dirs[0]));
+	vnc_connection_best_path(&priv->cred_x509_cert, name, "clientcert.pem",
+				 dirs, sizeof(dirs)/sizeof(dirs[0]));
+
+	return TRUE;
 }
 
-gboolean vnc_connection_set_credential_x509_cacert(VncConnection *conn, const char *file)
+gboolean vnc_connection_set_credential(VncConnection *conn, int type, const gchar *data)
 {
 	VncConnectionPrivate *priv = conn->priv;
 
-        GVNC_DEBUG("Set x509 cacert %s", file);
-        if (priv->cred_x509_cacert)
+        GVNC_DEBUG("Set credential %d %s", type, data);
+	switch (type) {
+	case VNC_CONNECTION_CREDENTIAL_PASSWORD:
+		g_free(priv->cred_password);
+		priv->cred_password = g_strdup(data);
+		break;
+
+	case VNC_CONNECTION_CREDENTIAL_USERNAME:
+		g_free(priv->cred_username);
+		priv->cred_username = g_strdup(data);
+		break;
+
+	case VNC_CONNECTION_CREDENTIAL_CLIENTNAME:
                 g_free(priv->cred_x509_cacert);
-        if (!(priv->cred_x509_cacert = g_strdup(file))) {
-                priv->has_error = TRUE;
-                return FALSE;
-        }
-        return TRUE;
-}
-
-gboolean vnc_connection_set_credential_x509_cacrl(VncConnection *conn, const char *file)
-{
-	VncConnectionPrivate *priv = conn->priv;
-
-        GVNC_DEBUG("Set x509 cacrl %s", file);
-        if (priv->cred_x509_cacrl)
-                g_free(priv->cred_x509_cacrl);
-        if (!(priv->cred_x509_cacrl = g_strdup(file))) {
-                priv->has_error = TRUE;
-                return FALSE;
-        }
-        return TRUE;
-}
-
-gboolean vnc_connection_set_credential_x509_key(VncConnection *conn, const char *file)
-{
-	VncConnectionPrivate *priv = conn->priv;
-
-        GVNC_DEBUG("Set x509 key %s", file);
-        if (priv->cred_x509_key)
-                g_free(priv->cred_x509_key);
-        if (!(priv->cred_x509_key = g_strdup(file))) {
-                priv->has_error = TRUE;
-                return FALSE;
-        }
-        return TRUE;
-}
-
-gboolean vnc_connection_set_credential_x509_cert(VncConnection *conn, const char *file)
-{
-	VncConnectionPrivate *priv = conn->priv;
-
-        GVNC_DEBUG("Set x509 cert %s", file);
-        if (priv->cred_x509_cert)
+		g_free(priv->cred_x509_cacrl);
+		g_free(priv->cred_x509_key);
                 g_free(priv->cred_x509_cert);
-        if (!(priv->cred_x509_cert = g_strdup(file))) {
-                priv->has_error = TRUE;
-                return FALSE;
-        }
-        return TRUE;
+		return vnc_connection_set_credential_x509(conn, data);
+
+	default:
+		priv->has_error = TRUE;
+	}
+
+	return !vnc_connection_has_error(conn);
 }
 
 

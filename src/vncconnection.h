@@ -61,13 +61,13 @@ struct _VncConnectionClass
 	void (*vnc_pixel_format_changed)(VncConnection *conn, VncPixelFormat *format);
 	void (*vnc_auth_failure)(VncConnection *conn, const char *reason);
 	void (*vnc_auth_unsupported)(VncConnection *conn, unsigned int authType);
+	void (*vnc_auth_credential)(VncConnection *conn, GValueArray *creds);
 };
 
 typedef void (rgb24_render_func)(void *, int, int, int, int, guint8 *, int);
 
 struct vnc_connection_ops
 {
-	gboolean (*auth_cred)(void *);
 	gboolean (*auth_type)(void *, unsigned int, unsigned int *);
 	gboolean (*auth_subtype)(void *, unsigned int, unsigned int *);
 	gboolean (*set_color_map_entry)(void *, int, int, int, int);
@@ -135,6 +135,14 @@ typedef enum {
 	GVNC_AUTH_VENCRYPT_TLSSASL = 264,
 } VncConnectionAuthVencrypt;
 
+typedef enum
+{
+	VNC_CONNECTION_CREDENTIAL_PASSWORD,
+	VNC_CONNECTION_CREDENTIAL_USERNAME,
+	VNC_CONNECTION_CREDENTIAL_CLIENTNAME,
+} VncConnectionCredential;
+
+
 GType vnc_connection_get_type(void) G_GNUC_CONST;
 
 VncConnection *vnc_connection_new(const struct vnc_connection_ops *ops, gpointer ops_data);
@@ -148,17 +156,7 @@ gboolean vnc_connection_is_open(VncConnection *conn);
 
 gboolean vnc_connection_set_auth_type(VncConnection *conn, unsigned int type);
 gboolean vnc_connection_set_auth_subtype(VncConnection *conn, unsigned int type);
-
-gboolean vnc_connection_set_credential_password(VncConnection *conn, const char *password);
-gboolean vnc_connection_set_credential_username(VncConnection *conn, const char *username);
-gboolean vnc_connection_set_credential_x509_cacert(VncConnection *conn, const char *file);
-gboolean vnc_connection_set_credential_x509_cacrl(VncConnection *conn, const char *file);
-gboolean vnc_connection_set_credential_x509_key(VncConnection *conn, const char *file);
-gboolean vnc_connection_set_credential_x509_cert(VncConnection *conn, const char *file);
-
-gboolean vnc_connection_wants_credential_password(VncConnection *conn);
-gboolean vnc_connection_wants_credential_username(VncConnection *conn);
-gboolean vnc_connection_wants_credential_x509(VncConnection *conn);
+gboolean vnc_connection_set_credential(VncConnection *conn, int type, const gchar *data);
 
 gboolean vnc_connection_initialize(VncConnection *conn, gboolean shared_flag);
 gboolean vnc_connection_is_initialized(VncConnection *conn);
