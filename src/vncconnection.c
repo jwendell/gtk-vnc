@@ -1264,8 +1264,7 @@ gboolean vnc_connection_set_pixel_format(VncConnection *conn,
 	vnc_connection_write(conn, pad, 3);
 	vnc_connection_flush(conn);
 
-	if (&priv->fmt != fmt)
-		memcpy(&priv->fmt, fmt, sizeof(*fmt));
+	memcpy(&priv->fmt, fmt, sizeof(*fmt));
 
 	return !vnc_connection_has_error(conn);
 }
@@ -4089,19 +4088,12 @@ gboolean vnc_connection_initialize(VncConnection *conn, gboolean shared_flag)
 	if (vnc_connection_has_error(conn))
 		return FALSE;
 
-	if (!priv->ops.get_preferred_pixel_format)
-		goto fail;
-	if (priv->ops.get_preferred_pixel_format(priv->ops_data, &priv->fmt))
-		vnc_connection_set_pixel_format(conn, &priv->fmt);
-	else
-		goto fail;
 	memset(&priv->strm, 0, sizeof(priv->strm));
 	/* FIXME what level? */
 	for (i = 0; i < 5; i++)
 		inflateInit(&priv->streams[i]);
 	priv->strm = NULL;
 
-	vnc_connection_resize(conn, priv->width, priv->height);
 	return !vnc_connection_has_error(conn);
 
  fail:
@@ -4385,6 +4377,8 @@ gboolean vnc_connection_set_framebuffer(VncConnection *conn, VncFramebuffer *fb)
 	VncConnectionPrivate *priv = conn->priv;
 	const VncPixelFormat *remote;
 	int i;
+
+	GVNC_DEBUG("Set framebuffer %p", fb);
 
 	if (priv->fb)
 		g_object_unref(G_OBJECT(priv->fb));

@@ -73,7 +73,6 @@ struct vnc_connection_ops
 	gboolean (*set_color_map_entry)(void *, int, int, int, int);
 	gboolean (*render_jpeg)(void *, rgb24_render_func *render, void *,
 				int, int, int, int, guint8 *, int);
-	gboolean (*get_preferred_pixel_format)(void *, VncPixelFormat *);
 };
 
 

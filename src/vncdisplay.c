@@ -993,71 +993,89 @@ static void on_pixel_format_changed(VncConnection *conn G_GNUC_UNUSED,
 	do_framebuffer_init(opaque, remoteFormat, width, height, TRUE);
 }
 
-static gboolean on_get_preferred_pixel_format(void *opaque,
-					      VncPixelFormat *fmt)
+static gboolean vnc_display_set_preferred_pixel_format(VncDisplay *display)
 {
-	VncDisplay *obj = VNC_DISPLAY(opaque);
-	GdkVisual *v =  gdk_drawable_get_visual(gtk_widget_get_window(GTK_WIDGET(obj)));
+	VncDisplayPrivate *priv = display->priv;
+	GdkVisual *v =  gdk_drawable_get_visual(gtk_widget_get_window(GTK_WIDGET(display)));
+	VncPixelFormat fmt;
+	const VncPixelFormat *currentFormat;
 
-	switch (obj->priv->depth) {
+	memset(&fmt, 0, sizeof(fmt));
+
+	/* Get current pixel format for server */
+	currentFormat = vnc_connection_get_pixel_format(priv->conn);
+
+	switch (priv->depth) {
 	case VNC_DISPLAY_DEPTH_COLOR_DEFAULT:
-		if (fmt->true_color_flag == 1)
-			break;
+		/* If current format is not true colour, then
+		 * fallthrough to next case
+		 */
+		if (currentFormat->true_color_flag == 1) {
+			GVNC_DEBUG ("Using default colour depth %d (%d bpp)",
+				    currentFormat->depth, currentFormat->bits_per_pixel);
+			return TRUE;
+		}
+
 	case VNC_DISPLAY_DEPTH_COLOR_FULL:
-		fmt->depth = 24;
-		fmt->bits_per_pixel = 32;
-		fmt->red_max = 255;
-		fmt->green_max = 255;
-		fmt->blue_max = 255;
-		fmt->red_shift = 16;
-		fmt->green_shift = 8;
-		fmt->blue_shift = 0;
-		fmt->true_color_flag = 1;
-		fmt->byte_order = v->byte_order == GDK_LSB_FIRST ? G_BIG_ENDIAN : G_LITTLE_ENDIAN;
+		fmt.depth = 24;
+		fmt.bits_per_pixel = 32;
+		fmt.red_max = 255;
+		fmt.green_max = 255;
+		fmt.blue_max = 255;
+		fmt.red_shift = 16;
+		fmt.green_shift = 8;
+		fmt.blue_shift = 0;
+		fmt.true_color_flag = 1;
+		fmt.byte_order = v->byte_order == GDK_LSB_FIRST ? G_BIG_ENDIAN : G_LITTLE_ENDIAN;
 		break;
+
 	case VNC_DISPLAY_DEPTH_COLOR_MEDIUM:
-		fmt->depth = 15;
-		fmt->bits_per_pixel = 16;
-		fmt->red_max = 31;
-		fmt->green_max = 31;
-		fmt->blue_max = 31;
-		fmt->red_shift = 11;
-		fmt->green_shift = 6;
-		fmt->blue_shift = 1;
-		fmt->true_color_flag = 1;
-		fmt->byte_order = v->byte_order == GDK_LSB_FIRST ? G_BIG_ENDIAN : G_LITTLE_ENDIAN;
+		fmt.depth = 15;
+		fmt.bits_per_pixel = 16;
+		fmt.red_max = 31;
+		fmt.green_max = 31;
+		fmt.blue_max = 31;
+		fmt.red_shift = 11;
+		fmt.green_shift = 6;
+		fmt.blue_shift = 1;
+		fmt.true_color_flag = 1;
+		fmt.byte_order = v->byte_order == GDK_LSB_FIRST ? G_BIG_ENDIAN : G_LITTLE_ENDIAN;
 		break;
+
 	case VNC_DISPLAY_DEPTH_COLOR_LOW:
-		fmt->depth = 8;
-		fmt->bits_per_pixel = 8;
-		fmt->red_max = 7;
-		fmt->green_max = 7;
-		fmt->blue_max = 3;
-		fmt->red_shift = 5;
-		fmt->green_shift = 2;
-		fmt->blue_shift = 0;
-		fmt->true_color_flag = 1;
-		fmt->byte_order = v->byte_order == GDK_LSB_FIRST ? G_BIG_ENDIAN : G_LITTLE_ENDIAN;
+		fmt.depth = 8;
+		fmt.bits_per_pixel = 8;
+		fmt.red_max = 7;
+		fmt.green_max = 7;
+		fmt.blue_max = 3;
+		fmt.red_shift = 5;
+		fmt.green_shift = 2;
+		fmt.blue_shift = 0;
+		fmt.true_color_flag = 1;
+		fmt.byte_order = v->byte_order == GDK_LSB_FIRST ? G_BIG_ENDIAN : G_LITTLE_ENDIAN;
 		break;
 
 	case VNC_DISPLAY_DEPTH_COLOR_ULTRA_LOW:
-		fmt->depth = 3;
-		fmt->bits_per_pixel = 8;
-		fmt->red_max = 1;
-		fmt->green_max = 1;
-		fmt->blue_max = 1;
-		fmt->red_shift = 7;
-		fmt->green_shift = 6;
-		fmt->blue_shift = 5;
-		fmt->true_color_flag = 1;
-		fmt->byte_order = v->byte_order == GDK_LSB_FIRST ? G_BIG_ENDIAN : G_LITTLE_ENDIAN;
+		fmt.depth = 3;
+		fmt.bits_per_pixel = 8;
+		fmt.red_max = 1;
+		fmt.green_max = 1;
+		fmt.blue_max = 1;
+		fmt.red_shift = 7;
+		fmt.green_shift = 6;
+		fmt.blue_shift = 5;
+		fmt.true_color_flag = 1;
+		fmt.byte_order = v->byte_order == GDK_LSB_FIRST ? G_BIG_ENDIAN : G_LITTLE_ENDIAN;
 		break;
 
 	default:
 		g_assert_not_reached ();
 	}
 
-	GVNC_DEBUG ("Setting depth color to %d (%d bpp)", fmt->depth, fmt->bits_per_pixel);
+	GVNC_DEBUG ("Set depth color to %d (%d bpp)", fmt.depth, fmt.bits_per_pixel);
+	if (!vnc_connection_set_pixel_format(priv->conn, &fmt))
+		return FALSE;
+
 	return TRUE;
 }
 
@@ -1299,7 +1317,6 @@ static const struct vnc_connection_ops vnc_display_ops = {
 	.auth_type = on_auth_type,
 	.auth_subtype = on_auth_subtype,
 	.render_jpeg = on_render_jpeg,
-	.get_preferred_pixel_format = on_get_preferred_pixel_format
 };
 
 /* we use an idle function to allow the coroutine to exit before we actually
@@ -1371,6 +1388,15 @@ static void *vnc_coroutine(void *opaque)
 	GVNC_DEBUG("Protocol initialization");
 	if (!vnc_connection_initialize(priv->conn, priv->shared_flag))
 		goto cleanup;
+
+	if (!vnc_display_set_preferred_pixel_format(obj))
+		goto cleanup;
+
+	do_framebuffer_init(obj,
+			    vnc_connection_get_pixel_format(priv->conn),
+			    vnc_connection_get_width(priv->conn),
+			    vnc_connection_get_height(priv->conn),
+			    FALSE);
 
 	emit_signal_delayed(obj, VNC_INITIALIZED, &s);
 
