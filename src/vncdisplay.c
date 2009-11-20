@@ -1090,20 +1090,20 @@ static gboolean on_get_preferred_pixel_format(void *opaque,
 	return TRUE;
 }
 
-static gboolean on_pointer_type_change(void *opaque, int absolute)
+static void on_pointer_mode_changed(VncConnection *conn G_GNUC_UNUSED,
+				    gboolean absPointer,
+				    gpointer opaque)
 {
 	VncDisplay *obj = VNC_DISPLAY(opaque);
 	VncDisplayPrivate *priv = obj->priv;
 
-	if (absolute && priv->in_pointer_grab && priv->grab_pointer)
+	if (absPointer && priv->in_pointer_grab && priv->grab_pointer)
 		do_pointer_ungrab(obj, FALSE);
 
-	priv->absolute = absolute;
+	priv->absolute = absPointer;
 
 	if (!priv->in_pointer_grab && !priv->absolute)
 		do_pointer_show(obj);
-
-	return TRUE;
 }
 
 static gboolean on_auth_cred(void *opaque)
@@ -1344,7 +1344,6 @@ static const struct vnc_connection_ops vnc_display_ops = {
 	.update = on_update,
 	.resize = on_resize,
         .pixel_format = on_pixel_format,
-	.pointer_type_change = on_pointer_type_change,
 	.auth_unsupported = on_auth_unsupported,
 	.server_cut_text = on_server_cut_text,
 	.bell = on_bell,
@@ -2031,6 +2030,8 @@ static void vnc_display_init(VncDisplay *display)
 
 	g_signal_connect(G_OBJECT(priv->conn), "vnc-cursor-changed",
 			 G_CALLBACK(on_cursor_changed), display);
+	g_signal_connect(G_OBJECT(priv->conn), "vnc-pointer-mode-changed",
+			 G_CALLBACK(on_pointer_mode_changed), display);
 }
 
 static char *

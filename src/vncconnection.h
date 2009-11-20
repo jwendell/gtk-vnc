@@ -53,6 +53,7 @@ struct _VncConnectionClass
 
 	/* Signals */
 	void (*vnc_cursor_changed)(VncConnection *conn, VncCursor *cursor);
+	void (*vnc_pointer_mode_changed)(VncConnection *conn, gboolean absPointer);
 };
 
 typedef void (rgb24_render_func)(void *, int, int, int, int, guint8 *, int);
@@ -69,7 +70,6 @@ struct vnc_connection_ops
 	gboolean (*server_cut_text)(void *, const void *, size_t);
 	gboolean (*resize)(void *, int, int);
 	gboolean (*pixel_format)(void *, VncPixelFormat *);
-	gboolean (*pointer_type_change)(void *, int);
 	gboolean (*auth_unsupported)(void *, unsigned int);
 	gboolean (*render_jpeg)(void *, rgb24_render_func *render, void *,
 				int, int, int, int, guint8 *, int);
@@ -197,6 +197,8 @@ int vnc_connection_get_width(VncConnection *conn);
 int vnc_connection_get_height(VncConnection *conn);
 
 VncCursor *vnc_connection_get_cursor(VncConnection *conn);
+
+gboolean vnc_connection_abs_pointer(VncConnection *conn);
 
 /* HACK this is temporary */
 gboolean vnc_connection_using_raw_keycodes(VncConnection *conn);

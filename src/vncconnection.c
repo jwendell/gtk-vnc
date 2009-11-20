@@ -151,6 +151,7 @@ struct _VncConnectionPrivate
 	gboolean fbSwapRemote;
 
 	VncCursor *cursor;
+	gboolean absPointer;
 
 	vnc_connection_rich_cursor_blt_func *rich_cursor_blt;
 	vnc_connection_tight_compute_predicted_func *tight_compute_predicted;
@@ -158,8 +159,6 @@ struct _VncConnectionPrivate
 
 	struct vnc_connection_ops ops;
 	gpointer ops_data;
-
-	int absolute;
 
 	int wait_interruptable;
 	struct wait_queue wait;
@@ -189,11 +188,12 @@ G_DEFINE_TYPE(VncConnection, vnc_connection, G_TYPE_OBJECT);
 
 enum {
 	VNC_CURSOR_CHANGED,
+	VNC_POINTER_MODE_CHANGED,
 
 	VNC_LAST_SIGNAL,
 };
 
-static guint signals[VNC_LAST_SIGNAL] = { 0, };
+static guint signals[VNC_LAST_SIGNAL] = { 0, 0, };
 
 #define nibhi(a) (((a) >> 4) & 0x0F)
 #define niblo(a) ((a) & 0x0F)
@@ -364,6 +364,7 @@ struct signal_data
 
 	union {
 		VncCursor *cursor;
+		gboolean absPointer;
 	} params;
 };
 
@@ -377,6 +378,13 @@ static gboolean do_vnc_connection_emit_main_context(gpointer opaque)
 			      signals[data->signum],
 			      0,
 			      data->params.cursor);
+		break;
+
+	case VNC_POINTER_MODE_CHANGED:
+		g_signal_emit(G_OBJECT(data->conn),
+			      signals[data->signum],
+			      0,
+			      data->params.absPointer);
 		break;
 	}
 
@@ -2235,16 +2243,20 @@ static void vnc_connection_pixel_format(VncConnection *conn)
                 priv->has_error = TRUE;
 }
 
-static void vnc_connection_pointer_type_change(VncConnection *conn, int absolute)
+static void vnc_connection_pointer_type_change(VncConnection *conn, gboolean absPointer)
 {
 	VncConnectionPrivate *priv = conn->priv;
+	struct signal_data sigdata;
 
-	if (priv->has_error || !priv->ops.pointer_type_change)
+	if (priv->absPointer == absPointer)
 		return;
-	if (!priv->ops.pointer_type_change(priv->ops_data, absolute)) {
-		GVNC_DEBUG("Closing the connection: vnc_connection_pointer_type_change");
-		priv->has_error = TRUE;
-	}
+	priv->absPointer = absPointer;
+
+	if (priv->has_error)
+		return;
+
+	sigdata.params.absPointer = absPointer;
+	vnc_connection_emit_main_context(conn, VNC_POINTER_MODE_CHANGED, &sigdata);
 }
 
 static void vnc_connection_rich_cursor_blt(VncConnection *conn, guint8 *pixbuf,
@@ -3667,6 +3679,17 @@ static void vnc_connection_class_init(VncConnectionClass *klass)
 			      1,
 			      VNC_TYPE_CURSOR);
 
+	signals[VNC_POINTER_MODE_CHANGED] =
+		g_signal_new ("vnc-pointer-mode-changed",
+			      G_OBJECT_CLASS_TYPE (object_class),
+			      G_SIGNAL_RUN_FIRST,
+			      G_STRUCT_OFFSET (VncConnectionClass, vnc_pointer_mode_changed),
+			      NULL, NULL,
+			      g_cclosure_marshal_VOID__BOOLEAN,
+			      G_TYPE_NONE,
+			      1,
+			      G_TYPE_BOOLEAN);
+
 	g_type_class_add_private(klass, sizeof(VncConnectionPrivate));
 }
 
@@ -3836,7 +3859,7 @@ gboolean vnc_connection_initialize(VncConnection *conn, gboolean shared_flag)
 	char version[13];
 	guint32 n_name;
 
-	priv->absolute = 1;
+	priv->absPointer = TRUE;
 
 	vnc_connection_read(conn, version, 12);
 	version[12] = 0;
@@ -4244,6 +4267,13 @@ VncCursor *vnc_connection_get_cursor(VncConnection *conn)
 	return priv->cursor;
 }
 
+
+gboolean vnc_connection_abs_pointer(VncConnection *conn)
+{
+	VncConnectionPrivate *priv = conn->priv;
+
+	return priv->absPointer;
+}
 
 /*
  * Local variables:
