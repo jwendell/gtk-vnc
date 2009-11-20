@@ -29,6 +29,7 @@ libgtk_vnc_1_0_la_SOURCES = blt.h blt1.h \
 	vncbaseframebufferblt.h \
 	vncbaseframebuffer.h vncbaseframebuffer.c \
 	vncimageframebuffer.h vncimageframebuffer.c \
+	vnccursor.h vnccursor.c \
 	vncconnection.h vncconnection.c \
         vncconnectionenums.h vncconnectionenums.c \
 	vncdisplay.h vncdisplay.c \
