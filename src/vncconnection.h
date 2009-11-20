@@ -59,6 +59,8 @@ struct _VncConnectionClass
 	void (*vnc_framebuffer_update)(VncConnection *conn, guint16 x, guint16 y, guint16 width, guint16 height);
 	void (*vnc_desktop_resize)(VncConnection *conn, guint16 width, guint16 height);
 	void (*vnc_pixel_format_changed)(VncConnection *conn, VncPixelFormat *format);
+	void (*vnc_auth_failure)(VncConnection *conn, const char *reason);
+	void (*vnc_auth_unsupported)(VncConnection *conn, unsigned int authType);
 };
 
 typedef void (rgb24_render_func)(void *, int, int, int, int, guint8 *, int);
@@ -68,9 +70,7 @@ struct vnc_connection_ops
 	gboolean (*auth_cred)(void *);
 	gboolean (*auth_type)(void *, unsigned int, unsigned int *);
 	gboolean (*auth_subtype)(void *, unsigned int, unsigned int *);
-	gboolean (*auth_failure)(void *, const char *);
 	gboolean (*set_color_map_entry)(void *, int, int, int, int);
-	gboolean (*auth_unsupported)(void *, unsigned int);
 	gboolean (*render_jpeg)(void *, rgb24_render_func *render, void *,
 				int, int, int, int, guint8 *, int);
 	gboolean (*get_preferred_pixel_format)(void *, VncPixelFormat *);

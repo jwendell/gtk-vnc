@@ -110,8 +110,6 @@ struct signal_data
 
 	int signum;
 	GValueArray *cred_list;
-	const char *msg;
-	unsigned int auth_type;
 };
 
 G_DEFINE_TYPE(VncDisplay, vnc_display, GTK_TYPE_DRAWING_AREA)
@@ -893,18 +891,6 @@ static gboolean emit_signal_auth_cred(gpointer opaque)
 			      0,
 			      s->cred_list);
 		break;
-	case VNC_AUTH_FAILURE:
-		g_signal_emit(G_OBJECT(s->obj),
-			      signals[VNC_AUTH_FAILURE],
-			      0,
-			      s->msg);
-		break;
-	case VNC_AUTH_UNSUPPORTED:
-		g_signal_emit(G_OBJECT(s->obj),
-			      signals[VNC_AUTH_UNSUPPORTED],
-			      0,
-			      s->auth_type);
-		break;
 	case VNC_CONNECTED:
 	case VNC_INITIALIZED:
 	case VNC_DISCONNECTED:
@@ -1178,26 +1164,22 @@ static gboolean on_auth_subtype(void *opaque, unsigned int ntype, unsigned int *
 	return TRUE;
 }
 
-static gboolean on_auth_failure(void *opaque, const char *msg)
+static void on_auth_failure(VncConnection *conn G_GNUC_UNUSED,
+			    const char *reason,
+			    gpointer opaque)
 {
 	VncDisplay *obj = VNC_DISPLAY(opaque);
-	struct signal_data s;
 
-	s.msg = msg;
-	emit_signal_delayed(obj, VNC_AUTH_FAILURE, &s);
-
-	return TRUE;
+	g_signal_emit(G_OBJECT(obj), signals[VNC_AUTH_FAILURE], 0, reason);
 }
 
-static gboolean on_auth_unsupported(void *opaque, unsigned int auth_type)
+static void on_auth_unsupported(VncConnection *conn G_GNUC_UNUSED,
+				unsigned int authType,
+				gpointer opaque)
 {
 	VncDisplay *obj = VNC_DISPLAY(opaque);
-	struct signal_data s;
 
-	s.auth_type = auth_type;
-	emit_signal_delayed(obj, VNC_AUTH_UNSUPPORTED, &s);
-
-	return TRUE;
+	g_signal_emit(G_OBJECT(obj), signals[VNC_AUTH_UNSUPPORTED], 0, authType);
 }
 
 static void on_server_cut_text(void *opaque, const gchar *text)
@@ -1316,8 +1298,6 @@ static const struct vnc_connection_ops vnc_display_ops = {
 	.auth_cred = on_auth_cred,
 	.auth_type = on_auth_type,
 	.auth_subtype = on_auth_subtype,
-	.auth_failure = on_auth_failure,
-	.auth_unsupported = on_auth_unsupported,
 	.render_jpeg = on_render_jpeg,
 	.get_preferred_pixel_format = on_get_preferred_pixel_format
 };
@@ -2013,6 +1993,10 @@ static void vnc_display_init(VncDisplay *display)
 			 G_CALLBACK(on_desktop_resize), display);
 	g_signal_connect(G_OBJECT(priv->conn), "vnc-pixel-format-changed",
 			 G_CALLBACK(on_pixel_format_changed), display);
+	g_signal_connect(G_OBJECT(priv->conn), "vnc-auth-failure",
+			 G_CALLBACK(on_auth_failure), display);
+	g_signal_connect(G_OBJECT(priv->conn), "vnc-auth-unsupported",
+			 G_CALLBACK(on_auth_unsupported), display);
 }
 
 static char *

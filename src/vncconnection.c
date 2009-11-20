@@ -196,11 +196,15 @@ enum {
 	VNC_DESKTOP_RESIZE,
 	VNC_PIXEL_FORMAT_CHANGED,
 
+	VNC_AUTH_FAILURE,
+	VNC_AUTH_UNSUPPORTED,
+
 	VNC_LAST_SIGNAL,
 };
 
 static guint signals[VNC_LAST_SIGNAL] = { 0, 0, 0, 0,
-					  0, 0, 0, };
+					  0, 0, 0, 0,
+					  0, };
 
 #define nibhi(a) (((a) >> 4) & 0x0F)
 #define niblo(a) ((a) & 0x0F)
@@ -384,6 +388,8 @@ struct signal_data
 			int height;
 		} size;
 		VncPixelFormat *pixelFormat;
+		const char *authReason;
+		unsigned int authUnsupported;
 	} params;
 };
 
@@ -443,6 +449,21 @@ static gboolean do_vnc_connection_emit_main_context(gpointer opaque)
 			      0,
 			      data->params.pixelFormat);
 		break;
+
+	case VNC_AUTH_FAILURE:
+		g_signal_emit(G_OBJECT(data->conn),
+			      signals[data->signum],
+			      0,
+			      data->params.authReason);
+		break;
+
+	case VNC_AUTH_UNSUPPORTED:
+		g_signal_emit(G_OBJECT(data->conn),
+			      signals[data->signum],
+			      0,
+			      data->params.authUnsupported);
+		break;
+
 	}
 
 	coroutine_yieldto(data->caller, NULL);
@@ -2689,12 +2710,18 @@ static gboolean vnc_connection_check_auth_result(VncConnection *conn)
 		vnc_connection_read(conn, reason, len);
 		reason[len] = '\0';
 		GVNC_DEBUG("Fail %s", reason);
-		if (!priv->has_error && priv->ops.auth_failure)
-			priv->ops.auth_failure(priv->ops_data, reason);
+		if (!priv->has_error) {
+			struct signal_data sigdata;
+			sigdata.params.authReason = reason;
+			vnc_connection_emit_main_context(conn, VNC_AUTH_FAILURE, &sigdata);
+		}
 	} else {
 		GVNC_DEBUG("Fail auth no result");
-		if (!priv->has_error && priv->ops.auth_failure)
-			priv->ops.auth_failure(priv->ops_data, NULL);
+		if (!priv->has_error) {
+			struct signal_data sigdata;
+			sigdata.params.authReason = "Unknown authentication failure";
+			vnc_connection_emit_main_context(conn, VNC_AUTH_FAILURE, &sigdata);
+		}
 	}
 	return FALSE;
 }
@@ -3684,10 +3711,12 @@ static gboolean vnc_connection_perform_auth(VncConnection *conn)
 		return vnc_connection_perform_auth_mslogon(conn);
 
 	default:
-		if (priv->ops.auth_unsupported)
-			priv->ops.auth_unsupported (priv->ops_data, priv->auth_type);
-		priv->has_error = TRUE;
-
+		{
+			struct signal_data sigdata;
+			sigdata.params.authUnsupported = priv->auth_type;
+			vnc_connection_emit_main_context(conn, VNC_AUTH_UNSUPPORTED, &sigdata);
+			priv->has_error = TRUE;
+		}
 		return FALSE;
 	}
 
@@ -3810,6 +3839,30 @@ static void vnc_connection_class_init(VncConnectionClass *klass)
 			      G_TYPE_NONE,
 			      1,
 			      G_TYPE_POINTER);
+
+	signals[VNC_AUTH_FAILURE] =
+		g_signal_new ("vnc-auth-failure",
+			      G_OBJECT_CLASS_TYPE (object_class),
+			      G_SIGNAL_RUN_FIRST,
+			      G_STRUCT_OFFSET (VncConnectionClass, vnc_auth_failure),
+			      NULL, NULL,
+			      g_cclosure_marshal_VOID__STRING,
+			      G_TYPE_NONE,
+			      1,
+			      G_TYPE_STRING);
+
+
+	signals[VNC_AUTH_UNSUPPORTED] =
+		g_signal_new ("vnc-auth-unsupported",
+			      G_OBJECT_CLASS_TYPE (object_class),
+			      G_SIGNAL_RUN_FIRST,
+			      G_STRUCT_OFFSET (VncConnectionClass, vnc_auth_unsupported),
+			      NULL, NULL,
+			      g_cclosure_marshal_VOID__UINT,
+			      G_TYPE_NONE,
+			      1,
+			      G_TYPE_UINT);
+
 
 	g_type_class_add_private(klass, sizeof(VncConnectionPrivate));
 }
@@ -4209,10 +4262,10 @@ gboolean vnc_connection_set_auth_type(VncConnection *conn, unsigned int type)
             type != GVNC_AUTH_TLS &&
             type != GVNC_AUTH_VENCRYPT &&
             type != GVNC_AUTH_SASL) {
+		struct signal_data sigdata;
 		GVNC_DEBUG("Unsupported auth type %u", type);
-            	if (priv->ops.auth_unsupported)
-			priv->ops.auth_unsupported (priv->ops_data, type);
-
+		sigdata.params.authUnsupported = type;
+		vnc_connection_emit_main_context(conn, VNC_AUTH_UNSUPPORTED, &sigdata);
                 priv->has_error = TRUE;
                 return !vnc_connection_has_error(conn);
         }
