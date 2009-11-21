@@ -187,4 +187,78 @@ else
 EXTRA_DIST += vnc.override vncmodule.c
 endif
 
+if WITH_GOBJECT_INTROSPECTION
+
+GVNC_INTROSPECTION_SRCS = \
+			$(srcdir)/vncpixelformat.h \
+			$(srcdir)/vncframebuffer.h $(srcdir)/vncframebuffer.c \
+			$(srcdir)/vncbaseframebuffer.h $(srcdir)/vncbaseframebuffer.c \
+			$(srcdir)/vnccursor.h $(srcdir)/vnccursor.c \
+			$(srcdir)/vncconnection.h $(srcdir)/vncconnection.c \
+			$(builddir)/vncconnectionenums.h $(builddir)/vncconnectionenums.c
+
+GTK_VNC_INTROSPECTION_SRCS = \
+			$(srcdir)/vncimageframebuffer.h $(srcdir)/vncimageframebuffer.c \
+			$(srcdir)/vncdisplay.h $(srcdir)/vncdisplay.c \
+			$(builddir)/vncdisplayenums.h $(builddir)/vncdisplayenums.c
+
+GVnc-1.0.gir: libgvnc-1.0.la $(G_IR_SCANNER) Makefile.am
+	$(AM_V_GEN)$(G_IR_SCANNER) -v \
+                --namespace GVnc \
+                --nsversion 1.0 \
+		--include GObject-2.0 \
+		--strip-prefix=Vnc \
+                --library=$(builddir)/libgvnc-1.0.la \
+                --add-include-path=$(top_srcdir) \
+                --add-include-path=$(srcdir) \
+                --add-include-path=$(builddir) \
+                --output $@ \
+                -I$(top_srcdir) \
+                -I$(srcdir) \
+		--verbose \
+                --pkg=glib-2.0 \
+                --pkg=gthread-2.0 \
+                --pkg=gdk-pixbuf-2.0 \
+                --pkg=gobject-2.0 \
+                $(GVNC_INTROSPECTION_SRCS)
+
+GtkVnc-1.0.gir: libgtk-vnc-1.0.la $(G_IR_SCANNER) Makefile.am
+	$(AM_V_GEN)$(G_IR_SCANNER) -v \
+                --namespace GtkVnc \
+                --nsversion 1.0 \
+		--include GObject-2.0 \
+		--include Gtk-2.0 \
+		--include GVnc-1.0 \
+		--strip-prefix=Vnc \
+                --library=$(builddir)/libgtk-vnc-1.0.la \
+                --add-include-path=$(top_srcdir) \
+                --add-include-path=$(srcdir) \
+                --add-include-path=$(builddir) \
+                --output $@ \
+                -I$(top_srcdir) \
+                -I$(srcdir) \
+		--verbose \
+                --pkg=glib-2.0 \
+                --pkg=gthread-2.0 \
+                --pkg=gdk-pixbuf-2.0 \
+                --pkg=gobject-2.0 \
+                --pkg=gtk+-2.0 \
+                $(GTK_VNC_INTROSPECTION_SRCS)
+
+girdir = $(datadir)/gir-1.0
+gir_DATA = GVnc-1.0.gir GtkVnc-1.0.gir
+
+typelibsdir = $(libdir)/girepository-1.0
+typelibs_DATA = GVnc-1.0.typelib GtkVnc-1.0.typelib
+
+%.typelib: %.gir
+	$(AM_V_GEN)$(G_IR_COMPILER) \
+		--includedir=$(srcdir) \
+		--includedir=$(builddir) \
+		-o $@ $<
+
+CLEANFILES += $(gir_DATA) $(typelibs_DATA)
+
+endif # WITH_GOBJECT_INTROSPECTION
+
 -include $(top_srcdir)/git.mk

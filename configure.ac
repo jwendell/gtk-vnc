@@ -34,6 +34,7 @@ PYTHON_REQUIRED=2.4
 
 FIREFOX_PLUGIN_REQUIRED=2.0.0
 MOZILLA_PLUGIN_REQUIRED=1.8
+GOBJECT_INTROSPECTION_REQUIRED=0.6.2
 
 dnl *******************************************************************************
 dnl Setup GNULIB - must be before anything else in this file
@@ -301,6 +302,31 @@ AM_CONDITIONAL(WITH_PYTHON, [test "$WITH_PYTHON" = "yes"])
 AM_CONDITIONAL(WITH_EXAMPLES, [test "$WITH_EXAMPLES" = "yes"])
 
 AM_CONDITIONAL(ENABLE_PLUGIN, [test "$enable_plugin" = "yes"])
+
+AC_ARG_ENABLE([introspection],
+        AS_HELP_STRING([--enable-introspection], [enable GObject introspection]),
+        [], [enable_introspection=check])
+
+if test "x$enable_introspection" != "xno" ; then
+        PKG_CHECK_MODULES([GOBJECT_INTROSPECTION],
+                          [gobject-introspection-1.0 >= $GOBJECT_INTROSPECTION_REQUIRED],
+                          [enable_introspection=yes],
+                          [
+                             if test "x$enable_introspection" = "xcheck"; then
+			       enable_introspection=no
+                             else
+                               AC_MSG_ERROR([gobject-introspection is not available])
+                             fi
+                          ])
+        if test "x$enable_introspection" = "xyes" ; then
+          AC_DEFINE([WITH_GOBJECT_INTROSPECTION], [1], [enable GObject introspection support])
+          AC_SUBST(GOBJECT_INTROSPECTION_CFLAGS)
+          AC_SUBST(GOBJECT_INTROSPECTION_LIBS)
+          AC_SUBST([G_IR_SCANNER], [$($PKG_CONFIG --variable=g_ir_scanner gobject-introspection-1.0)])
+          AC_SUBST([G_IR_COMPILER], [$($PKG_CONFIG --variable=g_ir_compiler gobject-introspection-1.0)])
+        fi
+fi
+AM_CONDITIONAL([WITH_GOBJECT_INTROSPECTION], [test "x$enable_introspection" = "xyes"])
 
 AC_CONFIG_FILES(
   Makefile
