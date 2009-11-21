@@ -1332,7 +1332,7 @@ gboolean vnc_connection_set_encodings(VncConnection *conn, int n_encoding, gint3
 		    (priv->fmt.red_max > 255 ||
 		     priv->fmt.blue_max > 255 ||
 		     priv->fmt.green_max > 255) &&
-		    encoding[i] == GVNC_ENCODING_ZRLE) {
+		    encoding[i] == VNC_CONNECTION_ENCODING_ZRLE) {
 			GVNC_DEBUG("Dropping ZRLE encoding for broken pixel format");
 			skip_zrle++;
 		}
@@ -1342,7 +1342,7 @@ gboolean vnc_connection_set_encodings(VncConnection *conn, int n_encoding, gint3
 	vnc_connection_write(conn, pad, 1);
 	vnc_connection_write_u16(conn, n_encoding - skip_zrle);
 	for (i = 0; i < n_encoding; i++) {
-		if (skip_zrle && encoding[i] == GVNC_ENCODING_ZRLE)
+		if (skip_zrle && encoding[i] == VNC_CONNECTION_ENCODING_ZRLE)
 			continue;
 		vnc_connection_write_s32(conn, encoding[i]);
 	}
@@ -2507,48 +2507,48 @@ static void vnc_connection_framebuffer_update(VncConnection *conn, gint32 etype,
 		   etype, width, height, x, y);
 
 	switch (etype) {
-	case GVNC_ENCODING_RAW:
+	case VNC_CONNECTION_ENCODING_RAW:
 		vnc_connection_raw_update(conn, x, y, width, height);
 		vnc_connection_update(conn, x, y, width, height);
 		break;
-	case GVNC_ENCODING_COPY_RECT:
+	case VNC_CONNECTION_ENCODING_COPY_RECT:
 		vnc_connection_copyrect_update(conn, x, y, width, height);
 		vnc_connection_update(conn, x, y, width, height);
 		break;
-	case GVNC_ENCODING_RRE:
+	case VNC_CONNECTION_ENCODING_RRE:
 		vnc_connection_rre_update(conn, x, y, width, height);
 		vnc_connection_update(conn, x, y, width, height);
 		break;
-	case GVNC_ENCODING_HEXTILE:
+	case VNC_CONNECTION_ENCODING_HEXTILE:
 		vnc_connection_hextile_update(conn, x, y, width, height);
 		vnc_connection_update(conn, x, y, width, height);
 		break;
-	case GVNC_ENCODING_ZRLE:
+	case VNC_CONNECTION_ENCODING_ZRLE:
 		vnc_connection_zrle_update(conn, x, y, width, height);
 		vnc_connection_update(conn, x, y, width, height);
 		break;
-	case GVNC_ENCODING_TIGHT:
+	case VNC_CONNECTION_ENCODING_TIGHT:
 		vnc_connection_tight_update(conn, x, y, width, height);
 		vnc_connection_update(conn, x, y, width, height);
 		break;
-	case GVNC_ENCODING_DESKTOP_RESIZE:
+	case VNC_CONNECTION_ENCODING_DESKTOP_RESIZE:
 		vnc_connection_framebuffer_update_request (conn, 0, 0, 0, width, height);
 		vnc_connection_resize(conn, width, height);
 		break;
-	case GVNC_ENCODING_POINTER_CHANGE:
+	case VNC_CONNECTION_ENCODING_POINTER_CHANGE:
 		vnc_connection_pointer_type_change(conn, x);
 		break;
-        case GVNC_ENCODING_WMVi:
+        case VNC_CONNECTION_ENCODING_WMVi:
                 vnc_connection_read_pixel_format(conn, &priv->fmt);
                 vnc_connection_pixel_format(conn);
                 break;
-	case GVNC_ENCODING_RICH_CURSOR:
+	case VNC_CONNECTION_ENCODING_RICH_CURSOR:
 		vnc_connection_rich_cursor(conn, x, y, width, height);
 		break;
-	case GVNC_ENCODING_XCURSOR:
+	case VNC_CONNECTION_ENCODING_XCURSOR:
 		vnc_connection_xcursor(conn, x, y, width, height);
 		break;
-	case GVNC_ENCODING_EXT_KEY_EVENT:
+	case VNC_CONNECTION_ENCODING_EXT_KEY_EVENT:
 		vnc_connection_ext_key_event(conn);
 		break;
 	default:
@@ -3474,7 +3474,7 @@ static gboolean vnc_connection_has_auth_subtype(gpointer data)
 
 	if (priv->has_error)
 		return TRUE;
-	if (priv->auth_subtype == GVNC_AUTH_INVALID)
+	if (priv->auth_subtype == VNC_CONNECTION_AUTH_INVALID)
 		return FALSE;
 	return TRUE;
 }
@@ -3497,7 +3497,7 @@ static void vnc_connection_choose_auth(VncConnection *conn,
 		if (signum == VNC_AUTH_CHOOSE_TYPE) {
 			g_value_init(&authType, VNC_TYPE_CONNECTION_AUTH);
 		} else {
-			if (priv->auth_type == GVNC_AUTH_VENCRYPT)
+			if (priv->auth_type == VNC_CONNECTION_AUTH_VENCRYPT)
 				g_value_init(&authType, VNC_TYPE_CONNECTION_AUTH_VENCRYPT);
 			else
 				g_value_init(&authType, VNC_TYPE_CONNECTION_AUTH);
@@ -3564,14 +3564,14 @@ static gboolean vnc_connection_perform_auth_tls(VncConnection *conn)
 	vnc_connection_flush(conn);
 
 	switch (priv->auth_subtype) {
-	case GVNC_AUTH_NONE:
+	case VNC_CONNECTION_AUTH_NONE:
 		if (priv->minor == 8)
 			return vnc_connection_check_auth_result(conn);
 		return TRUE;
-	case GVNC_AUTH_VNC:
+	case VNC_CONNECTION_AUTH_VNC:
 		return vnc_connection_perform_auth_vnc(conn);
 #if HAVE_SASL
-	case GVNC_AUTH_SASL:
+	case VNC_CONNECTION_AUTH_SASL:
 		return vnc_connection_perform_auth_sasl(conn);
 #endif
 	default:
@@ -3637,7 +3637,7 @@ static gboolean vnc_connection_perform_auth_vencrypt(VncConnection *conn)
 		return FALSE;
 
 #if !DEBUG
-	if (priv->auth_subtype == GVNC_AUTH_VENCRYPT_PLAIN) {
+	if (priv->auth_subtype == VNC_CONNECTION_AUTH_VENCRYPT_PLAIN) {
 		GVNC_DEBUG("Cowardly refusing to transmit plain text password");
 		return FALSE;
 	}
@@ -3652,10 +3652,10 @@ static gboolean vnc_connection_perform_auth_vencrypt(VncConnection *conn)
 	}
 
 	switch (priv->auth_subtype) {
-	case GVNC_AUTH_VENCRYPT_TLSNONE:
-	case GVNC_AUTH_VENCRYPT_TLSPLAIN:
-	case GVNC_AUTH_VENCRYPT_TLSVNC:
-	case GVNC_AUTH_VENCRYPT_TLSSASL:
+	case VNC_CONNECTION_AUTH_VENCRYPT_TLSNONE:
+	case VNC_CONNECTION_AUTH_VENCRYPT_TLSPLAIN:
+	case VNC_CONNECTION_AUTH_VENCRYPT_TLSVNC:
+	case VNC_CONNECTION_AUTH_VENCRYPT_TLSSASL:
 		anonTLS = 1;
 		break;
 	default:
@@ -3670,21 +3670,21 @@ static gboolean vnc_connection_perform_auth_vencrypt(VncConnection *conn)
 
 	switch (priv->auth_subtype) {
 		/* Plain certificate based auth */
-	case GVNC_AUTH_VENCRYPT_TLSNONE:
-	case GVNC_AUTH_VENCRYPT_X509NONE:
+	case VNC_CONNECTION_AUTH_VENCRYPT_TLSNONE:
+	case VNC_CONNECTION_AUTH_VENCRYPT_X509NONE:
 		GVNC_DEBUG("Completing auth");
 		return vnc_connection_check_auth_result(conn);
 
 		/* Regular VNC layered over TLS */
-	case GVNC_AUTH_VENCRYPT_TLSVNC:
-	case GVNC_AUTH_VENCRYPT_X509VNC:
+	case VNC_CONNECTION_AUTH_VENCRYPT_TLSVNC:
+	case VNC_CONNECTION_AUTH_VENCRYPT_X509VNC:
 		GVNC_DEBUG("Handing off to VNC auth");
 		return vnc_connection_perform_auth_vnc(conn);
 
 #if HAVE_SASL
 		/* SASL layered over TLS */
-	case GVNC_AUTH_VENCRYPT_TLSSASL:
-	case GVNC_AUTH_VENCRYPT_X509SASL:
+	case VNC_CONNECTION_AUTH_VENCRYPT_TLSSASL:
+	case VNC_CONNECTION_AUTH_VENCRYPT_X509SASL:
 		GVNC_DEBUG("Handing off to SASL auth");
 		return vnc_connection_perform_auth_sasl(conn);
 #endif
@@ -3702,7 +3702,7 @@ static gboolean vnc_connection_has_auth_type(gpointer data)
 
 	if (priv->has_error)
 		return TRUE;
-	if (priv->auth_type == GVNC_AUTH_INVALID)
+	if (priv->auth_type == VNC_CONNECTION_AUTH_INVALID)
 		return FALSE;
 	return TRUE;
 }
@@ -3757,27 +3757,27 @@ static gboolean vnc_connection_perform_auth(VncConnection *conn)
 	}
 
 	switch (priv->auth_type) {
-	case GVNC_AUTH_NONE:
+	case VNC_CONNECTION_AUTH_NONE:
 		if (priv->minor == 8)
 			return vnc_connection_check_auth_result(conn);
 		return TRUE;
-	case GVNC_AUTH_VNC:
+	case VNC_CONNECTION_AUTH_VNC:
 		return vnc_connection_perform_auth_vnc(conn);
 
-	case GVNC_AUTH_TLS:
+	case VNC_CONNECTION_AUTH_TLS:
 		if (priv->minor < 7)
 			return FALSE;
 		return vnc_connection_perform_auth_tls(conn);
 
-	case GVNC_AUTH_VENCRYPT:
+	case VNC_CONNECTION_AUTH_VENCRYPT:
 		return vnc_connection_perform_auth_vencrypt(conn);
 
 #if HAVE_SASL
-	case GVNC_AUTH_SASL:
+	case VNC_CONNECTION_AUTH_SASL:
  		return vnc_connection_perform_auth_sasl(conn);
 #endif
 
-	case GVNC_AUTH_MSLOGON:
+	case VNC_CONNECTION_AUTH_MSLOGON:
 		return vnc_connection_perform_auth_mslogon(conn);
 
 	default:
@@ -3981,8 +3981,8 @@ void vnc_connection_init(VncConnection *fb)
 	memset(priv, 0, sizeof(*priv));
 
 	priv->fd = -1;
-	priv->auth_type = GVNC_AUTH_INVALID;
-	priv->auth_subtype = GVNC_AUTH_INVALID;
+	priv->auth_type = VNC_CONNECTION_AUTH_INVALID;
+	priv->auth_subtype = VNC_CONNECTION_AUTH_INVALID;
 }
 
 
@@ -4061,8 +4061,8 @@ void vnc_connection_close(VncConnection *conn)
 	for (i = 0; i < 5; i++)
 		inflateEnd(&priv->streams[i]);
 
-	priv->auth_type = GVNC_AUTH_INVALID;
-	priv->auth_subtype = GVNC_AUTH_INVALID;
+	priv->auth_type = VNC_CONNECTION_AUTH_INVALID;
+	priv->auth_subtype = VNC_CONNECTION_AUTH_INVALID;
 
 	priv->has_error = 0;
 }
@@ -4338,16 +4338,16 @@ gboolean vnc_connection_set_auth_type(VncConnection *conn, unsigned int type)
 	VncConnectionPrivate *priv = conn->priv;
 
         GVNC_DEBUG("Thinking about auth type %u", type);
-        if (priv->auth_type != GVNC_AUTH_INVALID) {
+        if (priv->auth_type != VNC_CONNECTION_AUTH_INVALID) {
                 priv->has_error = TRUE;
                 return !vnc_connection_has_error(conn);
         }
-        if (type != GVNC_AUTH_NONE &&
-            type != GVNC_AUTH_VNC &&
-            type != GVNC_AUTH_MSLOGON &&
-            type != GVNC_AUTH_TLS &&
-            type != GVNC_AUTH_VENCRYPT &&
-            type != GVNC_AUTH_SASL) {
+        if (type != VNC_CONNECTION_AUTH_NONE &&
+            type != VNC_CONNECTION_AUTH_VNC &&
+            type != VNC_CONNECTION_AUTH_MSLOGON &&
+            type != VNC_CONNECTION_AUTH_TLS &&
+            type != VNC_CONNECTION_AUTH_VENCRYPT &&
+            type != VNC_CONNECTION_AUTH_SASL) {
 		struct signal_data sigdata;
 		GVNC_DEBUG("Unsupported auth type %u", type);
 		sigdata.params.authUnsupported = type;
@@ -4357,7 +4357,7 @@ gboolean vnc_connection_set_auth_type(VncConnection *conn, unsigned int type)
         }
         GVNC_DEBUG("Decided on auth type %u", type);
         priv->auth_type = type;
-        priv->auth_subtype = GVNC_AUTH_INVALID;
+        priv->auth_subtype = VNC_CONNECTION_AUTH_INVALID;
 
 	return !vnc_connection_has_error(conn);
 }
@@ -4367,12 +4367,12 @@ gboolean vnc_connection_set_auth_subtype(VncConnection *conn, unsigned int type)
 	VncConnectionPrivate *priv = conn->priv;
 
         GVNC_DEBUG("Requested auth subtype %d", type);
-        if (priv->auth_type != GVNC_AUTH_VENCRYPT &&
-	    priv->auth_type != GVNC_AUTH_TLS) {
+        if (priv->auth_type != VNC_CONNECTION_AUTH_VENCRYPT &&
+	    priv->auth_type != VNC_CONNECTION_AUTH_TLS) {
                 priv->has_error = TRUE;
 		return !vnc_connection_has_error(conn);
         }
-        if (priv->auth_subtype != GVNC_AUTH_INVALID) {
+        if (priv->auth_subtype != VNC_CONNECTION_AUTH_INVALID) {
                 priv->has_error = TRUE;
 		return !vnc_connection_has_error(conn);
         }

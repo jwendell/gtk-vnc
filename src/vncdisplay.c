@@ -1136,7 +1136,7 @@ static void on_auth_choose_subtype(VncConnection *conn G_GNUC_UNUSED,
 	if (!subtypes->n_values)
 		return;
 
-	if (type == GVNC_AUTH_TLS) {
+	if (type == VNC_CONNECTION_AUTH_TLS) {
 		for (l = priv->preferable_auths; l; l=l->next) {
 			int pref = GPOINTER_TO_UINT (l->data);
 
@@ -1286,19 +1286,19 @@ static void *vnc_coroutine(void *opaque)
 	VncDisplayPrivate *priv = obj->priv;
 
 	/* this order is extremely important! */
-	gint32 encodings[] = {	GVNC_ENCODING_TIGHT_JPEG5,
-				GVNC_ENCODING_TIGHT,
-				GVNC_ENCODING_EXT_KEY_EVENT,
-				GVNC_ENCODING_DESKTOP_RESIZE,
-                                GVNC_ENCODING_WMVi,
-				GVNC_ENCODING_RICH_CURSOR,
-				GVNC_ENCODING_XCURSOR,
-				GVNC_ENCODING_POINTER_CHANGE,
-				GVNC_ENCODING_ZRLE,
-				GVNC_ENCODING_HEXTILE,
-				GVNC_ENCODING_RRE,
-				GVNC_ENCODING_COPY_RECT,
-				GVNC_ENCODING_RAW };
+	gint32 encodings[] = {	VNC_CONNECTION_ENCODING_TIGHT_JPEG5,
+				VNC_CONNECTION_ENCODING_TIGHT,
+				VNC_CONNECTION_ENCODING_EXT_KEY_EVENT,
+				VNC_CONNECTION_ENCODING_DESKTOP_RESIZE,
+                                VNC_CONNECTION_ENCODING_WMVi,
+				VNC_CONNECTION_ENCODING_RICH_CURSOR,
+				VNC_CONNECTION_ENCODING_XCURSOR,
+				VNC_CONNECTION_ENCODING_POINTER_CHANGE,
+				VNC_CONNECTION_ENCODING_ZRLE,
+				VNC_CONNECTION_ENCODING_HEXTILE,
+				VNC_CONNECTION_ENCODING_RRE,
+				VNC_CONNECTION_ENCODING_COPY_RECT,
+				VNC_CONNECTION_ENCODING_RAW };
 	gint32 *encodingsp;
 	int n_encodings;
 	int ret;
@@ -1925,20 +1925,20 @@ static void vnc_display_init(VncDisplay *display)
 	 * all the other auth types on top. So these two must
 	 * be the first listed
 	 */
-	priv->preferable_auths = g_slist_append (priv->preferable_auths, GUINT_TO_POINTER (GVNC_AUTH_VENCRYPT));
-	priv->preferable_auths = g_slist_append (priv->preferable_auths, GUINT_TO_POINTER (GVNC_AUTH_TLS));
+	priv->preferable_auths = g_slist_append (priv->preferable_auths, GUINT_TO_POINTER (VNC_CONNECTION_AUTH_VENCRYPT));
+	priv->preferable_auths = g_slist_append (priv->preferable_auths, GUINT_TO_POINTER (VNC_CONNECTION_AUTH_TLS));
 
 	/*
 	 * Then stackable auth types in order of preference
 	 */
-	priv->preferable_auths = g_slist_append (priv->preferable_auths, GUINT_TO_POINTER (GVNC_AUTH_SASL));
-	priv->preferable_auths = g_slist_append (priv->preferable_auths, GUINT_TO_POINTER (GVNC_AUTH_MSLOGON));
-	priv->preferable_auths = g_slist_append (priv->preferable_auths, GUINT_TO_POINTER (GVNC_AUTH_VNC));
+	priv->preferable_auths = g_slist_append (priv->preferable_auths, GUINT_TO_POINTER (VNC_CONNECTION_AUTH_SASL));
+	priv->preferable_auths = g_slist_append (priv->preferable_auths, GUINT_TO_POINTER (VNC_CONNECTION_AUTH_MSLOGON));
+	priv->preferable_auths = g_slist_append (priv->preferable_auths, GUINT_TO_POINTER (VNC_CONNECTION_AUTH_VNC));
 
 	/*
 	 * Or nothing at all
 	 */
-	priv->preferable_auths = g_slist_append (priv->preferable_auths, GUINT_TO_POINTER (GVNC_AUTH_NONE));
+	priv->preferable_auths = g_slist_append (priv->preferable_auths, GUINT_TO_POINTER (VNC_CONNECTION_AUTH_NONE));
 
 	priv->conn = vnc_connection_new();
 
