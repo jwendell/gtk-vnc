@@ -28,7 +28,7 @@
 #include "utils.h"
 #include "vncmarshal.h"
 #include "config.h"
-#include "x_keymap.h"
+#include "vncdisplaykeymap.h"
 #include "vncdisplayenums.h"
 
 #include <gtk/gtk.h>
@@ -90,6 +90,7 @@ struct _VncDisplayPrivate
 	gboolean force_size;
 
 	GSList *preferable_auths;
+	const guint8 const *keycode_map;
 };
 
 /* Delayed signal emission.
@@ -700,7 +701,7 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *key)
 		   key->type == GDK_KEY_PRESS ? "press" : "release",
 		   key->hardware_keycode, key->state, key->group, keyval);
 
-	keyval = x_keymap_get_keyval_from_keycode(key->hardware_keycode, keyval);
+	keyval = vnc_display_keyval_from_keycode(key->hardware_keycode, keyval);
 
 	/*
 	 * Some VNC suckiness with key state & modifiers in particular
@@ -730,6 +731,8 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *key)
 	for (i = 0 ; i < (int)(sizeof(priv->down_keyval)/sizeof(priv->down_keyval[0])) ; i++) {
 		/* We were pressed, and now we're released, so... */
 		if (priv->down_scancode[i] == key->hardware_keycode) {
+			guint16 scancode = vnc_display_keymap_x2pc(priv->keycode_map,
+								   key->hardware_keycode);
 			/*
 			 * ..send the key release event we're dealing with
 			 *
@@ -740,7 +743,7 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *key)
 			 * true, with "Tab" generating Tab on press, and
 			 * ISO_Prev_Group on release.
 			 */
-			vnc_connection_key_event(priv->conn, 0, priv->down_keyval[i], key->hardware_keycode);
+			vnc_connection_key_event(priv->conn, 0, priv->down_keyval[i], scancode);
 			priv->down_keyval[i] = 0;
 			priv->down_scancode[i] = 0;
 			break;
@@ -750,10 +753,12 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *key)
 	if (key->type == GDK_KEY_PRESS) {
 		for (i = 0 ; i < (int)(sizeof(priv->down_keyval)/sizeof(priv->down_keyval[0])) ; i++) {
 			if (priv->down_scancode[i] == 0) {
+				guint16 scancode = vnc_display_keymap_x2pc(priv->keycode_map,
+									   key->hardware_keycode);
 				priv->down_keyval[i] = keyval;
 				priv->down_scancode[i] = key->hardware_keycode;
 				/* Send the actual key event we're dealing with */
-				vnc_connection_key_event(priv->conn, 1, keyval, key->hardware_keycode);
+				vnc_connection_key_event(priv->conn, 1, keyval, scancode);
 				break;
 			}
 		}
@@ -815,9 +820,11 @@ static gboolean focus_event(GtkWidget *widget, GdkEventFocus *focus G_GNUC_UNUSE
 	for (i = 0 ; i < (int)(sizeof(priv->down_keyval)/sizeof(priv->down_keyval[0])) ; i++) {
 		/* We are currently pressed so... */
 		if (priv->down_scancode[i] != 0) {
+			guint16 scancode = vnc_display_keymap_x2pc(priv->keycode_map,
+								   priv->down_scancode[i]);
 			/* ..send the fake key release event to match */
 			vnc_connection_key_event(priv->conn, 0,
-				       priv->down_keyval[i], priv->down_scancode[i]);
+						 priv->down_keyval[i], scancode);
 			priv->down_keyval[i] = 0;
 			priv->down_scancode[i] = 0;
 		}
@@ -1310,7 +1317,6 @@ static void *vnc_coroutine(void *opaque)
 	}
 
 	GVNC_DEBUG("Started background coroutine");
-	x_keymap_set_keymap_entries();
 
 	if (priv->fd != -1) {
 		if (!vnc_connection_open_fd(priv->conn, priv->fd))
@@ -1371,7 +1377,6 @@ static void *vnc_coroutine(void *opaque)
 	vnc_connection_close(priv->conn);
 	emit_signal_delayed(obj, VNC_DISCONNECTED, &s);
 	g_idle_add(delayed_unref_object, obj);
-	x_keymap_free_keymap_entries();
 	/* Co-routine exits now - the VncDisplay object may no longer exist,
 	   so don't do anything else now unless you like SEGVs */
 	return NULL;
@@ -1477,8 +1482,9 @@ void vnc_display_send_keys(VncDisplay *obj, const guint *keyvals, int nkeyvals)
 				 nkeyvals, VNC_DISPLAY_KEY_EVENT_CLICK);
 }
 
-static guint get_keycode_from_keyval(guint keyval)
+static guint get_scancode_from_keyval(VncDisplay *obj, guint keyval)
 {
+	VncDisplayPrivate *priv = obj->priv;
 	guint keycode = 0;
 	GdkKeymapKey *keys = NULL;
 	gint n_keys = 0;
@@ -1490,7 +1496,7 @@ static guint get_keycode_from_keyval(guint keyval)
 		g_free(keys);
 	}
 
-	return keycode;
+	return vnc_display_keymap_x2pc(priv->keycode_map, keycode);
 }
 
 void vnc_display_send_keys_ex(VncDisplay *obj, const guint *keyvals,
@@ -1504,13 +1510,13 @@ void vnc_display_send_keys_ex(VncDisplay *obj, const guint *keyvals,
 	if (kind & VNC_DISPLAY_KEY_EVENT_PRESS) {
 		for (i = 0 ; i < nkeyvals ; i++)
 			vnc_connection_key_event(obj->priv->conn, 1, keyvals[i],
-				       get_keycode_from_keyval(keyvals[i]));
+						 get_scancode_from_keyval(obj, keyvals[i]));
 	}
 
 	if (kind & VNC_DISPLAY_KEY_EVENT_RELEASE) {
 		for (i = (nkeyvals-1) ; i >= 0 ; i--)
 			vnc_connection_key_event(obj->priv->conn, 0, keyvals[i],
-				       get_keycode_from_keyval(keyvals[i]));
+						 get_scancode_from_keyval(obj, keyvals[i]));
 	}
 }
 
@@ -1574,6 +1580,8 @@ static void vnc_display_finalize (GObject *obj)
 	g_free (priv->port);
 
 	g_slist_free (priv->preferable_auths);
+
+	vnc_display_keyval_free_entries();
 
 	G_OBJECT_CLASS (vnc_display_parent_class)->finalize (obj);
 }
@@ -1894,6 +1902,8 @@ static void vnc_display_init(VncDisplay *display)
 
 	GTK_WIDGET_SET_FLAGS(obj, GTK_CAN_FOCUS);
 
+	vnc_display_keyval_set_entries();
+
 	gtk_widget_add_events(widget,
 			      GDK_POINTER_MOTION_MASK |
 			      GDK_BUTTON_PRESS_MASK |
@@ -1966,6 +1976,8 @@ static void vnc_display_init(VncDisplay *display)
 			 G_CALLBACK(on_auth_choose_type), display);
 	g_signal_connect(G_OBJECT(priv->conn), "vnc-auth-choose-subtype",
 			 G_CALLBACK(on_auth_choose_subtype), display);
+
+	priv->keycode_map = vnc_display_keymap_x2pc_table();
 }
 
 gboolean vnc_display_set_credential(VncDisplay *obj, int type, const gchar *data)

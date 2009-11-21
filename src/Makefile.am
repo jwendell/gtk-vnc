@@ -34,8 +34,8 @@ libgtk_vnc_1_0_la_SOURCES = blt.h blt1.h \
         vncconnectionenums.h vncconnectionenums.c \
 	vncdisplay.h vncdisplay.c \
         vncdisplayenums.h vncdisplayenums.c \
+	vncdisplaykeymap.h vncdisplaykeymap.c \
         vncmarshal.h vncmarshal.c \
-	x_keymap.h x_keymap.c vnc_keycodes.h \
 	utils.h
 
 if WITH_UCONTEXT

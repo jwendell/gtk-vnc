@@ -18,16 +18,16 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
  */
 
-#ifndef _GTK_VNC_X_KEYMAP_H
-#define _GTK_VNC_X_KEYMAP_H
+#ifndef VNC_DISPLAY_KEYMAP_H
+#define VNC_DISPLAY_KEYMAP_H
 
-#include <gdk/gdk.h>
+#include <glib.h>
 
-const guint8 const *x_keycode_to_pc_keycode_map(void);
-guint16 x_keycode_to_pc_keycode(const guint8 *keycode_map,
+const guint8 const *vnc_display_keymap_x2pc_table(void);
+guint16 vnc_display_keymap_x2pc(const guint8 *keycode_map,
 				guint16 keycode);
-void x_keymap_set_keymap_entries(void);
-void x_keymap_free_keymap_entries(void);
-guint x_keymap_get_keyval_from_keycode(guint keycode, guint keyval);
+void vnc_display_keyval_set_entries(void);
+void vnc_display_keyval_free_entries(void);
+guint vnc_display_keyval_from_keycode(guint keycode, guint keyval);
 
-#endif
+#endif /* VNC_DISPLAY_KEYMAP_H */

@@ -7,10 +7,10 @@
  *
  */
 
+#include <gdk/gdk.h>
 #include <gdk/gdkkeysyms.h>
-#include "x_keymap.h"
+#include "vncdisplaykeymap.h"
 #include "utils.h"
-#include "vnc_keycodes.h"
 
 /*
  * This table is taken from QEMU x_keymap.c, under the terms:
@@ -223,7 +223,7 @@ static gboolean check_for_evdev(void)
 }
 #endif
 
-const guint8 const *x_keycode_to_pc_keycode_map(void)
+const guint8 const *vnc_display_keymap_x2pc_table(void)
 {
 	if (check_for_evdev()) {
 		GVNC_DEBUG("Using evdev keycode mapping");
@@ -234,7 +234,17 @@ const guint8 const *x_keycode_to_pc_keycode_map(void)
 	}
 }
 
-guint16 x_keycode_to_pc_keycode(const guint8 const *keycode_map,
+/* All keycodes from 0 to 0xFF correspond to the hardware keycodes generated
+ * by a US101 PC keyboard with the following encoding:
+ *
+ * 0) Sequences of XX are replaced with XX
+ * 1) Sequences of 0xe0 XX are replaces with XX | 0x80
+ * 2) All other keys are defined below
+ */
+
+#define VKC_PAUSE	0x100
+
+guint16 vnc_display_keymap_x2pc(const guint8 const *keycode_map,
 				guint16 keycode)
 {
 	if (keycode == GDK_Pause)
@@ -259,7 +269,7 @@ guint16 x_keycode_to_pc_keycode(const guint8 const *keycode_map,
 }
 
 /* Set the keymap entries */
-void x_keymap_set_keymap_entries()
+void vnc_display_keyval_set_entries(void)
 {
 	size_t i;
 	if (ref_count_for_untranslated_keys == 0)
@@ -272,7 +282,7 @@ void x_keymap_set_keymap_entries()
 }
 
 /* Free the keymap entries */
-void x_keymap_free_keymap_entries()
+void vnc_display_keyval_free_entries(void)
 {
 	size_t i;
 
@@ -287,7 +297,7 @@ void x_keymap_free_keymap_entries()
 }
 
 /* Get the keyval from the keycode without the level. */
-guint x_keymap_get_keyval_from_keycode(guint keycode, guint keyval)
+guint vnc_display_keyval_from_keycode(guint keycode, guint keyval)
 {
 	size_t i;
 	for (i = 0; i < sizeof(untranslated_keys) / sizeof(untranslated_keys[0]); i++) {

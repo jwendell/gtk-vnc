@@ -42,8 +42,6 @@
 #include "coroutine.h"
 #include "d3des.h"
 
-#include "x_keymap.h"
-
 #include "utils.h"
 #include <gnutls/gnutls.h>
 #include <gnutls/x509.h>
@@ -186,7 +184,6 @@ struct _VncConnectionPrivate
 	int zrle_pi_bits;
 
 	gboolean has_ext_key_event;
-	const guint8 const *keycode_map;
 };
 
 G_DEFINE_TYPE(VncConnection, vnc_connection, G_TYPE_OBJECT);
@@ -1417,8 +1414,6 @@ gboolean vnc_connection_key_event(VncConnection *conn, guint8 down_flag,
 
 	GVNC_DEBUG("Key event %d %d %d %d", key, scancode, down_flag, priv->has_ext_key_event);
 	if (priv->has_ext_key_event) {
-		scancode = x_keycode_to_pc_keycode(priv->keycode_map, scancode);
-
 		vnc_connection_buffered_write_u8(conn, 255);
 		vnc_connection_buffered_write_u8(conn, 0);
 		vnc_connection_buffered_write_u16(conn, down_flag);
@@ -2494,7 +2489,6 @@ static void vnc_connection_ext_key_event(VncConnection *conn)
 	VncConnectionPrivate *priv = conn->priv;
 
 	priv->has_ext_key_event = TRUE;
-	priv->keycode_map = x_keycode_to_pc_keycode_map();
 }
 
 static void vnc_connection_framebuffer_update(VncConnection *conn, gint32 etype,
