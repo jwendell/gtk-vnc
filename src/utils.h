@@ -25,6 +25,6 @@
 
 extern gboolean debug_enabled;
 
-#define GVNC_DEBUG(fmt, ...) do { if (G_UNLIKELY(debug_enabled)) g_debug(fmt, ## __VA_ARGS__); } while (0)
+#define GVNC_DEBUG(fmt, ...) do { if (G_UNLIKELY(debug_enabled)) g_debug(__FILE__ " " fmt, ## __VA_ARGS__); } while (0)
 
 #endif

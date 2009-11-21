@@ -64,6 +64,9 @@ struct _VncConnectionClass
 	void (*vnc_auth_credential)(VncConnection *conn, GValueArray *creds);
 	void (*vnc_auth_choose_type)(VncConnection *conn, GValueArray *types);
 	void (*vnc_auth_choose_subtype)(VncConnection *conn, unsigned int type, GValueArray *subtypes);
+	void (*vnc_connected)(VncConnection *conn);
+	void (*vnc_initialized)(VncConnection *conn);
+	void (*vnc_disconnected)(VncConnection *conn);
 };
 
 struct vnc_connection_ops
@@ -143,21 +146,16 @@ GType vnc_connection_get_type(void) G_GNUC_CONST;
 
 VncConnection *vnc_connection_new(void);
 
-void vnc_connection_close(VncConnection *conn);
-void vnc_connection_shutdown(VncConnection *conn);
-
 gboolean vnc_connection_open_fd(VncConnection *conn, int fd);
 gboolean vnc_connection_open_host(VncConnection *conn, const char *host, const char *port);
 gboolean vnc_connection_is_open(VncConnection *conn);
+void vnc_connection_shutdown(VncConnection *conn);
 
 gboolean vnc_connection_set_auth_type(VncConnection *conn, unsigned int type);
 gboolean vnc_connection_set_auth_subtype(VncConnection *conn, unsigned int type);
 gboolean vnc_connection_set_credential(VncConnection *conn, int type, const gchar *data);
 
-gboolean vnc_connection_initialize(VncConnection *conn, gboolean shared_flag);
 gboolean vnc_connection_is_initialized(VncConnection *conn);
-
-gboolean vnc_connection_server_message(VncConnection *conn);
 
 gboolean vnc_connection_client_cut_text(VncConnection *conn,
 					const void *data, size_t length);
@@ -180,6 +178,9 @@ gboolean vnc_connection_set_pixel_format(VncConnection *conn,
 
 const VncPixelFormat *vnc_connection_get_pixel_format(VncConnection *conn);
 
+gboolean vnc_connection_set_shared(VncConnection *conn, gboolean sharedFlag);
+gboolean vnc_connection_get_shared(VncConnection *conn);
+
 gboolean vnc_connection_has_error(VncConnection *conn);
 
 gboolean vnc_connection_set_framebuffer(VncConnection *conn,
@@ -191,10 +192,8 @@ int vnc_connection_get_height(VncConnection *conn);
 
 VncCursor *vnc_connection_get_cursor(VncConnection *conn);
 
-gboolean vnc_connection_abs_pointer(VncConnection *conn);
-
-/* HACK this is temporary */
-gboolean vnc_connection_using_raw_keycodes(VncConnection *conn);
+gboolean vnc_connection_get_abs_pointer(VncConnection *conn);
+gboolean vnc_connection_get_ext_key_event(VncConnection *conn);
 
 G_END_DECLS
 

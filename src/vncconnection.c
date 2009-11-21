@@ -84,6 +84,7 @@ typedef void vnc_connection_tight_compute_predicted_func(VncConnection *conn, gu
 							  guint8 *);
 
 typedef void vnc_connection_tight_sum_pixel_func(VncConnection *conn, guint8 *, guint8 *);
+static void vnc_connection_close(VncConnection *conn);
 
 /*
  * A special GSource impl which allows us to wait on a certain
@@ -110,6 +111,8 @@ struct g_condition_wait_source
 
 struct _VncConnectionPrivate
 {
+	struct coroutine coroutine;
+	guint open_id;
 	GIOChannel *channel;
 	int fd;
 	char *host;
@@ -156,6 +159,7 @@ struct _VncConnectionPrivate
 
 	VncCursor *cursor;
 	gboolean absPointer;
+	gboolean sharedFlag;
 
 	vnc_connection_rich_cursor_blt_func *rich_cursor_blt;
 	vnc_connection_tight_compute_predicted_func *tight_compute_predicted;
@@ -204,12 +208,17 @@ enum {
 	VNC_AUTH_CHOOSE_TYPE,
 	VNC_AUTH_CHOOSE_SUBTYPE,
 
+	VNC_CONNECTED,
+	VNC_INITIALIZED,
+	VNC_DISCONNECTED,
+
 	VNC_LAST_SIGNAL,
 };
 
 static guint signals[VNC_LAST_SIGNAL] = { 0, 0, 0, 0,
 					  0, 0, 0, 0,
-					  0, 0, 0, 0};
+					  0, 0, 0, 0,
+					  0, 0, 0 };
 
 #define nibhi(a) (((a) >> 4) & 0x0F)
 #define niblo(a) ((a) & 0x0F)
@@ -404,6 +413,7 @@ static gboolean do_vnc_connection_emit_main_context(gpointer opaque)
 {
 	struct signal_data *data = opaque;
 
+	GVNC_DEBUG("Emit main context %d", data->signum);
 	switch (data->signum) {
 	case VNC_CURSOR_CHANGED:
 		g_signal_emit(G_OBJECT(data->conn),
@@ -493,6 +503,13 @@ static gboolean do_vnc_connection_emit_main_context(gpointer opaque)
 			      data->params.authTypes);
 		break;
 
+	case VNC_CONNECTED:
+	case VNC_INITIALIZED:
+	case VNC_DISCONNECTED:
+		g_signal_emit(G_OBJECT(data->conn),
+			      signals[data->signum],
+			      0);
+		break;
 	}
 
 	coroutine_yieldto(data->caller, NULL);
@@ -1268,43 +1285,108 @@ gboolean vnc_connection_has_error(VncConnection *conn)
 	return priv->has_error;
 }
 
-gboolean vnc_connection_set_pixel_format(VncConnection *conn,
-					 const VncPixelFormat *fmt)
-{
-	VncConnectionPrivate *priv = conn->priv;
-	guint8 pad[3] = {0};
-
-	vnc_connection_write_u8(conn, 0);
-	vnc_connection_write(conn, pad, 3);
-
-	vnc_connection_write_u8(conn, fmt->bits_per_pixel);
-	vnc_connection_write_u8(conn, fmt->depth);
-	vnc_connection_write_u8(conn, fmt->byte_order == G_BIG_ENDIAN ? 1 : 0);
-	vnc_connection_write_u8(conn, fmt->true_color_flag);
-
-	vnc_connection_write_u16(conn, fmt->red_max);
-	vnc_connection_write_u16(conn, fmt->green_max);
-	vnc_connection_write_u16(conn, fmt->blue_max);
-
-	vnc_connection_write_u8(conn, fmt->red_shift);
-	vnc_connection_write_u8(conn, fmt->green_shift);
-	vnc_connection_write_u8(conn, fmt->blue_shift);
-
-	vnc_connection_write(conn, pad, 3);
-	vnc_connection_flush(conn);
-
-	memcpy(&priv->fmt, fmt, sizeof(*fmt));
-
-	return !vnc_connection_has_error(conn);
-}
-
-
 const VncPixelFormat *vnc_connection_get_pixel_format(VncConnection *conn)
 {
 	VncConnectionPrivate *priv = conn->priv;
 
 	return &priv->fmt;
 }
+
+
+gboolean vnc_connection_set_shared(VncConnection *conn, gboolean sharedFlag)
+{
+	VncConnectionPrivate *priv = conn->priv;
+
+	if (vnc_connection_is_open(conn))
+		return FALSE;
+
+	priv->sharedFlag = sharedFlag;
+
+	return !vnc_connection_has_error(conn);
+}
+
+
+gboolean vnc_connection_get_shared(VncConnection *conn)
+{
+	VncConnectionPrivate *priv = conn->priv;
+
+	return priv->sharedFlag;
+}
+
+
+static void vnc_connection_buffered_write(VncConnection *conn, const void *data, size_t size)
+{
+	VncConnectionPrivate *priv = conn->priv;
+	size_t left;
+
+	left = priv->xmit_buffer_capacity - priv->xmit_buffer_size;
+	if (left < size) {
+		priv->xmit_buffer_capacity += size + 4095;
+		priv->xmit_buffer_capacity &= ~4095;
+
+		priv->xmit_buffer = g_realloc(priv->xmit_buffer, priv->xmit_buffer_capacity);
+	}
+
+	memcpy(&priv->xmit_buffer[priv->xmit_buffer_size],
+	       data, size);
+
+	priv->xmit_buffer_size += size;
+}
+
+static void vnc_connection_buffered_write_u8(VncConnection *conn, guint8 value)
+{
+	vnc_connection_buffered_write(conn, &value, 1);
+}
+
+static void vnc_connection_buffered_write_u16(VncConnection *conn, guint16 value)
+{
+	value = htons(value);
+	vnc_connection_buffered_write(conn, &value, 2);
+}
+
+static void vnc_connection_buffered_write_u32(VncConnection *conn, guint32 value)
+{
+	value = htonl(value);
+	vnc_connection_buffered_write(conn, &value, 4);
+}
+
+static void vnc_connection_buffered_flush(VncConnection *conn)
+{
+	VncConnectionPrivate *priv = conn->priv;
+
+	g_io_wakeup(&priv->wait);
+}
+
+gboolean vnc_connection_set_pixel_format(VncConnection *conn,
+					 const VncPixelFormat *fmt)
+{
+	VncConnectionPrivate *priv = conn->priv;
+	guint8 pad[3] = {0};
+
+	vnc_connection_buffered_write_u8(conn, 0);
+	vnc_connection_buffered_write(conn, pad, 3);
+
+	vnc_connection_buffered_write_u8(conn, fmt->bits_per_pixel);
+	vnc_connection_buffered_write_u8(conn, fmt->depth);
+	vnc_connection_buffered_write_u8(conn, fmt->byte_order == G_BIG_ENDIAN ? 1 : 0);
+	vnc_connection_buffered_write_u8(conn, fmt->true_color_flag);
+
+	vnc_connection_buffered_write_u16(conn, fmt->red_max);
+	vnc_connection_buffered_write_u16(conn, fmt->green_max);
+	vnc_connection_buffered_write_u16(conn, fmt->blue_max);
+
+	vnc_connection_buffered_write_u8(conn, fmt->red_shift);
+	vnc_connection_buffered_write_u8(conn, fmt->green_shift);
+	vnc_connection_buffered_write_u8(conn, fmt->blue_shift);
+
+	vnc_connection_buffered_write(conn, pad, 3);
+	vnc_connection_buffered_flush(conn);
+
+	memcpy(&priv->fmt, fmt, sizeof(*fmt));
+
+	return !vnc_connection_has_error(conn);
+}
+
 
 gboolean vnc_connection_set_encodings(VncConnection *conn, int n_encoding, gint32 *encoding)
 {
@@ -1353,58 +1435,16 @@ gboolean vnc_connection_framebuffer_update_request(VncConnection *conn,
 						   guint16 x, guint16 y,
 						   guint16 width, guint16 height)
 {
-	vnc_connection_write_u8(conn, 3);
-	vnc_connection_write_u8(conn, incremental);
-	vnc_connection_write_u16(conn, x);
-	vnc_connection_write_u16(conn, y);
-	vnc_connection_write_u16(conn, width);
-	vnc_connection_write_u16(conn, height);
-	vnc_connection_flush(conn);
+	vnc_connection_buffered_write_u8(conn, 3);
+	vnc_connection_buffered_write_u8(conn, incremental);
+	vnc_connection_buffered_write_u16(conn, x);
+	vnc_connection_buffered_write_u16(conn, y);
+	vnc_connection_buffered_write_u16(conn, width);
+	vnc_connection_buffered_write_u16(conn, height);
+	vnc_connection_buffered_flush(conn);
 	return !vnc_connection_has_error(conn);
 }
 
-static void vnc_connection_buffered_write(VncConnection *conn, const void *data, size_t size)
-{
-	VncConnectionPrivate *priv = conn->priv;
-	size_t left;
-
-	left = priv->xmit_buffer_capacity - priv->xmit_buffer_size;
-	if (left < size) {
-		priv->xmit_buffer_capacity += size + 4095;
-		priv->xmit_buffer_capacity &= ~4095;
-
-		priv->xmit_buffer = g_realloc(priv->xmit_buffer, priv->xmit_buffer_capacity);
-	}
-
-	memcpy(&priv->xmit_buffer[priv->xmit_buffer_size],
-	       data, size);
-
-	priv->xmit_buffer_size += size;
-}
-
-static void vnc_connection_buffered_write_u8(VncConnection *conn, guint8 value)
-{
-	vnc_connection_buffered_write(conn, &value, 1);
-}
-
-static void vnc_connection_buffered_write_u16(VncConnection *conn, guint16 value)
-{
-	value = htons(value);
-	vnc_connection_buffered_write(conn, &value, 2);
-}
-
-static void vnc_connection_buffered_write_u32(VncConnection *conn, guint32 value)
-{
-	value = htonl(value);
-	vnc_connection_buffered_write(conn, &value, 4);
-}
-
-static void vnc_connection_buffered_flush(VncConnection *conn)
-{
-	VncConnectionPrivate *priv = conn->priv;
-
-	g_io_wakeup(&priv->wait);
-}
 
 gboolean vnc_connection_key_event(VncConnection *conn, guint8 down_flag,
 				  guint32 key, guint16 scancode)
@@ -2552,7 +2592,7 @@ static void vnc_connection_framebuffer_update(VncConnection *conn, gint32 etype,
 	}
 }
 
-gboolean vnc_connection_server_message(VncConnection *conn)
+static gboolean vnc_connection_server_message(VncConnection *conn)
 {
 	VncConnectionPrivate *priv = conn->priv;
 	guint8 msg;
@@ -3792,6 +3832,8 @@ static void vnc_connection_finalize (GObject *object)
 	VncConnection *conn = VNC_CONNECTION(object);
 	VncConnectionPrivate *priv = conn->priv;
 
+	GVNC_DEBUG("Finalize VncConnection=%p", conn);
+
 	if (vnc_connection_is_open(conn))
 		vnc_connection_close(conn);
 
@@ -3962,15 +4004,46 @@ static void vnc_connection_class_init(VncConnectionClass *klass)
 			      G_TYPE_VALUE_ARRAY);
 
 
+	signals[VNC_CONNECTED] =
+		g_signal_new ("vnc-connected",
+			      G_OBJECT_CLASS_TYPE (object_class),
+			      G_SIGNAL_RUN_FIRST,
+			      G_STRUCT_OFFSET (VncConnectionClass, vnc_connected),
+			      NULL, NULL,
+			      g_cclosure_marshal_VOID__VOID,
+			      G_TYPE_NONE,
+			      0);
+	signals[VNC_INITIALIZED] =
+		g_signal_new ("vnc-initialized",
+			      G_OBJECT_CLASS_TYPE (object_class),
+			      G_SIGNAL_RUN_FIRST,
+			      G_STRUCT_OFFSET (VncConnectionClass, vnc_initialized),
+			      NULL, NULL,
+			      g_cclosure_marshal_VOID__VOID,
+			      G_TYPE_NONE,
+			      0);
+	signals[VNC_DISCONNECTED] =
+		g_signal_new ("vnc-disconnected",
+			      G_OBJECT_CLASS_TYPE (object_class),
+			      G_SIGNAL_RUN_FIRST,
+			      G_STRUCT_OFFSET (VncConnectionClass, vnc_disconnected),
+			      NULL, NULL,
+			      g_cclosure_marshal_VOID__VOID,
+			      G_TYPE_NONE,
+			      0);
+
+
 	g_type_class_add_private(klass, sizeof(VncConnectionPrivate));
 }
 
 
-void vnc_connection_init(VncConnection *fb)
+void vnc_connection_init(VncConnection *conn)
 {
 	VncConnectionPrivate *priv;
 
-	priv = fb->priv = VNC_CONNECTION_GET_PRIVATE(fb);
+	GVNC_DEBUG("Init VncConnection=%p", conn);
+
+	priv = conn->priv = VNC_CONNECTION_GET_PRIVATE(conn);
 
 	memset(priv, 0, sizeof(*priv));
 
@@ -3986,10 +4059,12 @@ VncConnection *vnc_connection_new(void)
 					   NULL));
 }
 
-void vnc_connection_close(VncConnection *conn)
+static void vnc_connection_close(VncConnection *conn)
 {
 	VncConnectionPrivate *priv = conn->priv;
 	int i;
+
+	GVNC_DEBUG("Close VncConnection=%p", conn);
 
 	if (priv->tls_session) {
 		gnutls_bye(priv->tls_session, GNUTLS_SHUT_RDWR);
@@ -4057,13 +4132,20 @@ void vnc_connection_close(VncConnection *conn)
 
 	priv->auth_type = VNC_CONNECTION_AUTH_INVALID;
 	priv->auth_subtype = VNC_CONNECTION_AUTH_INVALID;
-
+	priv->sharedFlag = FALSE;
 	priv->has_error = 0;
 }
 
 void vnc_connection_shutdown(VncConnection *conn)
 {
 	VncConnectionPrivate *priv = conn->priv;
+
+	GVNC_DEBUG("Shutdown VncConnection=%p", conn);
+
+	if (priv->open_id) {
+		g_source_remove(priv->open_id);
+		priv->open_id = 0;
+	}
 
 	close(priv->fd);
 	priv->fd = -1;
@@ -4113,7 +4195,7 @@ static gboolean vnc_connection_after_version (VncConnection *conn, int major, in
 }
 
 
-gboolean vnc_connection_initialize(VncConnection *conn, gboolean shared_flag)
+static gboolean vnc_connection_initialize(VncConnection *conn)
 {
 	VncConnectionPrivate *priv = conn->priv;
 	int ret, i;
@@ -4153,7 +4235,7 @@ gboolean vnc_connection_initialize(VncConnection *conn, gboolean shared_flag)
 		goto fail;
 	}
 
-	vnc_connection_write_u8(conn, shared_flag); /* shared flag */
+	vnc_connection_write_u8(conn, priv->sharedFlag);
 	vnc_connection_flush(conn);
 	priv->width = vnc_connection_read_u16(conn);
 	priv->height = vnc_connection_read_u16(conn);
@@ -4219,53 +4301,42 @@ static gboolean vnc_connection_set_nonblock(int fd)
 	return TRUE;
 }
 
-gboolean vnc_connection_open_fd(VncConnection *conn, int fd)
+static gboolean vnc_connection_open_fd_internal(VncConnection *conn)
 {
 	VncConnectionPrivate *priv = conn->priv;
 
-	if (vnc_connection_is_open(conn)) {
-		GVNC_DEBUG ("Error: already connected?");
-		return FALSE;
-	}
+	GVNC_DEBUG("Connecting to FD %d", priv->fd);
 
-	GVNC_DEBUG("Connecting to FD %d", fd);
-
-	if (!vnc_connection_set_nonblock(fd))
+	if (!vnc_connection_set_nonblock(priv->fd))
 		return FALSE;
 
 	if (!(priv->channel =
 #ifdef WIN32
-	      g_io_channel_win32_new_socket(_get_osfhandle(fd))
+	      g_io_channel_win32_new_socket(_get_osfhandle(priv->fd))
 #else
-	      g_io_channel_unix_new(fd)
+	      g_io_channel_unix_new(priv->fd)
 #endif
 	      )) {
 		GVNC_DEBUG ("Failed to g_io_channel_unix_new()");
 		return FALSE;
 	}
-	priv->fd = fd;
 
 	return !vnc_connection_has_error(conn);
 }
 
-gboolean vnc_connection_open_host(VncConnection *conn, const char *host, const char *port)
+static gboolean vnc_connection_open_host_internal(VncConnection *conn)
 {
 	VncConnectionPrivate *priv = conn->priv;
         struct addrinfo *ai, *runp, hints;
         int ret;
-	if (vnc_connection_is_open(conn))
-		return FALSE;
 
-	priv->host = g_strdup(host);
-	priv->port = g_strdup(port);
-
-        GVNC_DEBUG("Resolving host %s %s", host, port);
+        GVNC_DEBUG("Resolving host %s %s", priv->host, priv->port);
         memset (&hints, '\0', sizeof (hints));
         hints.ai_flags = AI_ADDRCONFIG;
         hints.ai_socktype = SOCK_STREAM;
         hints.ai_protocol = IPPROTO_TCP;
 
-        if ((ret = getaddrinfo(host, port, &hints, &ai)) != 0) {
+        if ((ret = getaddrinfo(priv->host, priv->port, &hints, &ai)) != 0) {
 		GVNC_DEBUG ("Failed to resolve hostname");
 		return FALSE;
 	}
@@ -4324,6 +4395,121 @@ gboolean vnc_connection_open_host(VncConnection *conn, const char *host, const c
         }
         freeaddrinfo (ai);
 	return FALSE;
+}
+
+
+/* we use an idle function to allow the coroutine to exit before we actually
+ * unref the object since the coroutine's state is part of the object */
+static gboolean vnc_connection_delayed_unref(gpointer data)
+{
+	VncConnection *conn = VNC_CONNECTION(data);
+	VncConnectionPrivate *priv = conn->priv;
+
+	GVNC_DEBUG("Delayed unref VncConnection=%p", conn);
+
+	g_assert(priv->coroutine.exited == TRUE);
+
+ 	g_object_unref(G_OBJECT(data));
+
+	return FALSE;
+}
+
+static void *vnc_connection_coroutine(void *opaque)
+{
+	VncConnection *conn = VNC_CONNECTION(opaque);
+	VncConnectionPrivate *priv = conn->priv;
+	int ret;
+	struct signal_data s;
+
+	GVNC_DEBUG("Started background coroutine");
+
+	if (priv->fd != -1) {
+		if (!vnc_connection_open_fd_internal(conn))
+			goto cleanup;
+	} else {
+		if (!vnc_connection_open_host_internal(conn))
+			goto cleanup;
+	}
+
+	vnc_connection_emit_main_context(conn, VNC_CONNECTED, &s);
+
+	GVNC_DEBUG("Protocol initialization");
+	if (!vnc_connection_initialize(conn))
+		goto cleanup;
+
+	vnc_connection_emit_main_context(conn, VNC_INITIALIZED, &s);
+
+	GVNC_DEBUG("Running main loop");
+	while ((ret = vnc_connection_server_message(conn)))
+		;
+
+ cleanup:
+	GVNC_DEBUG("Doing final VNC cleanup");
+	vnc_connection_close(conn);
+	vnc_connection_emit_main_context(conn, VNC_DISCONNECTED, &s);
+	g_idle_add(vnc_connection_delayed_unref, conn);
+	/* Co-routine exits now - the VncDisplay object may no longer exist,
+	   so don't do anything else now unless you like SEGVs */
+	return NULL;
+}
+
+static gboolean do_vnc_connection_open(gpointer data)
+{
+	VncConnection *conn = VNC_CONNECTION(data);
+	VncConnectionPrivate *priv = conn->priv;
+	struct coroutine *co;
+
+	GVNC_DEBUG("Open coroutine starting");
+	priv->open_id = 0;
+
+	co = &priv->coroutine;
+
+	co->stack_size = 16 << 20;
+	co->entry = vnc_connection_coroutine;
+	co->release = NULL;
+
+	coroutine_init(co);
+	coroutine_yieldto(co, conn);
+
+	return FALSE;
+}
+
+gboolean vnc_connection_open_fd(VncConnection *conn, int fd)
+{
+	VncConnectionPrivate *priv = conn->priv;
+
+	GVNC_DEBUG("Open fd=%d", fd);
+
+	if (vnc_connection_is_open(conn))
+		return FALSE;
+
+	priv->fd = fd;
+	priv->host = NULL;
+	priv->port = NULL;
+
+	g_object_ref(G_OBJECT(conn)); /* Unref'd when co-routine exits */
+	priv->open_id = g_idle_add(do_vnc_connection_open, conn);
+
+	return TRUE;
+}
+
+gboolean vnc_connection_open_host(VncConnection *conn, const char *host, const char *port)
+{
+	VncConnectionPrivate *priv = conn->priv;
+
+	GVNC_DEBUG("Open host=%s port=%s", host, port);
+
+	if (vnc_connection_is_open(conn))
+		return FALSE;
+
+	priv->fd = -1;
+	priv->host = g_strdup(host);
+	priv->port = g_strdup(port);
+
+	g_object_ref(G_OBJECT(conn)); /* Unref'd when co-routine exits */
+	priv->open_id = g_idle_add(do_vnc_connection_open, conn);
+
+	return TRUE;
 }
 
 
@@ -4513,7 +4699,7 @@ int vnc_connection_get_height(VncConnection *conn)
 	return priv->height;
 }
 
-gboolean vnc_connection_using_raw_keycodes(VncConnection *conn)
+gboolean vnc_connection_get_ext_key_event(VncConnection *conn)
 {
 	VncConnectionPrivate *priv = conn->priv;
 
@@ -4528,7 +4714,7 @@ VncCursor *vnc_connection_get_cursor(VncConnection *conn)
 }
 
 
-gboolean vnc_connection_abs_pointer(VncConnection *conn)
+gboolean vnc_connection_get_abs_pointer(VncConnection *conn)
 {
 	VncConnectionPrivate *priv = conn->priv;
 

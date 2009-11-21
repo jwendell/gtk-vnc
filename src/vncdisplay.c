@@ -22,7 +22,6 @@
 #include <locale.h>
 
 #include "vncdisplay.h"
-#include "coroutine.h"
 #include "vncconnection.h"
 #include "vncimageframebuffer.h"
 #include "utils.h"
@@ -53,19 +52,14 @@ static void winsock_cleanup (void);
 
 struct _VncDisplayPrivate
 {
-	int fd;
-	char *host;
-	char *port;
 	GdkGC *gc;
 	GdkPixmap *pixmap;
 	GdkCursor *null_cursor;
 	GdkCursor *remote_cursor;
 
-	struct coroutine coroutine;
 	VncConnection *conn;
 	VncImageFramebuffer *fb;
 
-	guint open_id;
 	VncDisplayDepthColor depth;
 
 	gboolean in_pointer_grab;
@@ -91,23 +85,6 @@ struct _VncDisplayPrivate
 
 	GSList *preferable_auths;
 	const guint8 const *keycode_map;
-};
-
-/* Delayed signal emission.
- *
- * We want signals to be delivered in the system coroutine.  This helps avoid
- * confusing applications.  This is particularly important when using
- * GThread based coroutines since GTK gets very upset if a signal handler is
- * run in a different thread from the main loop if that signal handler isn't
- * written to use explicit locking.
- */
-struct signal_data
-{
-	VncDisplay *obj;
-	struct coroutine *caller;
-
-	int signum;
-	GValueArray *cred_list;
 };
 
 G_DEFINE_TYPE(VncDisplay, vnc_display, GTK_TYPE_DRAWING_AREA)
@@ -881,39 +858,13 @@ static void on_framebuffer_update(VncConnection *conn G_GNUC_UNUSED,
 	}
 
 	gtk_widget_queue_draw_area(widget, x, y, w + 1, h + 1);
+
+	vnc_connection_framebuffer_update_request(priv->conn, 1,
+						  0, 0,
+						  vnc_connection_get_width(priv->conn),
+						  vnc_connection_get_height(priv->conn));
 }
 
-
-static gboolean emit_signal_auth_cred(gpointer opaque)
-{
-	struct signal_data *s = opaque;
-
-	switch (s->signum) {
-	case VNC_CONNECTED:
-	case VNC_INITIALIZED:
-	case VNC_DISCONNECTED:
-		g_signal_emit(G_OBJECT(s->obj),
-			      signals[s->signum],
-			      0);
-		break;
-	}
-
-	coroutine_yieldto(s->caller, NULL);
-
-	return FALSE;
-}
-
-/* This function should be used to emit signals from VncConnection callbacks */
-static void emit_signal_delayed(VncDisplay *obj, int signum,
-				struct signal_data *data)
-{
-	data->obj = obj;
-	data->caller = coroutine_self();
-	data->signum = signum;
-
-	g_idle_add(emit_signal_auth_cred, data);
-	coroutine_yield(NULL);
-}
 
 static void do_framebuffer_init(VncDisplay *obj,
 				const VncPixelFormat *remoteFormat,
@@ -1263,37 +1214,24 @@ static gboolean check_pixbuf_support(const char *name)
 	return !!(i);
 }
 
-/* we use an idle function to allow the coroutine to exit before we actually
- * unref the object since the coroutine's state is part of the object */
-static gboolean delayed_unref_object(gpointer data)
+static void on_connected(VncConnection *conn G_GNUC_UNUSED,
+			 gpointer opaque)
 {
-	VncDisplay *obj = VNC_DISPLAY(data);
+	VncDisplay *obj = VNC_DISPLAY(opaque);
 
-	g_assert(obj->priv->coroutine.exited == TRUE);
-
-	if (obj->priv->fb) {
-		g_object_unref(obj->priv->fb);
-		obj->priv->fb = NULL;
-	}
-	if (obj->priv->pixmap) {
-		g_object_unref(obj->priv->pixmap);
-		obj->priv->pixmap = NULL;
-	}
-
-	g_object_unref(G_OBJECT(data));
-
-	winsock_cleanup ();
-
-	return FALSE;
+	g_signal_emit(G_OBJECT(obj), signals[VNC_CONNECTED], 0);
+	GVNC_DEBUG("Connected to VNC server");
 }
 
-static void *vnc_coroutine(void *opaque)
+
+static void on_initialized(VncConnection *conn G_GNUC_UNUSED,
+			   gpointer opaque)
 {
 	VncDisplay *obj = VNC_DISPLAY(opaque);
 	VncDisplayPrivate *priv = obj->priv;
 
 	/* this order is extremely important! */
-	gint32 encodings[] = {	VNC_CONNECTION_ENCODING_TIGHT_JPEG5,
+	gint32 encodings[] = {  VNC_CONNECTION_ENCODING_TIGHT_JPEG5,
 				VNC_CONNECTION_ENCODING_TIGHT,
 				VNC_CONNECTION_ENCODING_EXT_KEY_EVENT,
 				VNC_CONNECTION_ENCODING_DESKTOP_RESIZE,
@@ -1308,40 +1246,15 @@ static void *vnc_coroutine(void *opaque)
 				VNC_CONNECTION_ENCODING_RAW };
 	gint32 *encodingsp;
 	int n_encodings;
-	int ret;
-	struct signal_data s;
-
-	if (priv->conn == NULL || vnc_connection_is_open(priv->conn)) {
-		g_idle_add(delayed_unref_object, obj);
-		return NULL;
-	}
-
-	GVNC_DEBUG("Started background coroutine");
-
-	if (priv->fd != -1) {
-		if (!vnc_connection_open_fd(priv->conn, priv->fd))
-			goto cleanup;
-	} else {
-		if (!vnc_connection_open_host(priv->conn, priv->host, priv->port))
-			goto cleanup;
-	}
-
-	emit_signal_delayed(obj, VNC_CONNECTED, &s);
-
-	GVNC_DEBUG("Protocol initialization");
-	if (!vnc_connection_initialize(priv->conn, priv->shared_flag))
-		goto cleanup;
 
 	if (!vnc_display_set_preferred_pixel_format(obj))
-		goto cleanup;
+		goto error;
 
 	do_framebuffer_init(obj,
 			    vnc_connection_get_pixel_format(priv->conn),
 			    vnc_connection_get_width(priv->conn),
 			    vnc_connection_get_height(priv->conn),
 			    FALSE);
-
-	emit_signal_delayed(obj, VNC_INITIALIZED, &s);
 
 	encodingsp = encodings;
 	n_encodings = G_N_ELEMENTS(encodings);
@@ -1357,110 +1270,75 @@ static void *vnc_coroutine(void *opaque)
 	}
 
 	if (!vnc_connection_set_encodings(priv->conn, n_encodings, encodingsp))
-			goto cleanup;
+		goto error;
 
 	if (!vnc_connection_framebuffer_update_request(priv->conn, 0, 0, 0,
 						       vnc_connection_get_width(priv->conn),
 						       vnc_connection_get_height(priv->conn)))
-		goto cleanup;
+		goto error;
 
-	GVNC_DEBUG("Running main loop");
-	while ((ret = vnc_connection_server_message(priv->conn))) {
-		if (!vnc_connection_framebuffer_update_request(priv->conn, 1, 0, 0,
-							       vnc_connection_get_width(priv->conn),
-							       vnc_connection_get_height(priv->conn)))
-			goto cleanup;
-	}
+	g_signal_emit(G_OBJECT(obj), signals[VNC_INITIALIZED], 0);
 
- cleanup:
-	GVNC_DEBUG("Doing final VNC cleanup");
-	vnc_connection_close(priv->conn);
-	emit_signal_delayed(obj, VNC_DISCONNECTED, &s);
-	g_idle_add(delayed_unref_object, obj);
-	/* Co-routine exits now - the VncDisplay object may no longer exist,
-	   so don't do anything else now unless you like SEGVs */
-	return NULL;
+	GVNC_DEBUG("Initialized VNC server");
+	return;
+
+ error:
+	vnc_connection_shutdown(priv->conn);
 }
 
-static gboolean do_vnc_display_open(gpointer data)
+
+static void on_disconnected(VncConnection *conn G_GNUC_UNUSED,
+			    gpointer opaque)
 {
-	VncDisplay *obj = VNC_DISPLAY(data);
-	struct coroutine *co;
+	VncDisplay *obj = VNC_DISPLAY(opaque);
+	GVNC_DEBUG("Disconnected from VNC server");
 
-	if (obj->priv->conn == NULL || vnc_connection_is_open(obj->priv->conn)) {
-		g_object_unref(G_OBJECT(obj));
-		return FALSE;
-	}
-
-	obj->priv->open_id = 0;
-
-	co = &obj->priv->coroutine;
-
-	co->stack_size = 16 << 20;
-	co->entry = vnc_coroutine;
-	co->release = NULL;
-
-	coroutine_init(co);
-	coroutine_yieldto(co, obj);
-
-	return FALSE;
+	g_signal_emit(G_OBJECT(obj), signals[VNC_DISCONNECTED], 0);
+	g_object_unref(G_OBJECT(obj));
 }
+
 
 gboolean vnc_display_open_fd(VncDisplay *obj, int fd)
 {
-	if (obj->priv->conn == NULL || vnc_connection_is_open(obj->priv->conn))
+	VncDisplayPrivate *priv = obj->priv;
+
+	if (vnc_connection_is_open(priv->conn))
 		return FALSE;
 
-	obj->priv->fd = fd;
-	obj->priv->host = NULL;
-	obj->priv->port = NULL;
+	if (!vnc_connection_open_fd(priv->conn, fd))
+		return FALSE;
 
-	g_object_ref(G_OBJECT(obj)); /* Unref'd when co-routine exits */
-	obj->priv->open_id = g_idle_add(do_vnc_display_open, obj);
+	g_object_ref(G_OBJECT(obj));
 
 	return TRUE;
 }
 
 gboolean vnc_display_open_host(VncDisplay *obj, const char *host, const char *port)
 {
-	if (obj->priv->conn == NULL || vnc_connection_is_open(obj->priv->conn))
+	VncDisplayPrivate *priv = obj->priv;
+
+	if (vnc_connection_is_open(priv->conn))
 		return FALSE;
 
-	obj->priv->host = g_strdup(host);
-	if (!obj->priv->host) {
+	if (!vnc_connection_open_host(priv->conn, host, port))
 		return FALSE;
-	}
-	obj->priv->port = g_strdup(port);
-	if (!obj->priv->port) {
-		g_free(obj->priv->host);
-		obj->priv->host = NULL;
-		return FALSE;
-	}
 
-	g_object_ref(G_OBJECT(obj)); /* Unref'd when co-routine exits */
-	obj->priv->open_id = g_idle_add(do_vnc_display_open, obj);
+	g_object_ref(G_OBJECT(obj));
+
 	return TRUE;
 }
 
 gboolean vnc_display_is_open(VncDisplay *obj)
 {
-	if (obj->priv->conn == NULL)
-		return FALSE;
-	return vnc_connection_is_open(obj->priv->conn);
+	VncDisplayPrivate *priv = obj->priv;
+
+	return vnc_connection_is_open(priv->conn);
 }
 
 void vnc_display_close(VncDisplay *obj)
 {
 	VncDisplayPrivate *priv = obj->priv;
 	GtkWidget *widget = GTK_WIDGET(obj);
-
-	if (priv->open_id) {
-		g_source_remove(priv->open_id);
-		obj->priv->open_id = 0;
-	}
-
-	if (priv->conn == NULL)
-		return;
 
 	if (vnc_connection_is_open(priv->conn)) {
 		GVNC_DEBUG("Requesting graceful shutdown of connection");
@@ -1538,7 +1416,7 @@ void vnc_display_send_pointer(VncDisplay *obj, gint x, gint y, int button_mask)
 static void vnc_display_destroy (GtkObject *obj)
 {
 	VncDisplay *display = VNC_DISPLAY (obj);
-	GVNC_DEBUG("Requesting that VNC close");
+	GVNC_DEBUG("Display destroy, requesting that VNC connection close");
 	vnc_display_close(display);
 	GTK_OBJECT_CLASS (vnc_display_parent_class)->destroy (obj);
 }
@@ -1576,14 +1454,13 @@ static void vnc_display_finalize (GObject *obj)
 		priv->gc = NULL;
 	}
 
-	g_free (priv->host);
-	g_free (priv->port);
-
 	g_slist_free (priv->preferable_auths);
 
 	vnc_display_keyval_free_entries();
 
 	G_OBJECT_CLASS (vnc_display_parent_class)->finalize (obj);
+
+	winsock_cleanup();
 }
 
 static void vnc_display_class_init(VncDisplayClass *klass)
@@ -1919,8 +1796,7 @@ static void vnc_display_init(VncDisplay *display)
 	memset(priv, 0, sizeof(VncDisplayPrivate));
 	priv->last_x = -1;
 	priv->last_y = -1;
-	priv->absolute = 1;
-	priv->fd = -1;
+	priv->absolute = TRUE;
 	priv->read_only = FALSE;
 	priv->allow_lossy = FALSE;
 	priv->allow_scaling = FALSE;
@@ -1976,6 +1852,12 @@ static void vnc_display_init(VncDisplay *display)
 			 G_CALLBACK(on_auth_choose_type), display);
 	g_signal_connect(G_OBJECT(priv->conn), "vnc-auth-choose-subtype",
 			 G_CALLBACK(on_auth_choose_subtype), display);
+	g_signal_connect(G_OBJECT(priv->conn), "vnc-connected",
+			 G_CALLBACK(on_connected), display);
+	g_signal_connect(G_OBJECT(priv->conn), "vnc-initialized",
+			 G_CALLBACK(on_initialized), display);
+	g_signal_connect(G_OBJECT(priv->conn), "vnc-disconnected",
+			 G_CALLBACK(on_disconnected), display);
 
 	priv->keycode_map = vnc_display_keymap_x2pc_table();
 }
