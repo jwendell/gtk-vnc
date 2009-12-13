@@ -18,6 +18,10 @@ dnl ****************************************************************************
 dnl Declare required library versions
 dnl *******************************************************************************
 
+GOBJECT_REQUIRED=2.10.0
+AC_SUBST(GOBJECT_REQUIRED)
+GDK_PIXBUF_REQUIRED=2.10.0
+AC_SUBST(GDK_PIXBUF_REQUIRED)
 GTK_REQUIRED=2.14.0
 AC_SUBST(GTK_REQUIRED)
 GNUTLS_REQUIRED=1.4.0
@@ -91,14 +95,18 @@ WITH_EXAMPLES=$withval
 
 
 dnl check ld support --version-script
-ld --help>/tmp/$$ 2>&1
-if `cat /tmp/$$|grep version-script>/dev/null 2>&1`; then
-LD_VERSION_SCRIPT_SUPPORT='--version-script=$(srcdir)/libgtk-vnc_sym.version'
-else
-LD_VERSION_SCRIPT_SUPPORT="export-symbols-regex 'vnc_'"
-fi
-rm /tmp/$$
-AC_SUBST(LD_VERSION_SCRIPT_SUPPORT)
+VERSION_SCRIPT_FLAGS=-Wl,--version-script=
+`ld --help 2>&1 | grep -- --version-script >/dev/null` || \
+    VERSION_SCRIPT_FLAGS="-Wl,-M -Wl,"
+AC_SUBST(VERSION_SCRIPT_FLAGS)
+
+PKG_CHECK_MODULES(GOBJECT, gobject-2.0 >= $GOBJECT_REQUIRED)
+AC_SUBST(GTK_CFLAGS)
+AC_SUBST(GTK_LIBS)
+
+PKG_CHECK_MODULES(GDK_PIXBUF, gdk-pixbuf-2.0 >= $GDK_PIXBUF_REQUIRED)
+AC_SUBST(GDK_PIXBUF_CFLAGS)
+AC_SUBST(GDK_PIXBUF_LIBS)
 
 PKG_CHECK_MODULES(GTK, gtk+-2.0 >= $GTK_REQUIRED)
 AC_SUBST(GTK_CFLAGS)
@@ -302,6 +310,7 @@ AC_CONFIG_FILES(
   examples/Makefile
   plugin/Makefile
   po/Makefile.in
+  gvnc-1.0.pc
   gtk-vnc-1.0.pc
   gtk-vnc.spec
   mingw32-gtk-vnc.spec

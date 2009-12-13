@@ -64,6 +64,10 @@
 
     vnc_display_request_update;
 
+    vnc_image_framebuffer_get_type;
+    vnc_image_framebuffer_new;
+    vnc_image_framebuffer_get_image;
+
   local:
       *;
 };

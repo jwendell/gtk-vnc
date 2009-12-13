@@ -1,0 +1,65 @@
+{
+    global:
+	vnc_cursor_get_type;
+	vnc_cursor_new;
+	vnc_cursor_get_data;
+	vnc_cursor_get_hotx;
+	vnc_cursor_get_hoty;
+	vnc_cursor_get_width;
+	vnc_cursor_get_height;
+
+	vnc_framebuffer_get_type;
+	vnc_framebuffer_get_width;
+	vnc_framebuffer_get_height;
+	vnc_framebuffer_get_rowstride;
+	vnc_framebuffer_get_buffer;
+	vnc_framebuffer_get_local_format;
+	vnc_framebuffer_get_remote_format;
+	vnc_framebuffer_perfect_format_match;
+	vnc_framebuffer_set_pixel_at;
+	vnc_framebuffer_fill;
+	vnc_framebuffer_copyrect;
+	vnc_framebuffer_blt;
+	vnc_framebuffer_rgb24_blt;
+
+	vnc_base_framebuffer_get_type;
+	vnc_base_framebuffer_new;
+
+	vnc_connection_get_type;
+	vnc_connection_new;
+	vnc_connection_open_fd;
+	vnc_connection_open_host;
+	vnc_connection_is_open;
+	vnc_connection_shutdown;
+	vnc_connection_set_auth_type;
+	vnc_connection_set_auth_subtype;
+	vnc_connection_set_credential;
+	vnc_connection_is_initialized;
+	vnc_connection_client_cut_text;
+	vnc_connection_pointer_event;
+	vnc_connection_key_event;
+	vnc_connection_framebuffer_update_request;
+	vnc_connection_set_encodings;
+	vnc_connection_set_pixel_format;
+	vnc_connection_get_pixel_format;
+	vnc_connection_set_shared;
+	vnc_connection_get_shared;
+	vnc_connection_has_error;
+	vnc_connection_set_framebuffer;
+	vnc_connection_get_name;
+	vnc_connection_get_width;
+	vnc_connection_get_height;
+	vnc_connection_get_cursor;
+	vnc_connection_get_abs_pointer;
+	vnc_connection_get_ext_key_event;
+	vnc_connection_encoding_get_type;
+	vnc_connection_auth_get_type;
+	vnc_connection_auth_vencrypt_get_type;
+	vnc_connection_credential_get_type;
+
+	vnc_util_set_debug;
+	vnc_util_get_debug;
+
+    local:
+	*;
+};

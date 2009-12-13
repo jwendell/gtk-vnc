@@ -1,10 +1,11 @@
 SUBDIRS = gnulib/lib src examples plugin gnulib/tests po
 ACLOCAL_AMFLAGS = -I m4 -I gnulib/m4
 
-pkgconfig_DATA = @PACKAGE@-1.0.pc
+pkgconfig_DATA = @PACKAGE@-1.0.pc gvnc-1.0.pc
 pkgconfigdir = $(libdir)/pkgconfig
 
 EXTRA_DIST =				\
+	gvnc-1.0.pc.in			\
 	$(PACKAGE)-1.0.pc.in		\
 	$(PACKAGE).spec.in		\
 	$(PACKAGE).spec			\

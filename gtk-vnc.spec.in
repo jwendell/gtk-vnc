@@ -31,7 +31,7 @@ allowing it to be completely asynchronous while remaining single threaded.
 %package devel
 Summary: Libraries, includes, etc. to compile with the gtk-vnc library
 Group: Development/Libraries
-Requires: %{name} = %{version}
+Requires: %{name} = %{version}-%{release}
 Requires: pkgconfig
 Requires: pygtk2-devel gtk2-devel
 
@@ -65,6 +65,27 @@ allowing it to be completely asynchronous while remaining single threaded.
 This package provides a web browser plugin for Mozilla compatible
 browsers.
 %endif
+
+%package -n gvnc
+Summary: A GObject for VNC connections
+
+%description -n gvnc
+gvnc is a GObject for managing a VNC connection. It provides all the
+infrastructure required to build a VNC client without having to deal
+with the raw protocol itself.
+
+%package -n gvnc-devel
+Summary: Libraries, includes, etc. to compile with the gvnc library
+Group: Development/Libraries
+Requires: gvnc = %{version}-%{release}
+Requires: pkgconfig
+
+%description -n gvnc-devel
+gvnc is a GObject for managing a VNC connection. It provides all the
+infrastructure required to build a VNC client without having to deal
+with the raw protocol itself.
+
+Libraries, includes, etc. to compile with the gvnc library
 
 %prep
 %setup -q
@@ -100,14 +121,13 @@ rm -fr %{buildroot}
 %files -f %{name}.lang
 %defattr(-, root, root)
 %doc AUTHORS ChangeLog NEWS README COPYING.LIB
-%{_libdir}/lib*.so.*
+%{_libdir}/libgtk-vnc-1.0.so.*
 
 %files devel
 %defattr(-, root, root)
 %doc AUTHORS ChangeLog NEWS README COPYING.LIB
 %doc examples/gvncviewer.c
-%{_libdir}/lib*.so
-%dir %{_includedir}/%{name}-1.0/
+%{_libdir}/libgtk-vnc-1.0.so
 %{_includedir}/%{name}-1.0/*.h
 %{_libdir}/pkgconfig/%{name}-1.0.pc
 
@@ -122,6 +142,19 @@ rm -fr %{buildroot}
 %defattr(-, root, root)
 %{_libdir}/mozilla/plugins/%{name}-plugin.so
 %endif
+
+%files -n gvnc
+%defattr(-, root, root)
+%doc AUTHORS ChangeLog NEWS README COPYING.LIB
+%{_libdir}/libgvnc-1.0.so.*
+
+%files -n gvnc-devel
+%defattr(-, root, root)
+%doc AUTHORS ChangeLog NEWS README COPYING.LIB
+%{_libdir}/libgvnc-1.0.so
+%dir %{_includedir}/%{name}-1.0/
+%{_includedir}/gvnc-1.0/*.h
+%{_libdir}/pkgconfig/gvnc-1.0.pc
 
 %changelog
 * Thu Sep 13 2007 Daniel P. Berrange <berrange@redhat.com> - 0.2.0-1

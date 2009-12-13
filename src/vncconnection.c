@@ -58,8 +58,6 @@
 
 #include <zlib.h>
 
-//#include <gdk/gdkkeysyms.h>
-
 #include "getaddrinfo.h"
 #include "dh.h"
 
