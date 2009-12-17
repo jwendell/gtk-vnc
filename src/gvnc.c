@@ -781,12 +781,58 @@ static void gvnc_debug_gnutls_log(int level, const char* str) {
 }
 #endif
 
+
+static int gvnc_tls_mutex_init (void **priv)
+{                                                                             \
+    GMutex *lock = NULL;
+    lock = g_mutex_new();
+    *priv = lock;
+    return 0;
+}
+
+static int gvnc_tls_mutex_destroy(void **priv)
+{
+    GMutex *lock = *priv;
+    g_mutex_free(lock);
+    return 0;
+}
+
+static int gvnc_tls_mutex_lock(void **priv)
+{
+    GMutex *lock = *priv;
+    g_mutex_lock(lock);
+    return 0;
+}
+
+static int gvnc_tls_mutex_unlock(void **priv)
+{
+    GMutex *lock = *priv;
+    g_mutex_unlock(lock);
+    return 0;
+}
+
+static struct gcry_thread_cbs gvnc_thread_impl = {
+    (GCRY_THREAD_OPTION_PTHREAD | (GCRY_THREAD_OPTION_VERSION << 8)),
+    NULL,
+    gvnc_tls_mutex_init,
+    gvnc_tls_mutex_destroy,
+    gvnc_tls_mutex_lock,
+    gvnc_tls_mutex_unlock,
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+};
+
+
 static gboolean gvnc_tls_initialize(void)
 {
 	static int tlsinitialized = 0;
 
 	if (tlsinitialized)
 		return TRUE;
+
+	if (g_thread_supported()) {
+		gcry_control(GCRYCTL_SET_THREAD_CBS, &gvnc_thread_impl);
+		gcry_check_version(NULL);
+	}
 
 	if (gnutls_global_init () < 0)
 		return FALSE;
