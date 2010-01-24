@@ -1,0 +1,108 @@
+# Punjabi translation for gtk-vnc.
+# Copyright (C) 2010 gtk-vnc's COPYRIGHT HOLDER
+# This file is distributed under the same license as the gtk-vnc package.
+#
+# A S Alam <aalam@users.sf.net>, 2010.
+msgid ""
+msgstr ""
+"Project-Id-Version: gtk-vnc master\n"
+"Report-Msgid-Bugs-To: http://bugzilla.gnome.org/enter_bug."
+"cgi?product=gtk-vnc&component=general\n"
+"POT-Creation-Date: 2009-12-17 18:24+0000\n"
+"PO-Revision-Date: 2010-01-24 08:57+0530\n"
+"Last-Translator: A S Alam <aalam@users.sf.net>\n"
+"Language-Team: ਪੰਜਾਬੀ <punjabi-users@lists.sf.net>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Lokalize 1.0\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+
+#: ../gnulib/lib/gai_strerror.c:44
+msgid "Address family for hostname not supported"
+msgstr "ਹੋਸਟ-ਨਾਂ ਲਈ ਐਡਰੈਸ ਫੈਮਲੀ ਸਹਾਇਕ ਨਹੀਂ"
+
+#: ../gnulib/lib/gai_strerror.c:45
+msgid "Temporary failure in name resolution"
+msgstr "ਆਰਜ਼ੀ ਤੌਰ ਉੱਤੇ ਨਾਂ ਲੱਭਣ ਲਈ ਫੇਲ੍ਹ"
+
+#: ../gnulib/lib/gai_strerror.c:46
+msgid "Bad value for ai_flags"
+msgstr "ai_flags ਲਈ ਗਲਤ ਮੁੱਲ"
+
+#: ../gnulib/lib/gai_strerror.c:47
+msgid "Non-recoverable failure in name resolution"
+msgstr "ਨਾਂ ਖੋਜ ਵਿੱਚ ਨਾ-ਪ੍ਰਾਪਤੀਯੋਗ ਗਲਤੀ"
+
+#: ../gnulib/lib/gai_strerror.c:48
+msgid "ai_family not supported"
+msgstr "ai_family ਸਹਾਇਕ ਨਹੀ ਹੈ"
+
+#: ../gnulib/lib/gai_strerror.c:49
+msgid "Memory allocation failure"
+msgstr "ਮੈਮੋਰੀ ਜਾਰੀ ਕਰਨ ਵਿੱਚ ਅਸਫ਼ਲ"
+
+#: ../gnulib/lib/gai_strerror.c:50
+msgid "No address associated with hostname"
+msgstr "ਹੋਸਟ ਨਾਂ ਨਾਲ ਕੋਈ ਐਡਰੈੱਸ ਸਬੰਧਤ ਨਹੀਂ"
+
+#: ../gnulib/lib/gai_strerror.c:51
+msgid "Name or service not known"
+msgstr "ਨਾਂ ਜਾਂ ਸਰਵਿਸ ਹਾਲੇ ਜਾਣੀ ਨਹੀਂ"
+
+#: ../gnulib/lib/gai_strerror.c:52
+msgid "Servname not supported for ai_socktype"
+msgstr "Servname ai_socktype ਲਈ ਸਹਾਇਕ ਨਹੀਂ"
+
+#: ../gnulib/lib/gai_strerror.c:53
+msgid "ai_socktype not supported"
+msgstr "ai_socktype ਸਹਾਇਕ ਨਹੀਂ ਹੈ"
+
+#: ../gnulib/lib/gai_strerror.c:54
+msgid "System error"
+msgstr "ਸਿਸਟਮ ਗਲਤੀ"
+
+#: ../gnulib/lib/gai_strerror.c:55
+msgid "Argument buffer too small"
+msgstr "ਆਰਗੂਮੈਂਟ ਬਫ਼ਰ ਬਹੁਤ ਛੋਟਾ ਹੈ"
+
+#: ../gnulib/lib/gai_strerror.c:57
+msgid "Processing request in progress"
+msgstr "ਕਾਰਵਾਈ ਮੰਗ ਜਾਰੀ ਹੈ"
+
+#: ../gnulib/lib/gai_strerror.c:58
+msgid "Request canceled"
+msgstr "ਮੰਗ ਰੱਦ ਕੀਤੀ"
+
+#: ../gnulib/lib/gai_strerror.c:59
+msgid "Request not canceled"
+msgstr "ਮੰਗ ਰੱਦ ਨਹੀਂ ਕੀਤੀ ਗਈ"
+
+#: ../gnulib/lib/gai_strerror.c:60
+msgid "All requests done"
+msgstr "ਸਭ ਮੰਗਾਂ ਪੂਰੀਆਂ"
+
+#: ../gnulib/lib/gai_strerror.c:61
+msgid "Interrupted by a signal"
+msgstr "ਸਿਗਨਲ ਨਾਲ ਦਖ਼ਲ"
+
+#: ../gnulib/lib/gai_strerror.c:62
+msgid "Parameter string not correctly encoded"
+msgstr "ਪੈਰਾਮੀਟਰ ਲਾਈਨ ਠੀਕ ਤਰ੍ਹਾਂ ਇੰਕੋਡ ਨਹੀਂ ਕੀਤੀ ਗਈ"
+
+#: ../gnulib/lib/gai_strerror.c:74
+msgid "Unknown error"
+msgstr "ਅਣਜਾਣ ਗਲਤੀ"
+
+#: ../src/vncdisplay.c:171
+msgid "Enables debug output"
+msgstr "ਡੀਬੱਗ ਆਉਟਪੁੱਟ ਯੋਗ"
+
+#: ../src/vncdisplay.c:2317
+msgid "GTK-VNC Options:"
+msgstr "GTK-VNC ਚੋਣਾਂ:"
+
+#: ../src/vncdisplay.c:2317
+msgid "Show GTK-VNC Options"
+msgstr "GTK-VNC ਚੋਣਾਂ ਵੇਖੋ"
+
