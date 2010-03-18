@@ -781,6 +781,9 @@ static gboolean enter_event(GtkWidget *widget, GdkEventCrossing *crossing G_GNUC
         if (priv->grab_keyboard)
                 do_keyboard_grab(VNC_DISPLAY(widget), FALSE);
 
+        if (priv->local_pointer)
+                do_pointer_show(VNC_DISPLAY(widget));
+
         return TRUE;
 }
 
