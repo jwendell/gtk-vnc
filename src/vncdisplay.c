@@ -311,7 +311,7 @@ static gboolean expose_event(GtkWidget *widget, GdkEventExpose *expose)
 		   expose->area.width,
 		   expose->area.height);
 
-	gdk_drawable_get_size(widget->window, &ww, &wh);
+	gdk_drawable_get_size(gtk_widget_get_window(widget), &ww, &wh);
 
 	if (ww > priv->fb.width)
 		mx = (ww - priv->fb.width) / 2;
@@ -319,7 +319,7 @@ static gboolean expose_event(GtkWidget *widget, GdkEventExpose *expose)
 		my = (wh - priv->fb.height) / 2;
 
 #if WITH_GTK_CAIRO
-	cr = gdk_cairo_create(GTK_WIDGET(obj)->window);
+	cr = gdk_cairo_create(gtk_widget_get_window(GTK_WIDGET(obj)));
 	cairo_rectangle(cr,
 			expose->area.x,
 			expose->area.y,
@@ -408,7 +408,7 @@ static void do_keyboard_grab(VncDisplay *obj, gboolean quiet)
 {
 	VncDisplayPrivate *priv = obj->priv;
 
-	gdk_keyboard_grab(GTK_WIDGET(obj)->window,
+	gdk_keyboard_grab(gtk_widget_get_window(GTK_WIDGET(obj)),
 			  FALSE,
 			  GDK_CURRENT_TIME);
 	priv->in_keyboard_grab = TRUE;
@@ -430,14 +430,14 @@ static void do_keyboard_ungrab(VncDisplay *obj, gboolean quiet)
 static void do_pointer_hide(VncDisplay *obj)
 {
 	VncDisplayPrivate *priv = obj->priv;
-	gdk_window_set_cursor(GTK_WIDGET(obj)->window,
+	gdk_window_set_cursor(gtk_widget_get_window(GTK_WIDGET(obj)),
 			      priv->remote_cursor ? priv->remote_cursor : priv->null_cursor);
 }
 
 static void do_pointer_show(VncDisplay *obj)
 {
 	VncDisplayPrivate *priv = obj->priv;
-	gdk_window_set_cursor(GTK_WIDGET(obj)->window,
+	gdk_window_set_cursor(gtk_widget_get_window(GTK_WIDGET(obj)),
 			      priv->remote_cursor);
 }
 
@@ -457,7 +457,7 @@ static void do_pointer_grab(VncDisplay *obj, gboolean quiet)
 	 * what window the pointer is actally over, so use 'FALSE' for
 	 * 'owner_events' parameter
 	 */
-	gdk_pointer_grab(GTK_WIDGET(obj)->window,
+	gdk_pointer_grab(gtk_widget_get_window(GTK_WIDGET(obj)),
 			 FALSE, /* All events to come to our window directly */
 			 GDK_POINTER_MOTION_MASK |
 			 GDK_BUTTON_PRESS_MASK |
@@ -602,7 +602,7 @@ static gboolean motion_event(GtkWidget *widget, GdkEventMotion *motion)
 	if (priv->read_only)
 		return FALSE;
 
-	gdk_drawable_get_size(widget->window, &ww, &wh);
+	gdk_drawable_get_size(gtk_widget_get_window(widget), &ww, &wh);
 
 	/* First apply adjustments to the coords in the motion event */
 	if (priv->allow_scaling) {
@@ -631,7 +631,7 @@ static gboolean motion_event(GtkWidget *widget, GdkEventMotion *motion)
 
 	/* Next adjust the real client pointer */
 	if (!priv->absolute) {
-		GdkDrawable *drawable = GDK_DRAWABLE(widget->window);
+		GdkDrawable *drawable = GDK_DRAWABLE(gtk_widget_get_window(widget));
 		GdkDisplay *display = gdk_drawable_get_display(drawable);
 		GdkScreen *screen = gdk_drawable_get_screen(drawable);
 		int x = (int)motion->x_root;
@@ -839,7 +839,7 @@ static gboolean on_update(void *opaque, int x, int y, int w, int h)
 	gdk_draw_image(priv->pixmap, priv->gc, priv->image,
 		       x, y, x, y, w, h);
 
-	gdk_drawable_get_size(widget->window, &ww, &wh);
+	gdk_drawable_get_size(gtk_widget_get_window(widget), &ww, &wh);
 
 	if (priv->allow_scaling) {
 		double sx, sy;
@@ -876,10 +876,10 @@ static void setup_gdk_image(VncDisplay *obj, gint width, gint height)
 	VncDisplayPrivate *priv = obj->priv;
 	GdkVisual *visual;
 
-	visual = gdk_drawable_get_visual(GTK_WIDGET(obj)->window);
+	visual = gdk_drawable_get_visual(gtk_widget_get_window(GTK_WIDGET(obj)));
 
 	priv->image = gdk_image_new(GDK_IMAGE_FASTEST, visual, width, height);
-	priv->pixmap = gdk_pixmap_new(GTK_WIDGET(obj)->window, width, height, -1);
+	priv->pixmap = gdk_pixmap_new(gtk_widget_get_window(GTK_WIDGET(obj)), width, height, -1);
 
 	GVNC_DEBUG("Visual mask: %3d %3d %3d\n      shift: %3d %3d %3d",
 		   visual->red_mask,
@@ -994,7 +994,7 @@ static gboolean do_resize(void *opaque, int width, int height, gboolean quiet)
 			do_pointer_show(obj);
 		else if (priv->in_pointer_grab || priv->absolute)
 			do_pointer_hide(obj);
-		priv->gc = gdk_gc_new(GTK_WIDGET(obj)->window);
+		priv->gc = gdk_gc_new(gtk_widget_get_window(GTK_WIDGET(obj)));
 	}
 
 	setup_gdk_image(obj, width, height);
@@ -1028,7 +1028,7 @@ static gboolean on_get_preferred_pixel_format(void *opaque,
 	struct gvnc_pixel_format *fmt)
 {
 	VncDisplay *obj = VNC_DISPLAY(opaque);
-	GdkVisual *v =  gdk_drawable_get_visual(GTK_WIDGET(obj)->window);
+	GdkVisual *v =  gdk_drawable_get_visual(gtk_widget_get_window(GTK_WIDGET(obj)));
 
 	switch (obj->priv->depth) {
 	case VNC_DISPLAY_DEPTH_COLOR_DEFAULT:
@@ -1255,7 +1255,7 @@ static gboolean on_local_cursor(void *opaque, int x, int y, int width, int heigh
 	}
 
 	if (width && height) {
-		GdkDisplay *display = gdk_drawable_get_display(GDK_DRAWABLE(GTK_WIDGET(obj)->window));
+		GdkDisplay *display = gdk_drawable_get_display(GDK_DRAWABLE(gtk_widget_get_window(GTK_WIDGET(obj))));
 		GdkPixbuf *pixbuf = gdk_pixbuf_new_from_data(image, GDK_COLORSPACE_RGB,
 							     TRUE, 8, width, height,
 							     width * 4, NULL, NULL);
@@ -1537,10 +1537,10 @@ void vnc_display_close(VncDisplay *obj)
 		gvnc_shutdown(priv->gvnc);
 	}
 
-	if (widget->window) {
+	if (gtk_widget_get_window(widget)) {
 		gint width, height;
 
-		gdk_drawable_get_size(widget->window, &width, &height);
+		gdk_drawable_get_size(gtk_widget_get_window(widget), &width, &height);
 		gtk_widget_queue_draw_area(widget, 0, 0, width, height);
 	}
 }
@@ -2218,7 +2218,7 @@ gboolean vnc_display_set_scaling(VncDisplay *obj,
 	obj->priv->allow_scaling = enable;
 
 	if (obj->priv->pixmap != NULL) {
-		gdk_drawable_get_size(GTK_WIDGET(obj)->window, &ww, &wh);
+		gdk_drawable_get_size(gtk_widget_get_window(GTK_WIDGET(obj)), &ww, &wh);
 		gtk_widget_queue_draw_area(GTK_WIDGET(obj), 0, 0, ww, wh);
 	}
 

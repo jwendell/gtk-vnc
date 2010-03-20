@@ -18,7 +18,7 @@ dnl ****************************************************************************
 dnl Declare required library versions
 dnl *******************************************************************************
 
-GTK_REQUIRED=2.10.0
+GTK_REQUIRED=2.14.0
 AC_SUBST(GTK_REQUIRED)
 GNUTLS_REQUIRED=1.4.0
 AC_SUBST(GNUTLS_REQUIRED)

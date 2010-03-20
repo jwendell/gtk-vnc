@@ -22,7 +22,7 @@ BuildArch:      noarch
 BuildRequires:  mingw32-filesystem >= 30
 BuildRequires:  mingw32-gcc
 BuildRequires:  mingw32-binutils
-BuildRequires:  mingw32-gtk2
+BuildRequires:  mingw32-gtk2 >= 2.14
 BuildRequires:  mingw32-gnutls
 BuildRequires:  autoconf
 BuildRequires:  automake
