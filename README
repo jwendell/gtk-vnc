@@ -24,4 +24,23 @@ To browse or report bugs, go to our bugzilla page at:
 
   http://bugzilla.gnome.org/browse.cgi?product=gtk-vnc
 
+
+Installation caveats
+--------------------
+
+ * NetBSD: You must run configure using
+
+    --with-coroutine=gthread
+
+   since any app linking against NetBSD's libpthread.so is
+   forbidden from using swapcontext() calls, which is gtk-vnc's
+   default coroutine impl. For further information see
+
+    https://bugzilla.gnome.org/show_bug.cgi?id=566148
+    http://man.netbsd.org/cgi-bin/man-cgi?pthread++NetBSD-current
+
+ * MinGW: The SASL protocol extension is not available on
+   this platform
+
+
 -- End
