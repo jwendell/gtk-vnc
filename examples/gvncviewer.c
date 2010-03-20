@@ -84,9 +84,12 @@ static void vnc_ungrab(GtkWidget *vncdisplay, GtkWidget *window)
 	set_title(VNC_DISPLAY(vncdisplay), window, FALSE);
 }
 
+static int connected = 0;
+
 static void vnc_connected(GtkWidget *vncdisplay G_GNUC_UNUSED)
 {
 	printf("Connected to server\n");
+	connected = 1;
 }
 
 static void vnc_initialized(GtkWidget *vncdisplay, GtkWidget *window)
@@ -110,7 +113,10 @@ static void vnc_desktop_resize(GtkWidget *vncdisplay G_GNUC_UNUSED,
 
 static void vnc_disconnected(GtkWidget *vncdisplay G_GNUC_UNUSED)
 {
-	printf("Disconnected from server\n");
+	if(connected)
+		printf("Disconnected from server\n");
+	else
+		printf("Failed to connect to server\n");
 	gtk_main_quit();
 }
 
