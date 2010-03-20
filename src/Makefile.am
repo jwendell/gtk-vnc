@@ -15,7 +15,7 @@ libgtk_vnc_1_0_la_CFLAGS = @GTK_CFLAGS@ @GNUTLS_CFLAGS@ \
                            -DG_LOG_DOMAIN=\"gtk-vnc\" \
                            -I$(top_srcdir)/gnulib/lib -I../gnulib/lib
 libgtk_vnc_1_0_la_LDFLAGS = -Wl,@LD_VERSION_SCRIPT_SUPPORT@ \
-                            -version-info 0:1:0 -no-undefined
+                            -version-info 0:1:0 -Wl,--no-undefined
 
 gtk_vnc_includedir = $(includedir)/gtk-vnc-1.0/
 gtk_vnc_include_HEADERS = vncdisplay.h
