@@ -53,6 +53,17 @@
     vnc_display_set_force_size;
     vnc_display_get_force_size;
 
+# introduced with 0.3.8
+    vnc_display_get_option_entries;
+
+# introduced with 0.3.9
+    vnc_display_set_depth;
+    vnc_display_get_depth;
+
+    vnc_display_depth_color_get_type;
+
+    vnc_display_request_update;
+
   local:
       *;
 };
