@@ -715,10 +715,10 @@ static int vnc_connection_read_plain(VncConnection *conn)
  */
 static int vnc_connection_read_buf(VncConnection *conn)
 {
+#if HAVE_SASL
 	VncConnectionPrivate *priv = conn->priv;
 
 	//GVNC_DEBUG("Start read %d", priv->has_error);
-#if HAVE_SASL
 	if (priv->saslconn)
 		return vnc_connection_read_sasl(conn);
 	else

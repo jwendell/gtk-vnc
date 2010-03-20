@@ -274,10 +274,12 @@ static gboolean expose_event(GtkWidget *widget, GdkEventExpose *expose)
 	GdkRectangle drawn;
 	GdkRegion *clear, *copy;
 #endif
-	int fbw, fbh;
+	int fbw = 0, fbh = 0;
 
-	fbw = vnc_framebuffer_get_width(VNC_FRAMEBUFFER(priv->fb));
-	fbh = vnc_framebuffer_get_height(VNC_FRAMEBUFFER(priv->fb));
+	if (priv->fb) {
+		fbw = vnc_framebuffer_get_width(VNC_FRAMEBUFFER(priv->fb));
+		fbh = vnc_framebuffer_get_height(VNC_FRAMEBUFFER(priv->fb));
+	}
 
 	GVNC_DEBUG("Expose area %dx%d at location %d,%d",
 		   expose->area.width,
