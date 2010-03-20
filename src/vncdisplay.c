@@ -2018,10 +2018,11 @@ static void vnc_display_init(VncDisplay *display)
 	priv->gvnc = gvnc_new(&vnc_display_ops, obj);
 }
 
-char* vnc_display_best_path(const char *basedir,
-			    const char *basefile,
-			    char **dirs,
-			    unsigned int ndirs)
+static char *
+vnc_display_best_path(const char *basedir,
+		      const char *basefile,
+		      char **dirs,
+		      unsigned int ndirs)
 {
 	unsigned int i;
 	char *path;
@@ -2039,23 +2040,18 @@ static int vnc_display_set_x509_credential(VncDisplay *obj, const char *name)
 {
 	gboolean ret = FALSE;
 	char *file;
-	char *sysdir;
+	char *sysdir = g_strdup_printf("%s/pki", SYSCONFDIR);
 #ifndef WIN32
-	char *userdir;
 	struct passwd *pw;
+
+	if (!(pw = getpwuid(getuid())))
+		return TRUE;
+
+	char *userdir = g_strdup_printf("%s/.pki", pw->pw_dir);
 	char *dirs[] = { sysdir, userdir };
 #else
 	char *dirs[] = { sysdir };
 #endif
-
-#ifndef WIN32
-	if (!(pw = getpwuid(getuid())))
-		return TRUE;
-
-	userdir = g_strdup_printf("%s/.pki", pw->pw_dir);
-#endif
-
-	sysdir = g_strdup_printf("%s/pki", SYSCONFDIR);
 
 	if ((file = vnc_display_best_path("CA", "cacert.pem", dirs,
 				  sizeof(dirs)/sizeof(dirs[0]))) == NULL) {
