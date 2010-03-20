@@ -28,7 +28,6 @@ VIEW_REQUIRED=0.6.0
 GTHREAD_REQUIRED=2.0.0
 PYTHON_REQUIRED=2.4
 
-NSPR_REQUIRED=4.0.0
 FIREFOX_PLUGIN_REQUIRED=2.0.0
 MOZILLA_PLUGIN_REQUIRED=1.8
 
@@ -264,8 +263,6 @@ AC_ARG_ENABLE(plugin,
 	[  --enable-plugin=[no/yes] enable browser plugin [default=no]],,
 	enable_plugin=no)
 if test "x$enable_plugin" = "xyes"; then
-    dnl Check for Netscape Portable Runtime development package.
-    PKG_CHECK_MODULES(NSPR, nspr >= $NSPR_REQUIRED)
     dnl Check for Firefox plugin package (also includes NSPR cflags/libs).
     PKG_CHECK_MODULES(FIREFOX_PLUGIN,
                      firefox-plugin >= $FIREFOX_PLUGIN_REQUIRED, ,[
