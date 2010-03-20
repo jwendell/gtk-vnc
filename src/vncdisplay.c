@@ -2018,67 +2018,76 @@ static void vnc_display_init(VncDisplay *display)
 	priv->gvnc = gvnc_new(&vnc_display_ops, obj);
 }
 
-static int vnc_display_best_path(char *buf,
-				 int buflen,
-				 const char *basedir,
-				 const char *basefile,
-				 char **dirs,
-				 unsigned int ndirs)
+char* vnc_display_best_path(const char *basedir,
+			    const char *basefile,
+			    char **dirs,
+			    unsigned int ndirs)
 {
 	unsigned int i;
+	char *path;
 	for (i = 0 ; i < ndirs ; i++) {
 		struct stat sb;
-		snprintf(buf, buflen-1, "%s/%s/%s", dirs[i], basedir, basefile);
-		buf[buflen-1] = '\0';
-		if (stat(buf, &sb) == 0)
-			return 0;
+		path = g_strdup_printf ("%s/%s/%s", dirs[i], basedir, basefile);
+		if (stat(path, &sb) == 0)
+			return path;
+		g_free (path);
 	}
-	return -1;
+	return NULL;
 }
 
 static int vnc_display_set_x509_credential(VncDisplay *obj, const char *name)
 {
-	char file[PATH_MAX];
-	char sysdir[PATH_MAX];
+	gboolean ret = FALSE;
+	char *file;
+	char *sysdir;
 #ifndef WIN32
-	char userdir[PATH_MAX];
+	char *userdir;
 	struct passwd *pw;
 	char *dirs[] = { sysdir, userdir };
 #else
 	char *dirs[] = { sysdir };
 #endif
 
-	strncpy(sysdir, SYSCONFDIR "/pki", PATH_MAX-1);
-	sysdir[PATH_MAX-1] = '\0';
-
 #ifndef WIN32
 	if (!(pw = getpwuid(getuid())))
 		return TRUE;
 
-	snprintf(userdir, PATH_MAX-1, "%s/.pki", pw->pw_dir);
-	userdir[PATH_MAX-1] = '\0';
+	userdir = g_strdup_printf("%s/.pki", pw->pw_dir);
 #endif
 
-	if (vnc_display_best_path(file, PATH_MAX, "CA", "cacert.pem",
-				  dirs, sizeof(dirs)/sizeof(dirs[0])) < 0)
-		return TRUE;
+	sysdir = g_strdup_printf("%s/pki", SYSCONFDIR);
+
+	if ((file = vnc_display_best_path("CA", "cacert.pem", dirs,
+				  sizeof(dirs)/sizeof(dirs[0]))) == NULL) {
+		ret = TRUE;
+		goto ret;
+	}
 	gvnc_set_credential_x509_cacert(obj->priv->gvnc, file);
+	g_free (file);
 
 	/* Don't mind failures of CRL */
-	if (vnc_display_best_path(file, PATH_MAX, "CA", "cacrl.pem",
-				  dirs, sizeof(dirs)/sizeof(dirs[0])) == 0)
+	if ((file = vnc_display_best_path("CA", "cacrl.pem", dirs,
+				  sizeof(dirs)/sizeof(dirs[0]))) != NULL)
 		gvnc_set_credential_x509_cacert(obj->priv->gvnc, file);
+	g_free (file);
 
 	/* Set client key & cert if we have them. Server will reject auth
 	 * if it decides it requires them*/
-	if (vnc_display_best_path(file, PATH_MAX, name, "private/clientkey.pem",
-				  dirs, sizeof(dirs)/sizeof(dirs[0])) == 0)
+	if ((file = vnc_display_best_path(name, "private/clientkey.pem", dirs,
+				  sizeof(dirs)/sizeof(dirs[0]))) != NULL)
 		gvnc_set_credential_x509_key(obj->priv->gvnc, file);
-	if (vnc_display_best_path(file, PATH_MAX, name, "clientcert.pem",
-				  dirs, sizeof(dirs)/sizeof(dirs[0])) == 0)
+	g_free (file);
+	if ((file = vnc_display_best_path(name, "clientcert.pem", dirs,
+				  sizeof(dirs)/sizeof(dirs[0]))) != NULL)
 		gvnc_set_credential_x509_cert(obj->priv->gvnc, file);
+	g_free (file);
 
-	return FALSE;
+     ret:
+#ifndef WIN32
+	g_free (userdir);
+#endif
+	g_free (sysdir);
+	return ret;
 }
 
 gboolean vnc_display_set_credential(VncDisplay *obj, int type, const gchar *data)
