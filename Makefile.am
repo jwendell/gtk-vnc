@@ -49,4 +49,7 @@ MAINTAINERCLEANFILES = 		\
 	m4/ltversion.m4			\
 	`find "$(srcdir)" -type f -name Makefile.in -print`
 
+GITIGNOREFILES = plugin/gtk-vnc-plugin.la plugin/gtk-vnc-plugin.so
+
+
 -include $(top_srcdir)/git.mk
