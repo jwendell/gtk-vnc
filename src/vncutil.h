@@ -1,7 +1,7 @@
 /*
  * GTK VNC Widget
  *
- * Copyright (C) 2010 Daniel P. Berrange <berrange@redhat.coM>
+ * Copyright (C) 2010 Daniel P. Berrange <dan@berrange.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
