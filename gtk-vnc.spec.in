@@ -136,7 +136,6 @@ rm -fr %{buildroot}
 %defattr(-, root, root)
 %doc AUTHORS ChangeLog NEWS README COPYING.LIB
 %{_libdir}/libgtk-vnc-1.0.so.*
-%{_libdir}/lib*.so.*
 %if %{with_gir}
 %{_libdir}/girepository-1.0/GtkVnc-1.0.typelib
 %endif
@@ -146,6 +145,7 @@ rm -fr %{buildroot}
 %doc AUTHORS ChangeLog NEWS README COPYING.LIB
 %doc examples/gvncviewer.c
 %{_libdir}/libgtk-vnc-1.0.so
+%dir %{_includedir}/%{name}-1.0/
 %{_includedir}/%{name}-1.0/*.h
 %{_libdir}/pkgconfig/%{name}-1.0.pc
 %if %{with_gir}
@@ -168,14 +168,20 @@ rm -fr %{buildroot}
 %defattr(-, root, root)
 %doc AUTHORS ChangeLog NEWS README COPYING.LIB
 %{_libdir}/libgvnc-1.0.so.*
+%if %{with_gir}
+%{_libdir}/girepository-1.0/GVnc-1.0.typelib
+%endif
 
 %files -n gvnc-devel
 %defattr(-, root, root)
 %doc AUTHORS ChangeLog NEWS README COPYING.LIB
 %{_libdir}/libgvnc-1.0.so
-%dir %{_includedir}/%{name}-1.0/
+%dir %{_includedir}/gvnc-1.0/
 %{_includedir}/gvnc-1.0/*.h
 %{_libdir}/pkgconfig/gvnc-1.0.pc
+%if %{with_gir}
+%{_datadir}/gir-1.0/GVnc-1.0.gir
+%endif
 
 %changelog
 * Thu Sep 13 2007 Daniel P. Berrange <berrange@redhat.com> - 0.2.0-1
