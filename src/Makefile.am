@@ -195,7 +195,8 @@ GVNC_INTROSPECTION_SRCS = \
 			$(srcdir)/vncbaseframebuffer.h $(srcdir)/vncbaseframebuffer.c \
 			$(srcdir)/vnccursor.h $(srcdir)/vnccursor.c \
 			$(srcdir)/vncconnection.h $(srcdir)/vncconnection.c \
-			$(builddir)/vncconnectionenums.h $(builddir)/vncconnectionenums.c
+			$(builddir)/vncconnectionenums.h $(builddir)/vncconnectionenums.c \
+			$(srcdir)/vncutil.h $(srcdir)/vncutil.c
 
 GTK_VNC_INTROSPECTION_SRCS = \
 			$(srcdir)/vncimageframebuffer.h $(srcdir)/vncimageframebuffer.c \
