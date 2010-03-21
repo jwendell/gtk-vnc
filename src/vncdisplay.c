@@ -24,9 +24,8 @@
 #include "vncdisplay.h"
 #include "vncconnection.h"
 #include "vncimageframebuffer.h"
-#include "utils.h"
+#include "vncutil.h"
 #include "vncmarshal.h"
-#include "config.h"
 #include "vncdisplaykeymap.h"
 #include "vncdisplayenums.h"
 
@@ -134,12 +133,21 @@ typedef enum
 static guint signals[LAST_SIGNAL] = { 0, 0, 0, 0,
 				      0, 0, 0, 0,
 				      0, 0, 0, 0, 0,};
-gboolean debug_enabled = FALSE;
+
+static gboolean vnc_debug_option_arg(const gchar *option_name G_GNUC_UNUSED,
+				     const gchar *value G_GNUC_UNUSED,
+				     gpointer data G_GNUC_UNUSED,
+				     GError **error G_GNUC_UNUSED)
+{
+	vnc_util_set_debug(TRUE);
+	return TRUE;
+}
 
 static const GOptionEntry gtk_vnc_args[] =
 {
-  { "gtk-vnc-debug", 0, 0, G_OPTION_ARG_NONE, &debug_enabled, N_("Enables debug output"), 0 },
-  { NULL, 0, 0, G_OPTION_ARG_NONE, NULL, NULL, 0 }
+	{ "gtk-vnc-debug", 0, G_OPTION_FLAG_NO_ARG, G_OPTION_ARG_CALLBACK,
+	  vnc_debug_option_arg, N_("Enables debug output"), 0 },
+	{ NULL, 0, 0, G_OPTION_ARG_NONE, NULL, NULL, 0 }
 };
 
 
@@ -281,7 +289,7 @@ static gboolean expose_event(GtkWidget *widget, GdkEventExpose *expose)
 		fbh = vnc_framebuffer_get_height(VNC_FRAMEBUFFER(priv->fb));
 	}
 
-	GVNC_DEBUG("Expose area %dx%d at location %d,%d",
+	VNC_DEBUG("Expose area %dx%d at location %d,%d",
 		   expose->area.width,
 		   expose->area.height,
 		   expose->area.x,
@@ -676,7 +684,7 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *key)
 	if (priv->read_only)
 		return FALSE;
 
-	GVNC_DEBUG("%s keycode: %d  state: %d  group %d, keyval: %d",
+	VNC_DEBUG("%s keycode: %d  state: %d  group %d, keyval: %d",
 		   key->type == GDK_KEY_PRESS ? "press" : "release",
 		   key->hardware_keycode, key->state, key->group, keyval);
 
@@ -962,7 +970,7 @@ static gboolean vnc_display_set_preferred_pixel_format(VncDisplay *display)
 		 * fallthrough to next case
 		 */
 		if (currentFormat->true_color_flag == 1) {
-			GVNC_DEBUG ("Using default colour depth %d (%d bpp)",
+			VNC_DEBUG ("Using default colour depth %d (%d bpp)",
 				    currentFormat->depth, currentFormat->bits_per_pixel);
 			return TRUE;
 		}
@@ -1023,7 +1031,7 @@ static gboolean vnc_display_set_preferred_pixel_format(VncDisplay *display)
 		g_assert_not_reached ();
 	}
 
-	GVNC_DEBUG ("Set depth color to %d (%d bpp)", fmt.depth, fmt.bits_per_pixel);
+	VNC_DEBUG ("Set depth color to %d (%d bpp)", fmt.depth, fmt.bits_per_pixel);
 	if (!vnc_connection_set_pixel_format(priv->conn, &fmt))
 		return FALSE;
 
@@ -1157,7 +1165,7 @@ static void on_cursor_changed(VncConnection *conn G_GNUC_UNUSED,
 	VncDisplay *obj = VNC_DISPLAY(opaque);
 	VncDisplayPrivate *priv = obj->priv;
 
-	GVNC_DEBUG("Cursor changed %p x=%d y=%d w=%d h=%d",
+	VNC_DEBUG("Cursor changed %p x=%d y=%d w=%d h=%d",
 		   cursor,
 		   cursor ? vnc_cursor_get_hotx(cursor) : -1,
 		   cursor ? vnc_cursor_get_hoty(cursor) : -1,
@@ -1222,7 +1230,7 @@ static void on_connected(VncConnection *conn G_GNUC_UNUSED,
 	VncDisplay *obj = VNC_DISPLAY(opaque);
 
 	g_signal_emit(G_OBJECT(obj), signals[VNC_CONNECTED], 0);
-	GVNC_DEBUG("Connected to VNC server");
+	VNC_DEBUG("Connected to VNC server");
 }
 
 
@@ -1281,7 +1289,7 @@ static void on_initialized(VncConnection *conn G_GNUC_UNUSED,
 
 	g_signal_emit(G_OBJECT(obj), signals[VNC_INITIALIZED], 0);
 
-	GVNC_DEBUG("Initialized VNC server");
+	VNC_DEBUG("Initialized VNC server");
 	return;
 
  error:
@@ -1293,7 +1301,7 @@ static void on_disconnected(VncConnection *conn G_GNUC_UNUSED,
 			    gpointer opaque)
 {
 	VncDisplay *obj = VNC_DISPLAY(opaque);
-	GVNC_DEBUG("Disconnected from VNC server");
+	VNC_DEBUG("Disconnected from VNC server");
 
 	g_signal_emit(G_OBJECT(obj), signals[VNC_DISCONNECTED], 0);
 	g_object_unref(G_OBJECT(obj));
@@ -1343,7 +1351,7 @@ void vnc_display_close(VncDisplay *obj)
 	GtkWidget *widget = GTK_WIDGET(obj);
 
 	if (vnc_connection_is_open(priv->conn)) {
-		GVNC_DEBUG("Requesting graceful shutdown of connection");
+		VNC_DEBUG("Requesting graceful shutdown of connection");
 		vnc_connection_shutdown(priv->conn);
 	}
 
@@ -1418,7 +1426,7 @@ void vnc_display_send_pointer(VncDisplay *obj, gint x, gint y, int button_mask)
 static void vnc_display_destroy (GtkObject *obj)
 {
 	VncDisplay *display = VNC_DISPLAY (obj);
-	GVNC_DEBUG("Display destroy, requesting that VNC connection close");
+	VNC_DEBUG("Display destroy, requesting that VNC connection close");
 	vnc_display_close(display);
 	GTK_OBJECT_CLASS (vnc_display_parent_class)->destroy (obj);
 }
@@ -1429,7 +1437,7 @@ static void vnc_display_finalize (GObject *obj)
 	VncDisplay *display = VNC_DISPLAY (obj);
 	VncDisplayPrivate *priv = display->priv;
 
-	GVNC_DEBUG("Releasing VNC widget");
+	VNC_DEBUG("Releasing VNC widget");
 	if (vnc_connection_is_open(priv->conn)) {
 		g_warning("VNC widget finalized before the connection finished shutting down\n");
 	}
@@ -2110,7 +2118,7 @@ vnc_display_request_update(VncDisplay *obj)
 	if (!obj->priv->conn || !vnc_connection_is_initialized(obj->priv->conn))
 		return FALSE;
 
-	GVNC_DEBUG ("Requesting a full update");
+	VNC_DEBUG ("Requesting a full update");
 	return vnc_connection_framebuffer_update_request(obj->priv->conn,
 							 0,
 							 0,
@@ -2139,7 +2147,7 @@ winsock_startup (void)
 	winsock_version = MAKEWORD (2, 2);
 	err = WSAStartup (winsock_version, &winsock_data);
 	if (err != 0)
-		GVNC_DEBUG ("ignored error %d from WSAStartup", err);
+		VNC_DEBUG ("ignored error %d from WSAStartup", err);
 }
 
 static void

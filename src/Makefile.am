@@ -31,12 +31,12 @@ libgtk_vnc_1_0_la_SOURCES = blt.h blt1.h \
 	vncimageframebuffer.h vncimageframebuffer.c \
 	vnccursor.h vnccursor.c \
 	vncconnection.h vncconnection.c \
-        vncconnectionenums.h vncconnectionenums.c \
+	vncconnectionenums.h vncconnectionenums.c \
 	vncdisplay.h vncdisplay.c \
-        vncdisplayenums.h vncdisplayenums.c \
+	vncdisplayenums.h vncdisplayenums.c \
 	vncdisplaykeymap.h vncdisplaykeymap.c \
-        vncmarshal.h vncmarshal.c \
-	utils.h
+	vncmarshal.h vncmarshal.c \
+	vncutil.h vncutil.c
 
 if WITH_UCONTEXT
 libgtk_vnc_1_0_la_SOURCES += continuation.h continuation.c coroutine_ucontext.c

@@ -23,7 +23,7 @@
 #include <config.h>
 
 #include "dh.h"
-#include "utils.h"
+#include "vncutil.h"
 
 /*
  * General plan, as per gnutls_dh.c
@@ -144,7 +144,7 @@ gcry_mpi_t vnc_bytes_to_mpi(const guchar* value)
 
        error = gcry_mpi_scan(&ret, GCRYMPI_FMT_STD, value, 8, NULL);
        if (gcry_err_code (error) != GPG_ERR_NO_ERROR)
-         GVNC_DEBUG ("MPI error: %s", gcry_strerror (error));
+         VNC_DEBUG ("MPI error: %s", gcry_strerror (error));
 
        return ret;
 }

@@ -23,7 +23,7 @@
 #include <string.h>
 
 #include "vncbaseframebuffer.h"
-#include "utils.h"
+#include "vncutil.h"
 
 typedef void vnc_base_framebuffer_blt_func(VncBaseFramebufferPrivate *priv,
 					   guint8 *src,
@@ -563,7 +563,7 @@ static void vnc_base_framebuffer_reinit_render_funcs(VncBaseFramebuffer *fb)
 	priv->rm = priv->localFormat.red_max & priv->remoteFormat.red_max;
 	priv->gm = priv->localFormat.green_max & priv->remoteFormat.green_max;
 	priv->bm = priv->localFormat.blue_max & priv->remoteFormat.blue_max;
-	GVNC_DEBUG("Mask local: %3d %3d %3d\n"
+	VNC_DEBUG("Mask local: %3d %3d %3d\n"
 		   "    remote: %3d %3d %3d\n"
 		   "    merged: %3d %3d %3d",
 		   priv->localFormat.red_max, priv->localFormat.green_max, priv->localFormat.blue_max,
@@ -594,7 +594,7 @@ static void vnc_base_framebuffer_reinit_render_funcs(VncBaseFramebuffer *fb)
 		priv->gls++;
 	for (n = priv->localFormat.blue_max ; n > priv->remoteFormat.blue_max ; n>>= 1)
 		priv->bls++;
-	GVNC_DEBUG("Pixel shifts\n   right: %3d %3d %3d\n    left: %3d %3d %3d",
+	VNC_DEBUG("Pixel shifts\n   right: %3d %3d %3d\n    left: %3d %3d %3d",
 		   priv->rrs, priv->grs, priv->brs,
 		   priv->rls, priv->gls, priv->bls);
 

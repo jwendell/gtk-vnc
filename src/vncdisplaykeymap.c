@@ -10,7 +10,7 @@
 #include <gdk/gdk.h>
 #include <gdk/gdkkeysyms.h>
 #include "vncdisplaykeymap.h"
-#include "utils.h"
+#include "vncutil.h"
 
 /*
  * This table is taken from QEMU x_keymap.c, under the terms:
@@ -226,10 +226,10 @@ static gboolean check_for_evdev(void)
 const guint8 const *vnc_display_keymap_x2pc_table(void)
 {
 	if (check_for_evdev()) {
-		GVNC_DEBUG("Using evdev keycode mapping");
+		VNC_DEBUG("Using evdev keycode mapping");
 		return evdev_keycode_to_pc_keycode;
 	} else {
-		GVNC_DEBUG("Using xfree86 keycode mapping");
+		VNC_DEBUG("Using xfree86 keycode mapping");
 		return x_keycode_to_pc_keycode_table;
 	}
 }

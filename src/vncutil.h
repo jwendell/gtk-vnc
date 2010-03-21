@@ -1,7 +1,7 @@
 /*
  * GTK VNC Widget
  *
- * Copyright (C) 2006  Anthony Liguori <anthony@codemonkey.ws>
+ * Copyright (C) 2010 Daniel P. Berrange <berrange@redhat.coM>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -18,13 +18,29 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
  */
 
-#ifndef _UTILS_H
-#define _UTILS_H
+#ifndef VNC_UTIL_H
+#define VNC_UTIL_H
 
 #include <glib.h>
 
-extern gboolean debug_enabled;
+G_BEGIN_DECLS
 
-#define GVNC_DEBUG(fmt, ...) do { if (G_UNLIKELY(debug_enabled)) g_debug(__FILE__ " " fmt, ## __VA_ARGS__); } while (0)
+void vnc_util_set_debug(gboolean enabled);
+gboolean vnc_util_get_debug(void);
 
-#endif
+#define VNC_DEBUG(fmt, ...)						\
+	do {								\
+		if (G_UNLIKELY(vnc_util_get_debug()))			\
+			g_debug(__FILE__ " " fmt, ## __VA_ARGS__);	\
+	} while (0)
+
+G_END_DECLS
+
+#endif /* VNC_UTIL_H */
+/*
+ * Local variables:
+ *  c-indent-level: 8
+ *  c-basic-offset: 8
+ *  tab-width: 8
+ * End:
+ */

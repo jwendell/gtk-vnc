@@ -23,7 +23,7 @@
 #include <string.h>
 
 #include "vncimageframebuffer.h"
-#include "utils.h"
+#include "vncutil.h"
 
 #define VNC_IMAGE_FRAMEBUFFER_GET_PRIVATE(obj)				\
 	(G_TYPE_INSTANCE_GET_PRIVATE((obj), VNC_TYPE_IMAGE_FRAMEBUFFER, VncImageFramebufferPrivate))
@@ -132,7 +132,7 @@ VncImageFramebuffer *vnc_image_framebuffer_new(GdkImage *image,
 {
         VncPixelFormat localFormat;
 
-	GVNC_DEBUG("Visual mask: %3d %3d %3d\n      shift: %3d %3d %3d",
+	VNC_DEBUG("Visual mask: %3d %3d %3d\n      shift: %3d %3d %3d",
 		   image->visual->red_mask,
 		   image->visual->green_mask,
 		   image->visual->blue_mask,
