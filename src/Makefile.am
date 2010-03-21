@@ -40,7 +40,7 @@ libgvnc_1_0_la_SOURCES = \
 			coroutine.h \
 			d3des.h d3des.c \
 			dh.h dh.c \
-			vncpixelformat.h \
+			vncpixelformat.h vncpixelformat.c \
 			vncframebuffer.h vncframebuffer.c \
 			vncbaseframebufferblt.h \
 			vncbaseframebuffer.h vncbaseframebuffer.c \

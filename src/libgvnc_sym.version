@@ -60,6 +60,11 @@
 	vnc_util_set_debug;
 	vnc_util_get_debug;
 
+	vnc_pixel_format_new;
+	vnc_pixel_format_copy;
+	vnc_pixel_format_free;
+	vnc_pixel_format_get_type;
+
     local:
 	*;
 };

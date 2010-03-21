@@ -53,8 +53,8 @@ struct _VncBaseFramebufferPrivate {
 	guint16 height;
 	int rowstride;
 
-	VncPixelFormat localFormat;
-	VncPixelFormat remoteFormat;
+	VncPixelFormat *localFormat;
+	VncPixelFormat *remoteFormat;
 
 	/* TRUE if the following derived data needs reinitializing */
 	gboolean reinitRenderFuncs;
@@ -75,7 +75,7 @@ struct _VncBaseFramebufferPrivate {
 };
 
 #define VNC_BASE_FRAMEBUFFER_AT(priv, x, y) \
-	((priv)->buffer + ((y) * (priv)->rowstride) + ((x) * ((priv)->localFormat.bits_per_pixel/8)))
+	((priv)->buffer + ((y) * (priv)->rowstride) + ((x) * ((priv)->localFormat->bits_per_pixel/8)))
 
 
 static void vnc_base_framebuffer_interface_init (gpointer g_iface,
@@ -122,11 +122,11 @@ static void vnc_base_framebuffer_get_property(GObject *object,
 		break;
 
 	case PROP_LOCAL_FORMAT:
-		g_value_set_pointer(value, &priv->localFormat);
+		g_value_set_boxed(value, priv->localFormat);
 		break;
 
 	case PROP_REMOTE_FORMAT:
-		g_value_set_pointer(value, &priv->remoteFormat);
+		g_value_set_boxed(value, priv->remoteFormat);
 		break;
 
 	default:
@@ -164,16 +164,16 @@ static void vnc_base_framebuffer_set_property(GObject *object,
 		break;
 
 	case PROP_LOCAL_FORMAT:
-		memcpy(&priv->localFormat,
-		       g_value_get_pointer(value),
-		       sizeof(priv->localFormat));
+		if (priv->localFormat)
+			vnc_pixel_format_free(priv->localFormat);
+		priv->localFormat = g_value_dup_boxed(value);
 		priv->reinitRenderFuncs = TRUE;
 		break;
 
 	case PROP_REMOTE_FORMAT:
-		memcpy(&priv->remoteFormat,
-		       g_value_get_pointer(value),
-		       sizeof(priv->remoteFormat));
+		if (priv->remoteFormat)
+			vnc_pixel_format_free(priv->remoteFormat);
+		priv->remoteFormat = g_value_dup_boxed(value);
 		priv->reinitRenderFuncs = TRUE;
 		break;
 
@@ -183,10 +183,27 @@ static void vnc_base_framebuffer_set_property(GObject *object,
 }
 
 
+static void vnc_base_framebuffer_finalize(GObject *object)
+{
+	VncBaseFramebuffer *ab = VNC_BASE_FRAMEBUFFER(object);
+	VncBaseFramebufferPrivate *priv = ab->priv;
+
+	VNC_DEBUG("Finalize VncBaseFramebuffer=%p", ab);
+
+	if (priv->localFormat)
+		vnc_pixel_format_free(priv->localFormat);
+	if (priv->remoteFormat)
+		vnc_pixel_format_free(priv->remoteFormat);
+
+	G_OBJECT_CLASS(vnc_base_framebuffer_parent_class)->finalize (object);
+}
+
+
 static void vnc_base_framebuffer_class_init(VncBaseFramebufferClass *klass)
 {
 	GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
+	object_class->finalize = vnc_base_framebuffer_finalize;
 	object_class->get_property = vnc_base_framebuffer_get_property;
 	object_class->set_property = vnc_base_framebuffer_set_property;
 
@@ -243,27 +260,29 @@ static void vnc_base_framebuffer_class_init(VncBaseFramebufferClass *klass)
 
 	g_object_class_install_property(object_class,
 					PROP_LOCAL_FORMAT,
-					g_param_spec_pointer("local-format",
-							     "Local pixel format",
-							     "The local pixel format of the framebuffer",
-							     G_PARAM_READABLE |
-							     G_PARAM_WRITABLE |
-							     G_PARAM_CONSTRUCT_ONLY |
-							     G_PARAM_STATIC_NAME |
-							     G_PARAM_STATIC_NICK |
-							     G_PARAM_STATIC_BLURB));
+					g_param_spec_boxed("local-format",
+							   "Local pixel format",
+							   "The local pixel format of the framebuffer",
+							   VNC_TYPE_PIXEL_FORMAT,
+							   G_PARAM_READABLE |
+							   G_PARAM_WRITABLE |
+							   G_PARAM_CONSTRUCT_ONLY |
+							   G_PARAM_STATIC_NAME |
+							   G_PARAM_STATIC_NICK |
+							   G_PARAM_STATIC_BLURB));
 
 	g_object_class_install_property(object_class,
 					PROP_REMOTE_FORMAT,
-					g_param_spec_pointer("remote-format",
-							     "Remote pixel format",
-							     "The remote pixel format of the framebuffer",
-							     G_PARAM_READABLE |
-							     G_PARAM_WRITABLE |
-							     G_PARAM_CONSTRUCT_ONLY |
-							     G_PARAM_STATIC_NAME |
-							     G_PARAM_STATIC_NICK |
-							     G_PARAM_STATIC_BLURB));
+					g_param_spec_boxed("remote-format",
+							   "Remote pixel format",
+							   "The remote pixel format of the framebuffer",
+							   VNC_TYPE_PIXEL_FORMAT,
+							   G_PARAM_READABLE |
+							   G_PARAM_WRITABLE |
+							   G_PARAM_CONSTRUCT_ONLY |
+							   G_PARAM_STATIC_NAME |
+							   G_PARAM_STATIC_NICK |
+							   G_PARAM_STATIC_BLURB));
 
 	g_type_class_add_private(klass, sizeof(VncBaseFramebufferPrivate));
 }
@@ -277,6 +296,9 @@ void vnc_base_framebuffer_init(VncBaseFramebuffer *fb)
 
 	memset(priv, 0, sizeof(*priv));
 	priv->reinitRenderFuncs = TRUE;
+
+	priv->localFormat = vnc_pixel_format_new();
+	priv->remoteFormat = vnc_pixel_format_new();
 }
 
 
@@ -339,7 +361,7 @@ static const VncPixelFormat *vnc_base_framebuffer_get_local_format(VncFramebuffe
 	VncBaseFramebuffer *fb = VNC_BASE_FRAMEBUFFER(iface);
 	VncBaseFramebufferPrivate *priv = fb->priv;
 
-	return &priv->localFormat;
+	return priv->localFormat;
 }
 
 
@@ -348,7 +370,7 @@ static const VncPixelFormat *vnc_base_framebuffer_get_remote_format(VncFramebuff
 	VncBaseFramebuffer *fb = VNC_BASE_FRAMEBUFFER(iface);
 	VncBaseFramebufferPrivate *priv = fb->priv;
 
-	return &priv->remoteFormat;
+	return priv->remoteFormat;
 }
 
 
@@ -376,7 +398,7 @@ static guint8 vnc_base_framebuffer_swap_rfb_8(VncBaseFramebufferPrivate *priv G_
 /* local host native format -> X server image format */
 static guint16 vnc_base_framebuffer_swap_img_16(VncBaseFramebufferPrivate *priv, guint16 pixel)
 {
-	if (G_BYTE_ORDER != priv->localFormat.byte_order)
+	if (G_BYTE_ORDER != priv->localFormat->byte_order)
 		return  (((pixel >> 8) & 0xFF) << 0) |
 			(((pixel >> 0) & 0xFF) << 8);
 	else
@@ -387,7 +409,7 @@ static guint16 vnc_base_framebuffer_swap_img_16(VncBaseFramebufferPrivate *priv,
 /* VNC server RFB  format ->  local host native format */
 static guint16 vnc_base_framebuffer_swap_rfb_16(VncBaseFramebufferPrivate *priv, guint16 pixel)
 {
-	if (priv->remoteFormat.byte_order != G_BYTE_ORDER)
+	if (priv->remoteFormat->byte_order != G_BYTE_ORDER)
 		return  (((pixel >> 8) & 0xFF) << 0) |
 			(((pixel >> 0) & 0xFF) << 8);
 	else
@@ -398,7 +420,7 @@ static guint16 vnc_base_framebuffer_swap_rfb_16(VncBaseFramebufferPrivate *priv,
 /* local host native format -> X server image format */
 static guint32 vnc_base_framebuffer_swap_img_32(VncBaseFramebufferPrivate *priv, guint32 pixel)
 {
-	if (G_BYTE_ORDER != priv->localFormat.byte_order)
+	if (G_BYTE_ORDER != priv->localFormat->byte_order)
 		return  (((pixel >> 24) & 0xFF) <<  0) |
 			(((pixel >> 16) & 0xFF) <<  8) |
 			(((pixel >>  8) & 0xFF) << 16) |
@@ -411,7 +433,7 @@ static guint32 vnc_base_framebuffer_swap_img_32(VncBaseFramebufferPrivate *priv,
 /* VNC server RFB  format ->  local host native format */
 static guint32 vnc_base_framebuffer_swap_rfb_32(VncBaseFramebufferPrivate *priv, guint32 pixel)
 {
-	if (priv->remoteFormat.byte_order != G_BYTE_ORDER)
+	if (priv->remoteFormat->byte_order != G_BYTE_ORDER)
 		return  (((pixel >> 24) & 0xFF) <<  0) |
 			(((pixel >> 16) & 0xFF) <<  8) |
 			(((pixel >>  8) & 0xFF) << 16) |
@@ -528,7 +550,7 @@ static void vnc_base_framebuffer_blt_fast(VncBaseFramebufferPrivate *priv,
         guint8 *dst = VNC_BASE_FRAMEBUFFER_AT(priv, x, y);
         guint16 i;
         for (i = 0; i < height; i++) {
-                memcpy(dst, src, width * (priv->localFormat.bits_per_pixel / 8));
+                memcpy(dst, src, width * (priv->localFormat->bits_per_pixel / 8));
                 dst += priv->rowstride;
                 src += rowstride;
         }
@@ -544,63 +566,63 @@ static void vnc_base_framebuffer_reinit_render_funcs(VncBaseFramebuffer *fb)
 	if (!priv->reinitRenderFuncs)
 		return;
 
-	if (priv->localFormat.bits_per_pixel == priv->remoteFormat.bits_per_pixel &&
-	    priv->localFormat.red_max == priv->remoteFormat.red_max &&
-	    priv->localFormat.green_max == priv->remoteFormat.green_max &&
-	    priv->localFormat.blue_max == priv->remoteFormat.blue_max &&
-	    priv->localFormat.red_shift == priv->remoteFormat.red_shift &&
-	    priv->localFormat.green_shift == priv->remoteFormat.green_shift &&
-	    priv->localFormat.blue_shift == priv->remoteFormat.blue_shift &&
-	    priv->localFormat.byte_order == G_BYTE_ORDER &&
-	    priv->remoteFormat.byte_order == G_BYTE_ORDER)
+	if (priv->localFormat->bits_per_pixel == priv->remoteFormat->bits_per_pixel &&
+	    priv->localFormat->red_max == priv->remoteFormat->red_max &&
+	    priv->localFormat->green_max == priv->remoteFormat->green_max &&
+	    priv->localFormat->blue_max == priv->remoteFormat->blue_max &&
+	    priv->localFormat->red_shift == priv->remoteFormat->red_shift &&
+	    priv->localFormat->green_shift == priv->remoteFormat->green_shift &&
+	    priv->localFormat->blue_shift == priv->remoteFormat->blue_shift &&
+	    priv->localFormat->byte_order == G_BYTE_ORDER &&
+	    priv->remoteFormat->byte_order == G_BYTE_ORDER)
 		priv->perfect_match = TRUE;
 	else
 		priv->perfect_match = FALSE;
 
-	depth = priv->remoteFormat.depth;
+	depth = priv->remoteFormat->depth;
 	if (depth == 32)
 		depth = 24;
 
-	priv->rm = priv->localFormat.red_max & priv->remoteFormat.red_max;
-	priv->gm = priv->localFormat.green_max & priv->remoteFormat.green_max;
-	priv->bm = priv->localFormat.blue_max & priv->remoteFormat.blue_max;
+	priv->rm = priv->localFormat->red_max & priv->remoteFormat->red_max;
+	priv->gm = priv->localFormat->green_max & priv->remoteFormat->green_max;
+	priv->bm = priv->localFormat->blue_max & priv->remoteFormat->blue_max;
 	VNC_DEBUG("Mask local: %3d %3d %3d\n"
 		   "    remote: %3d %3d %3d\n"
 		   "    merged: %3d %3d %3d",
-		   priv->localFormat.red_max, priv->localFormat.green_max, priv->localFormat.blue_max,
-		   priv->remoteFormat.red_max, priv->remoteFormat.green_max, priv->remoteFormat.blue_max,
+		   priv->localFormat->red_max, priv->localFormat->green_max, priv->localFormat->blue_max,
+		   priv->remoteFormat->red_max, priv->remoteFormat->green_max, priv->remoteFormat->blue_max,
 		   priv->rm, priv->gm, priv->bm);
 
 	/* Setup shifts assuming matched bpp (but not necessarily match rgb order)*/
-	priv->rrs = priv->remoteFormat.red_shift;
-	priv->grs = priv->remoteFormat.green_shift;
-	priv->brs = priv->remoteFormat.blue_shift;
+	priv->rrs = priv->remoteFormat->red_shift;
+	priv->grs = priv->remoteFormat->green_shift;
+	priv->brs = priv->remoteFormat->blue_shift;
 
-	priv->rls = priv->localFormat.red_shift;
-	priv->gls = priv->localFormat.green_shift;
-	priv->bls = priv->localFormat.blue_shift;
+	priv->rls = priv->localFormat->red_shift;
+	priv->gls = priv->localFormat->green_shift;
+	priv->bls = priv->localFormat->blue_shift;
 
 	/* This adjusts for remote having more bpp than local */
-	for (n = priv->remoteFormat.red_max; n > priv->localFormat.red_max ; n>>= 1)
+	for (n = priv->remoteFormat->red_max; n > priv->localFormat->red_max ; n>>= 1)
 		priv->rrs++;
-	for (n = priv->remoteFormat.green_max; n > priv->localFormat.green_max ; n>>= 1)
+	for (n = priv->remoteFormat->green_max; n > priv->localFormat->green_max ; n>>= 1)
 		priv->grs++;
-	for (n = priv->remoteFormat.blue_max; n > priv->localFormat.blue_max ; n>>= 1)
+	for (n = priv->remoteFormat->blue_max; n > priv->localFormat->blue_max ; n>>= 1)
 		priv->brs++;
 
 	/* This adjusts for remote having less bpp than remote */
-	for (n = priv->localFormat.red_max ; n > priv->remoteFormat.red_max ; n>>= 1)
+	for (n = priv->localFormat->red_max ; n > priv->remoteFormat->red_max ; n>>= 1)
 		priv->rls++;
-	for (n = priv->localFormat.green_max ; n > priv->remoteFormat.green_max ; n>>= 1)
+	for (n = priv->localFormat->green_max ; n > priv->remoteFormat->green_max ; n>>= 1)
 		priv->gls++;
-	for (n = priv->localFormat.blue_max ; n > priv->remoteFormat.blue_max ; n>>= 1)
+	for (n = priv->localFormat->blue_max ; n > priv->remoteFormat->blue_max ; n>>= 1)
 		priv->bls++;
 	VNC_DEBUG("Pixel shifts\n   right: %3d %3d %3d\n    left: %3d %3d %3d",
 		   priv->rrs, priv->grs, priv->brs,
 		   priv->rls, priv->gls, priv->bls);
 
-	i = priv->remoteFormat.bits_per_pixel / 8;
-	j = priv->localFormat.bits_per_pixel / 8;
+	i = priv->remoteFormat->bits_per_pixel / 8;
+	j = priv->localFormat->bits_per_pixel / 8;
 
 	if (i == 4) i = 3;
 	if (j == 4) j = 3;
@@ -672,7 +694,7 @@ static void vnc_base_framebuffer_copyrect(VncFramebuffer *iface,
 	dst = VNC_BASE_FRAMEBUFFER_AT(priv, dstx, dsty);
 	src = VNC_BASE_FRAMEBUFFER_AT(priv, srcx, srcy);
 	for (i = 0; i < height; i++) {
-		memmove(dst, src, width * (priv->localFormat.bits_per_pixel  / 8));
+		memmove(dst, src, width * (priv->localFormat->bits_per_pixel  / 8));
 		dst += rowstride;
 		src += rowstride;
 	}

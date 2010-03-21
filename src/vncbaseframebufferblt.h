@@ -42,7 +42,7 @@
 
 #define SWAP_RFB(priv, pixel) SPLICE(vnc_base_framebuffer_swap_rfb_, SRC)(priv, pixel)
 #define SWAP_IMG(priv, pixel) SPLICE(vnc_base_framebuffer_swap_img_, DST)(priv, pixel)
-#define COMPONENT(color, pixel) ((SWAP_RFB(priv, pixel) >> priv->remoteFormat.SPLICE(color, _shift) & priv->remoteFormat.SPLICE(color, _max)))
+#define COMPONENT(color, pixel) ((SWAP_RFB(priv, pixel) >> priv->remoteFormat->SPLICE(color, _shift) & priv->remoteFormat->SPLICE(color, _max)))
 
 static void SET_PIXEL(VncBaseFramebufferPrivate *priv,
 		      dst_pixel_t *dp, src_pixel_t sp)
@@ -152,13 +152,13 @@ static void RGB24_BLT(VncBaseFramebufferPrivate *priv,
 
 		for (i = 0; i < width; i++) {
 			/*
-			 * We use priv->remoteFormat.XXX_shift instead of usual priv->Xls
+			 * We use priv->remoteFormat->XXX_shift instead of usual priv->Xls
 			 * because the source pixel component is a full 8 bits in
 			 * size, and so doesn't need the adjusted shift
 			 */
-			*dp = (((sp[0] * priv->remoteFormat.red_max) / 255) << priv->remoteFormat.red_shift) |
-				(((sp[1] * priv->remoteFormat.green_max) / 255) << priv->remoteFormat.green_shift) |
-				(((sp[2] * priv->remoteFormat.blue_max) / 255) << priv->remoteFormat.blue_shift);
+			*dp = (((sp[0] * priv->remoteFormat->red_max) / 255) << priv->remoteFormat->red_shift) |
+				(((sp[1] * priv->remoteFormat->green_max) / 255) << priv->remoteFormat->green_shift) |
+				(((sp[2] * priv->remoteFormat->blue_max) / 255) << priv->remoteFormat->blue_shift);
 			dp++;
 			sp += 3;
 		}
