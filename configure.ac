@@ -145,10 +145,10 @@ AC_SUBST(VIEW_CFLAGS)
 AC_SUBST(VIEW_LIBS)
 
 PKG_CHECK_MODULES(GNUTLS, gnutls >= $GNUTLS_REQUIRED)
-dnl Not all versions of gnutls include -lgcrypt, and we need it
+dnl Not all versions of gnutls include -lgcrypt and -lgpg-error, and we need it
 dnl explicitly for building MS Logon extension which calls
 dnl gcry_XXX APIs
-GNUTLS_LIBS="$GNUTLS_LIBS -lgcrypt"
+GNUTLS_LIBS="$GNUTLS_LIBS -lgcrypt -lgpg-error"
 AC_SUBST(GNUTLS_CFLAGS)
 AC_SUBST(GNUTLS_LIBS)
 
