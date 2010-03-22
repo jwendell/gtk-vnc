@@ -59,7 +59,9 @@
 
 #include "npruntime.h"
 
+#ifdef OJI
 #include "jri.h"
+#endif
 
 
 /******************************************************************************************
@@ -294,14 +296,18 @@ typedef void (* NP_LOADDS NPN_ReloadPluginsUPP)(NPBool reloadPages);
 		(*(FUNC))((ARG1))	
 
 /* NPN_GetJavaEnv */
+#ifdef OJI
 typedef JRIEnv* (* NP_LOADDS NPN_GetJavaEnvUPP)(void);
+#endif
 #define NewNPN_GetJavaEnvProc(FUNC)		\
 		((NPN_GetJavaEnvUPP) (FUNC))
 #define CallNPN_GetJavaEnvProc(FUNC)		\
 		(*(FUNC))()	
 
 /* NPN_GetJavaPeer */
+#ifdef OJI
 typedef jref (* NP_LOADDS NPN_GetJavaPeerUPP)(NPP instance);
+#endif
 #define NewNPN_GetJavaPeerProc(FUNC)		\
 		((NPN_GetJavaPeerUPP) (FUNC))
 #define CallNPN_GetJavaPeerProc(FUNC, ARG1)		\
@@ -518,7 +524,9 @@ typedef struct _NPPluginFuncs {
     NPP_PrintUPP print;
     NPP_HandleEventUPP event;
     NPP_URLNotifyUPP urlnotify;
+#ifdef OJI
     JRIGlobalRef javaClass;
+#endif
     NPP_GetValueUPP getvalue;
     NPP_SetValueUPP setvalue;
 } NPPluginFuncs;
@@ -538,8 +546,10 @@ typedef struct _NPNetscapeFuncs {
     NPN_MemFreeUPP memfree;
     NPN_MemFlushUPP memflush;
     NPN_ReloadPluginsUPP reloadplugins;
+#ifdef OJI
     NPN_GetJavaEnvUPP getJavaEnv;
     NPN_GetJavaPeerUPP getJavaPeer;
+#endif
     NPN_GetURLNotifyUPP geturlnotify;
     NPN_PostURLNotifyUPP posturlnotify;
     NPN_GetValueUPP getvalue;
