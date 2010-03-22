@@ -24,7 +24,7 @@ libgvnc_1_0_la_CFLAGS = \
 			-I../gnulib/lib
 libgvnc_1_0_la_LDFLAGS = \
 			@VERSION_SCRIPT_FLAGS@$(srcdir)/libgvnc_sym.version \
-			-version-info 0:1:0 -Wl,-no-undefined
+			-version-info 0:1:0 -Wl,--no-undefined
 
 gvnc_includedir = $(includedir)/gvnc-1.0/
 gvnc_include_HEADERS = \
@@ -77,7 +77,7 @@ libgtk_vnc_1_0_la_CFLAGS = \
 			-I../gnulib/lib
 libgtk_vnc_1_0_la_LDFLAGS = \
 			@VERSION_SCRIPT_FLAGS@$(srcdir)/libgtk-vnc_sym.version \
-			-version-info 0:1:0 -Wl,-no-undefined
+			-version-info 0:1:0 -Wl,--no-undefined
 
 gtk_vnc_includedir = $(includedir)/gtk-vnc-1.0/
 gtk_vnc_include_HEADERS = \
