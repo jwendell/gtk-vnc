@@ -1,0 +1,105 @@
+# Danish translation for gtk-vnc.
+# Copyright (C) 2010 gtk-vnc's COPYRIGHT HOLDER
+# This file is distributed under the same license as the gtk-vnc package.
+# Kris Thomsen <lakristho@gmail.com>, 2010.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: gtk-vnc master\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2010-04-05 23:18+0200\n"
+"PO-Revision-Date: 2010-04-02 17:47+0200\n"
+"Last-Translator: Kris Thomsen <lakristho@gmail.com>\n"
+"Language-Team: Danish <dansk@dansk-gruppen.dk>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: ../gnulib/lib/gai_strerror.c:44
+msgid "Address family for hostname not supported"
+msgstr "Adressering af familie for værtsnavn er ikke understøttet"
+
+#: ../gnulib/lib/gai_strerror.c:45
+msgid "Temporary failure in name resolution"
+msgstr "Midlertidig fejl i navneresolution"
+
+#: ../gnulib/lib/gai_strerror.c:46
+msgid "Bad value for ai_flags"
+msgstr "Dårlig værdi for ai_flags"
+
+#: ../gnulib/lib/gai_strerror.c:47
+msgid "Non-recoverable failure in name resolution"
+msgstr "Fejl der ikke kan gendannes i navneresolution"
+
+#: ../gnulib/lib/gai_strerror.c:48
+msgid "ai_family not supported"
+msgstr "ai_family er ikke understøttet"
+
+#: ../gnulib/lib/gai_strerror.c:49
+msgid "Memory allocation failure"
+msgstr "Hukommelsesallokeringsfejl"
+
+#: ../gnulib/lib/gai_strerror.c:50
+msgid "No address associated with hostname"
+msgstr "Ingen adresse forbundet med værtsnavn"
+
+#: ../gnulib/lib/gai_strerror.c:51
+msgid "Name or service not known"
+msgstr "Navn eller tjeneste er ikke kendt"
+
+#: ../gnulib/lib/gai_strerror.c:52
+msgid "Servname not supported for ai_socktype"
+msgstr "Servernavn er ikke understøttet for ai_socktype"
+
+#: ../gnulib/lib/gai_strerror.c:53
+msgid "ai_socktype not supported"
+msgstr "ai_socktype er ikke understøttet"
+
+#: ../gnulib/lib/gai_strerror.c:54
+msgid "System error"
+msgstr "Systemfejl"
+
+#: ../gnulib/lib/gai_strerror.c:55
+msgid "Argument buffer too small"
+msgstr "Argumentbuffer er for lille"
+
+#: ../gnulib/lib/gai_strerror.c:57
+msgid "Processing request in progress"
+msgstr "Behandling af forespørgsler i gang"
+
+#: ../gnulib/lib/gai_strerror.c:58
+msgid "Request canceled"
+msgstr "Forespørgsler som er annulleret"
+
+#: ../gnulib/lib/gai_strerror.c:59
+msgid "Request not canceled"
+msgstr "Forespørgsler som ikke er annulleret"
+
+#: ../gnulib/lib/gai_strerror.c:60
+msgid "All requests done"
+msgstr "Alle forespørgsler gennemført"
+
+#: ../gnulib/lib/gai_strerror.c:61
+msgid "Interrupted by a signal"
+msgstr "Forstyrret af et signal"
+
+#: ../gnulib/lib/gai_strerror.c:62
+msgid "Parameter string not correctly encoded"
+msgstr "Parameterstreng er ikke kodet korrekt"
+
+#: ../gnulib/lib/gai_strerror.c:74
+msgid "Unknown error"
+msgstr "Ukendt fejl"
+
+#: ../src/vncdisplay.c:150
+msgid "Enables debug output"
+msgstr "Aktiverer fejlsøgningsoutput"
+
+#: ../src/vncdisplay.c:2100
+msgid "GTK-VNC Options:"
+msgstr "GTK-VNC-indstillinger:"
+
+#: ../src/vncdisplay.c:2100
+msgid "Show GTK-VNC Options"
+msgstr "Vis indstillinger for GTK-VNC"
