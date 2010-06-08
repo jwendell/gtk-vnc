@@ -4381,13 +4381,8 @@ static gboolean vnc_connection_open_host_internal(VncConnection *conn)
                     errno == EWOULDBLOCK) {
                         g_io_wait(chan, G_IO_OUT|G_IO_ERR|G_IO_HUP);
                         goto reconnect;
-                } else if (errno != ECONNREFUSED &&
-                           errno != EHOSTUNREACH) {
-                        g_io_channel_unref(chan);
-                        close(fd);
-                        VNC_DEBUG ("Failed with errno = %d", errno);
-                        break;
                 }
+                VNC_DEBUG ("Connect failed with errno = %d, try next addr", errno);
                 close(fd);
                 g_io_channel_unref(chan);
                 runp = runp->ai_next;
