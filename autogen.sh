@@ -1,61 +1,20 @@
 #!/bin/sh
 # Run this to generate all the initial makefiles, etc.
 
-set -e
 srcdir=`dirname $0`
 test -z "$srcdir" && srcdir=.
 
-THEDIR=`pwd`
-cd $srcdir
+PKG_NAME="gtk-vnc"
 
-DIE=0
-
-(autoconf --version) < /dev/null > /dev/null 2>&1 || {
-	echo
-	echo "You must have autoconf installed to compile gtk-vnc."
-	echo "Download the appropriate package for your distribution,"
-	echo "or see http://www.gnu.org/software/autoconf"
-	DIE=1
+(test -f $srcdir/src/vncconnection.c) || {
+    echo -n "**Error**: Directory "\`$srcdir\'" does not look like the"
+    echo " top-level $PKG_NAME directory"
+    exit 1
 }
 
-(libtool --version) < /dev/null > /dev/null 2>&1 || {
-	echo
-	echo "You must have libtool installed to compile gtk-vnc."
-	echo "Download the appropriate package for your distribution,"
-	echo "or see http://www.gnu.org/software/libtool"
-	DIE=1
+which gnome-autogen.sh || {
+    echo "You need to install gnome-common from the GNOME git"
+    exit 1
 }
 
-(automake --version) < /dev/null > /dev/null 2>&1 || {
-	echo
-	DIE=1
-	echo "You must have automake installed to compile gtk-vnc."
-	echo "Download the appropriate package for your distribution,"
-	echo "or see http://www.gnu.org/software/automake"
-}
-
-if test "$DIE" -eq 1; then
-	exit 1
-fi
-
-if test -z "$*"; then
-	echo "I am going to run ./configure with --enable-compile-warnings=maximum"
-        echo "If you wish to pass any extra arguments to it, please specify them on "
-        echo "the $0 command line."
-fi
-
-libtoolize --copy --force
-intltoolize --force
-aclocal -I gnulib/m4
-autoheader
-automake --add-missing --copy
-autoconf
-# We use COPYING.LIB instead
-rm -f COPYING
-
-cd $THEDIR
-
-$srcdir/configure --enable-compile-warnings=maximum "$@" && {
-    echo
-    echo "Now type 'make' to compile gtk-vnc."
-}
+ACLOCAL_FLAGS="$ACLOCAL_FLAGS" USE_GNOME2_MACROS=1 . gnome-autogen.sh

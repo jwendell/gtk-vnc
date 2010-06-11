@@ -1,16 +1,26 @@
-dnl Process this file with autoconf to produce a configure script.
+# gtk-vnc autoconf
 
-AC_INIT([gtk-vnc], [0.3.10])
+AC_PREREQ(2.65)
+
+AC_INIT([gtk-vnc],[0.4.0],[https://bugzilla.gnome.org/enter_bug.cgi?product=gtk-vnc],[gtk-vnc],[http://live.gnome.org/gtk-vnc/])
 AC_CONFIG_SRCDIR([src/vncconnection.c])
-dnl Causes problems with RHEL-5 vintage intltool
-dnl AC_CONFIG_AUX_DIR([build-aux])
-AM_CONFIG_HEADER([config.h])
+AC_CONFIG_AUX_DIR([build-aux])
+AC_CONFIG_HEADERS([config.h])
+
 dnl Make automake keep quiet about wildcards & other GNUmake-isms
-AM_INIT_AUTOMAKE([-Wno-portability])
+AM_INIT_AUTOMAKE([1.10 -Wno-portability])
+
+LT_PREREQ([2.2.6])
+LT_INIT([win32-dll disable-static])
+
+AC_CONFIG_MACRO_DIR([gnulib/m4])
+
+GNOME_COMPILE_WARNINGS([maximum])
+GNOME_CXX_WARNINGS([yes])
+GNOME_MAINTAINER_MODE_DEFINES
 
 # Use the silent-rules feature when possible.
-m4_ifndef([AM_SILENT_RULES], [m4_define([AM_SILENT_RULES],[])])
-AM_SILENT_RULES([yes])
+m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
 
 AC_CANONICAL_HOST
 
@@ -40,13 +50,6 @@ dnl ****************************************************************************
 dnl Setup GNULIB - must be before anything else in this file
 dnl *******************************************************************************
 
-dnl gl_INIT uses m4_foreach_w, yet that is not defined in autoconf-2.59.
-dnl In order to accommodate developers with such old tools, here's a
-dnl replacement definition.
-m4_ifndef([m4_foreach_w],
-  [m4_define([m4_foreach_w],
-    [m4_foreach([$1], m4_split(m4_normalize([$2]), [ ]), [$3])])])
-
 gl_EARLY
 gl_INIT
 
@@ -57,9 +60,6 @@ dnl ****************************************************************************
 AC_PROG_CC_STDC
 AM_PROG_CC_C_O
 
-AC_LIBTOOL_WIN32_DLL
-AC_PROG_LIBTOOL
-
 dnl *******************************************************************************
 dnl Internationalization
 dnl *******************************************************************************
@@ -67,7 +67,7 @@ GETTEXT_PACKAGE=gtk-vnc
 AC_SUBST(GETTEXT_PACKAGE)
 AC_DEFINE_UNQUOTED(GETTEXT_PACKAGE,"$GETTEXT_PACKAGE", [GETTEXT package name])
 
-IT_PROG_INTLTOOL([0.35.0])
+IT_PROG_INTLTOOL([0.40.0])
 AM_GLIB_GNU_GETTEXT
 
 dnl *******************************************************************************
@@ -221,7 +221,7 @@ case $with_coroutine in
   gthread)
     ;;
   *)
-    AC_ERROR([Unsupported coroutine type])
+    AC_MSG_ERROR(Unsupported coroutine type)
 esac
 
 if test "$with_coroutine" = "ucontext"; then
