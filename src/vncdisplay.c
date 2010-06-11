@@ -1784,11 +1784,10 @@ static void vnc_display_class_init(VncDisplayClass *klass)
 
 static void vnc_display_init(VncDisplay *display)
 {
-	GtkObject *obj = GTK_OBJECT(display);
 	GtkWidget *widget = GTK_WIDGET(display);
 	VncDisplayPrivate *priv;
 
-	GTK_WIDGET_SET_FLAGS(obj, GTK_CAN_FOCUS);
+	gtk_widget_set_can_focus (widget, TRUE);
 
 	vnc_display_keyval_set_entries();
 
