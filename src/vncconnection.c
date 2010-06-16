@@ -2369,7 +2369,7 @@ static void vnc_connection_server_cut_text(VncConnection *conn,
 
 	vnc_connection_emit_main_context(conn, VNC_SERVER_CUT_TEXT, &sigdata);
 
-	g_free(text);
+	g_string_free(text, TRUE);
 }
 
 static void vnc_connection_resize(VncConnection *conn, int width, int height)

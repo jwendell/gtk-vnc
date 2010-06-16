@@ -1141,7 +1141,9 @@ static void on_auth_unsupported(VncConnection *conn G_GNUC_UNUSED,
 	g_signal_emit(G_OBJECT(obj), signals[VNC_AUTH_UNSUPPORTED], 0, authType);
 }
 
-static void on_server_cut_text(void *opaque, const gchar *text)
+static void on_server_cut_text(VncConnection *conn G_GNUC_UNUSED,
+			       const gchar *text,
+			       gpointer opaque)
 {
 	VncDisplay *obj = VNC_DISPLAY(opaque);
 
