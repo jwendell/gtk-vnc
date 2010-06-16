@@ -68,6 +68,16 @@
     vnc_image_framebuffer_new;
     vnc_image_framebuffer_get_image;
 
+# grab key settings support
+    vnc_display_set_grab_keys;
+    vnc_display_get_grab_keys;
+    vnc_grab_sequence_new;
+    vnc_grab_sequence_new_from_string;
+    vnc_grab_sequence_copy;
+    vnc_grab_sequence_free;
+    vnc_grab_sequence_as_string;
+    vnc_grab_sequence_get_type;
+
   local:
       *;
 };

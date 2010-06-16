@@ -28,8 +28,15 @@ if len(sys.argv) != 2 and len(sys.argv) != 3:
 
 def set_title(vnc, window, grabbed):
     name = vnc.get_name()
+    keys = vnc.get_grab_keys()
+    keystr = None
+    for k in keys:
+        if keystr is None:
+            keystr = gtk.gdk.keyval_name(k)
+        else:
+            keystr = keystr + "+" + gtk.gdk.keyval_name(k)
     if grabbed:
-        subtitle = "(Press Ctrl+Alt to release pointer) "
+        subtitle = "(Press %s to release pointer) " % keystr
     else:
         subtitle = ""
 
@@ -173,6 +180,11 @@ layout.add(vnc)
 vnc.realize()
 vnc.set_pointer_grab(True)
 vnc.set_keyboard_grab(True)
+
+# Example to change grab key combination to Ctrl+Alt+g
+grab_keys = [ gtk.keysyms.Control_L, gtk.keysyms.Alt_L, gtk.keysyms.g ]
+vnc.set_grab_keys(grab_keys)
+
 #v.set_pointer_local(True)
 
 if len(sys.argv) == 3:

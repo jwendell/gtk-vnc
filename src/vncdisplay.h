@@ -24,6 +24,7 @@
 
 #include <gtk/gtkdrawingarea.h>
 #include <glib.h>
+#include <vncgrabsequence.h>
 
 G_BEGIN_DECLS
 
@@ -94,6 +95,8 @@ void            vnc_display_send_keys_ex(VncDisplay *obj, const guint *keyvals,
 					 int nkeyvals, VncDisplayKeyEvent kind);
 
 void		vnc_display_send_pointer(VncDisplay *obj, gint x, gint y, int button_mask);
+void		vnc_display_set_grab_keys(VncDisplay *obj, VncGrabSequence *seq);
+VncGrabSequence	*vnc_display_get_grab_keys(VncDisplay *obj);
 
 gboolean	vnc_display_set_credential(VncDisplay *obj, int type, const gchar *data);
 

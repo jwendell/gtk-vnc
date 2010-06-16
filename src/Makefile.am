@@ -85,6 +85,7 @@ gtk_vnc_includedir = $(includedir)/gtk-vnc-1.0/
 gtk_vnc_include_HEADERS = \
 			vncdisplay.h \
 			vncdisplayenums.h \
+			vncgrabsequence.h \
 			vncimageframebuffer.h
 
 libgtk_vnc_1_0_la_SOURCES = \
@@ -92,6 +93,7 @@ libgtk_vnc_1_0_la_SOURCES = \
 			vncdisplay.h vncdisplay.c \
 			vncdisplayenums.h vncdisplayenums.c \
 			vncdisplaykeymap.h vncdisplaykeymap.c \
+			vncgrabsequence.h vncgrabsequence.c \
 			vncmarshal.h vncmarshal.c
 
 vncdisplayenums.c: vncdisplay.h
@@ -204,6 +206,7 @@ GVNC_INTROSPECTION_SRCS = \
 GTK_VNC_INTROSPECTION_SRCS = \
 			$(srcdir)/vncimageframebuffer.h $(srcdir)/vncimageframebuffer.c \
 			$(srcdir)/vncdisplay.h $(srcdir)/vncdisplay.c \
+			$(srcdir)/vncgrabsequence.h $(srcdir)/vncgrabsequence.c \
 			$(builddir)/vncdisplayenums.h $(builddir)/vncdisplayenums.c
 
 GVnc-1.0.gir: libgvnc-1.0.la $(G_IR_SCANNER) Makefile.am

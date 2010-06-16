@@ -85,6 +85,9 @@ struct _VncDisplayPrivate
 
 	GSList *preferable_auths;
 	const guint8 const *keycode_map;
+
+	VncGrabSequence *vncgrabseq; /* the configured key sequence */
+	gboolean *vncactiveseq; /* the currently pressed keys */
 };
 
 G_DEFINE_TYPE(VncDisplay, vnc_display, GTK_TYPE_DRAWING_AREA)
@@ -104,7 +107,8 @@ enum
   PROP_SCALING,
   PROP_SHARED_FLAG,
   PROP_FORCE_SIZE,
-  PROP_DEPTH
+  PROP_DEPTH,
+  PROP_GRAB_KEYS,
 };
 
 /* Signals */
@@ -198,6 +202,9 @@ vnc_display_get_property (GObject    *object,
       case PROP_DEPTH:
         g_value_set_enum (value, vnc->priv->depth);
 	break;
+      case PROP_GRAB_KEYS:
+	g_value_set_boxed(value, vnc->priv->vncgrabseq);
+	break;
       default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
 	break;
@@ -241,6 +248,9 @@ vnc_display_set_property (GObject      *object,
       case PROP_DEPTH:
         vnc_display_set_depth (vnc, g_value_get_enum (value));
         break;
+      case PROP_GRAB_KEYS:
+	vnc_display_set_grab_keys(vnc, g_value_get_boxed(value));
+	break;
       default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
         break;
@@ -673,6 +683,37 @@ static gboolean motion_event(GtkWidget *widget, GdkEventMotion *motion)
 	return TRUE;
 }
 
+
+static gboolean check_for_grab_key(GtkWidget *widget, int type, int keyval)
+{
+	VncDisplayPrivate *priv = VNC_DISPLAY(widget)->priv;
+	int i;
+
+	if (!priv->vncgrabseq->nkeysyms)
+		return FALSE;
+
+	if (type == GDK_KEY_RELEASE) {
+		/* Any key release resets the whole grab sequence */
+		memset(priv->vncactiveseq, 0,
+		       sizeof(gboolean)*priv->vncgrabseq->nkeysyms);
+
+		return FALSE;
+	} else {
+		/* Record the new key press */
+		for (i = 0 ; i < priv->vncgrabseq->nkeysyms ; i++)
+			if (priv->vncgrabseq->keysyms[i] == keyval)
+				priv->vncactiveseq[i] = TRUE;
+
+		/* Return if any key is not pressed */
+		for (i = 0 ; i < priv->vncgrabseq->nkeysyms ; i++)
+			if (priv->vncactiveseq[i] == FALSE)
+				return FALSE;
+
+		return TRUE;
+	}
+}
+
+
 static gboolean key_event(GtkWidget *widget, GdkEventKey *key)
 {
 	VncDisplayPrivate *priv = VNC_DISPLAY(widget)->priv;
@@ -752,9 +793,7 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *key)
 		}
 	}
 
-	if (key->type == GDK_KEY_PRESS &&
-	    ((keyval == GDK_Control_L && (key->state & GDK_MOD1_MASK)) ||
-	     (keyval == GDK_Alt_L && (key->state & GDK_CONTROL_MASK)))) {
+	if (check_for_grab_key(widget, key->type, key->keyval)) {
 		if (priv->in_pointer_grab)
 			do_pointer_ungrab(VNC_DISPLAY(widget), FALSE);
 		else if (!priv->grab_keyboard || !priv->absolute)
@@ -1472,6 +1511,10 @@ static void vnc_display_finalize (GObject *obj)
 		g_object_unref (priv->gc);
 		priv->gc = NULL;
 	}
+	if (priv->vncgrabseq) {
+		vnc_grab_sequence_free(priv->vncgrabseq);
+		priv->vncgrabseq = NULL;
+	}
 
 	g_slist_free (priv->preferable_auths);
 
@@ -1640,6 +1683,17 @@ static void vnc_display_class_init(VncDisplayClass *klass)
 								G_PARAM_STATIC_NAME |
 								G_PARAM_STATIC_NICK |
 								G_PARAM_STATIC_BLURB));
+	g_object_class_install_property (object_class,
+					 PROP_GRAB_KEYS,
+					 g_param_spec_boxed( "grab-keys",
+							     "Grab keys",
+							     "The key grab sequence",
+							     VNC_TYPE_GRAB_SEQUENCE,
+							     G_PARAM_READWRITE |
+							     G_PARAM_CONSTRUCT |
+							     G_PARAM_STATIC_NAME |
+							     G_PARAM_STATIC_NICK |
+							     G_PARAM_STATIC_BLURB));
 
 	signals[VNC_CONNECTED] =
 		g_signal_new ("vnc-connected",
@@ -1823,6 +1877,8 @@ static void vnc_display_init(VncDisplay *display)
 	priv->local_pointer = FALSE;
 	priv->shared_flag = FALSE;
 	priv->force_size = TRUE;
+	priv->vncgrabseq = vnc_grab_sequence_new_from_string("Control_L+Alt_L");
+	priv->vncactiveseq = g_new0(gboolean, priv->vncgrabseq->nkeysyms);
 
 	/*
 	 * Both these two provide TLS based auth, and can layer
@@ -1903,6 +1959,24 @@ void vnc_display_set_pointer_grab(VncDisplay *obj, gboolean enable)
 	priv->grab_pointer = enable;
 	if (!enable && priv->absolute && priv->in_pointer_grab)
 		do_pointer_ungrab(obj, FALSE);
+}
+
+void vnc_display_set_grab_keys(VncDisplay *obj, VncGrabSequence *seq)
+{
+	if (obj->priv->vncgrabseq) {
+		vnc_grab_sequence_free(obj->priv->vncgrabseq);
+		g_free(obj->priv->vncactiveseq);
+	}
+	if (seq)
+		obj->priv->vncgrabseq = vnc_grab_sequence_copy(seq);
+	else
+		obj->priv->vncgrabseq = vnc_grab_sequence_new_from_string("Control_L+Alt_L");
+	obj->priv->vncactiveseq = g_new0(gboolean, obj->priv->vncgrabseq->nkeysyms);
+}
+
+VncGrabSequence *vnc_display_get_grab_keys(VncDisplay *obj)
+{
+	return obj->priv->vncgrabseq;
 }
 
 void vnc_display_set_keyboard_grab(VncDisplay *obj, gboolean enable)

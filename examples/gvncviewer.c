@@ -43,23 +43,33 @@ static const GOptionEntry options [] =
 
 static GtkWidget *vnc;
 
+typedef struct {
+	GtkWidget *label;
+	guint curkeys;
+	guint numkeys;
+	guint *keysyms;
+	gboolean set;
+} VncGrabDefs;
+
 static void set_title(VncDisplay *vncdisplay, GtkWidget *window,
 	gboolean grabbed)
 {
-	const char *name;
-	char title[1024];
-	const char *subtitle;
+	const gchar *name = vnc_display_get_name(VNC_DISPLAY(vncdisplay));
+	VncGrabSequence *seq = vnc_display_get_grab_keys(vncdisplay);
+	gchar *seqstr = vnc_grab_sequence_as_string(seq);
+	gchar *title;
 
 	if (grabbed)
-		subtitle = "(Press Ctrl+Alt to release pointer) ";
+		title = g_strdup_printf("(Press %s to release pointer) %s - GVncViewer",
+					seqstr, name);
 	else
-		subtitle = "";
-
-	name = vnc_display_get_name(VNC_DISPLAY(vncdisplay));
-	snprintf(title, sizeof(title), "%s%s - GVncViewer",
-		 subtitle, name);
+		title = g_strdup_printf("%s - GVncViewer",
+					name);
 
 	gtk_window_set_title(GTK_WINDOW(window), title);
+
+	g_free(seqstr);
+	g_free(title);
 }
 
 static gboolean vnc_screenshot(GtkWidget *window G_GNUC_UNUSED,
@@ -216,6 +226,145 @@ static void do_scaling(GtkWidget *menu, GtkWidget *vncdisplay)
 		vnc_display_set_scaling(VNC_DISPLAY(vncdisplay), FALSE);
 }
 
+static void dialog_update_keysyms(GtkWidget *window, guint *keysyms, guint numsyms)
+{
+	gchar *keys;
+	int i;
+
+	keys = g_strdup("");
+	for (i = 0; i < numsyms; i++)
+	{
+		keys = g_strdup_printf("%s%s%s", keys,
+			(strlen(keys) > 0) ? "+" : " ", gdk_keyval_name(keysyms[i]));
+	}
+
+	gtk_label_set_text( GTK_LABEL(window), keys);
+}
+
+static gboolean dialog_key_ignore(int keyval)
+{
+	switch (keyval) {
+		case GDK_Return:
+		case GDK_Escape:
+			return TRUE;
+	}
+
+	return FALSE;
+}
+
+static gboolean dialog_key_press(GtkWidget *window G_GNUC_UNUSED,
+        GdkEvent *ev, VncGrabDefs *defs)
+{
+	gboolean keySymExists;
+	int i;
+
+	if (dialog_key_ignore(ev->key.keyval))
+		return FALSE;
+
+	if (defs->set && defs->curkeys)
+		return FALSE;
+
+	/* Check whether we already have keysym in array - i.e. it was handler by something else */
+	keySymExists = FALSE;
+	for (i = 0; i < defs->curkeys; i++) {
+		if (defs->keysyms[i] == ev->key.keyval)
+			keySymExists = TRUE;
+	}
+
+	if (!keySymExists) {
+		defs->keysyms = g_renew(guint, defs->keysyms, defs->curkeys + 1);
+		defs->keysyms[defs->curkeys] = ev->key.keyval;
+		defs->curkeys++;
+	}
+
+	dialog_update_keysyms(defs->label, defs->keysyms, defs->curkeys);
+
+	if (!ev->key.is_modifier) {
+		defs->set = TRUE;
+		defs->numkeys = defs->curkeys;
+		defs->curkeys--;
+	}
+
+	return FALSE;
+}
+
+static gboolean dialog_key_release(GtkWidget *window G_GNUC_UNUSED,
+        GdkEvent *ev, VncGrabDefs *defs)
+{
+	int i;
+
+	if (dialog_key_ignore(ev->key.keyval))
+		return FALSE;
+
+	if (defs->set) {
+		if (defs->curkeys == 0)
+			defs->set = FALSE;
+		if (defs->curkeys)
+			defs->curkeys--;
+		return FALSE;
+	}
+
+	for (i = 0; i < defs->curkeys; i++)
+	{
+		if (defs->keysyms[i] == ev->key.keyval)
+		{
+			defs->keysyms[i] = defs->keysyms[defs->curkeys - 1];
+			defs->curkeys--;
+			defs->keysyms = g_renew(guint, defs->keysyms, defs->curkeys);
+		}
+	}
+
+	dialog_update_keysyms(defs->label, defs->keysyms, defs->curkeys);
+
+	return FALSE;
+}
+
+static void do_set_grab_keys(GtkWidget *menu G_GNUC_UNUSED, GtkWidget *window)
+{
+	VncGrabDefs *defs;
+	VncGrabSequence *seq;
+	GtkWidget *dialog, *content_area, *label;
+	gint result;
+
+	dialog = gtk_dialog_new_with_buttons ("Key recorder",
+						GTK_WINDOW(window),
+						GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+						GTK_STOCK_OK,
+						GTK_RESPONSE_ACCEPT,
+						GTK_STOCK_CANCEL,
+						GTK_RESPONSE_REJECT,
+						NULL);
+
+	label = gtk_label_new("Please press desired grab key combination");
+	defs = g_new(VncGrabDefs, 1);
+	defs->label = label;
+	defs->keysyms = 0;
+	defs->numkeys = 0;
+	defs->curkeys = 0;
+	defs->set = FALSE;
+	g_signal_connect(dialog, "key-press-event",
+			G_CALLBACK(dialog_key_press), defs);
+	g_signal_connect(dialog, "key-release-event",
+			G_CALLBACK(dialog_key_release), defs);
+	gtk_widget_set_size_request(dialog, 300, 100);
+	content_area = gtk_dialog_get_content_area( GTK_DIALOG(dialog) );
+	gtk_container_add( GTK_CONTAINER(content_area), label);
+	gtk_widget_show_all(dialog);
+
+	result = gtk_dialog_run(GTK_DIALOG(dialog));
+	if (result == GTK_RESPONSE_ACCEPT) {
+		/* Accepted so we make a grab sequence from it */
+		seq = vnc_grab_sequence_new(defs->numkeys,
+					    defs->keysyms);
+
+		vnc_display_set_grab_keys(VNC_DISPLAY(vnc), seq);
+		set_title(VNC_DISPLAY(vnc), window, FALSE);
+		vnc_grab_sequence_free(seq);
+	}
+	g_free(defs);
+	gtk_widget_destroy(dialog);
+}
+
 static void vnc_credential(GtkWidget *vncdisplay, GValueArray *credList)
 {
 	GtkWidget *dialog = NULL;
@@ -353,7 +502,7 @@ int main(int argc, char **argv)
 	GtkWidget *window;
 	GtkWidget *layout;
 	GtkWidget *menubar;
-	GtkWidget *sendkey, *view;
+	GtkWidget *sendkey, *view, *settings;
 	GtkWidget *submenu;
 	GtkWidget *caf1;
 	GtkWidget *caf2;
@@ -367,6 +516,7 @@ int main(int argc, char **argv)
 	GtkWidget *cab;
 	GtkWidget *fullscreen;
 	GtkWidget *scaling;
+	GtkWidget *showgrabkeydlg;
 	const char *help_msg = "Run 'gvncviewer --help' to see a full list of available command line options";
 
 	/* Setup command line options */
@@ -440,6 +590,16 @@ int main(int argc, char **argv)
 	gtk_menu_shell_append(GTK_MENU_SHELL(submenu), scaling);
 
 	gtk_menu_item_set_submenu(GTK_MENU_ITEM(view), submenu);
+
+	settings = gtk_menu_item_new_with_mnemonic("_Settings");
+	gtk_menu_shell_append(GTK_MENU_SHELL(menubar), settings);
+
+	submenu = gtk_menu_new();
+
+	showgrabkeydlg = gtk_menu_item_new_with_mnemonic("_Set grab keys");
+	gtk_menu_shell_append(GTK_MENU_SHELL(submenu), showgrabkeydlg);
+
+	gtk_menu_item_set_submenu(GTK_MENU_ITEM(settings), submenu);
 
 #if WITH_LIBVIEW
 	ViewAutoDrawer_SetActive(VIEW_AUTODRAWER(layout), FALSE);
@@ -516,6 +676,8 @@ int main(int argc, char **argv)
 			 G_CALLBACK(send_cad), vnc);
 	g_signal_connect(cab, "activate",
 			 G_CALLBACK(send_cab), vnc);
+	g_signal_connect(showgrabkeydlg, "activate",
+			 G_CALLBACK(do_set_grab_keys), window);
 	g_signal_connect(fullscreen, "toggled",
 			 G_CALLBACK(do_fullscreen), window);
 	g_signal_connect(scaling, "toggled",
