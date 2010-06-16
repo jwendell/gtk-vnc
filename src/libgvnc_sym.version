@@ -8,6 +8,12 @@
 	vnc_cursor_get_width;
 	vnc_cursor_get_height;
 
+	vnc_color_map_get_type;
+	vnc_color_map_new;
+	vnc_color_map_copy;
+	vnc_color_map_free;
+	vnc_color_map_set;
+
 	vnc_framebuffer_get_type;
 	vnc_framebuffer_get_width;
 	vnc_framebuffer_get_height;

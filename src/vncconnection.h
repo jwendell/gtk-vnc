@@ -70,11 +70,6 @@ struct _VncConnectionClass
 	void (*vnc_disconnected)(VncConnection *conn);
 };
 
-struct vnc_connection_ops
-{
-	gboolean (*set_color_map_entry)(void *, int, int, int, int);
-};
-
 
 typedef enum {
 	VNC_CONNECTION_ENCODING_RAW = 0,

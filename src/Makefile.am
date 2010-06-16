@@ -32,6 +32,7 @@ gvnc_include_HEADERS = \
 			vncframebuffer.h \
 			vncbaseframebuffer.h \
 			vnccursor.h \
+			vnccolormap.h \
 			vncconnection.h \
 			vncconnectionenums.h \
 			vncutil.h
@@ -45,6 +46,7 @@ libgvnc_1_0_la_SOURCES = \
 			vncbaseframebufferblt.h \
 			vncbaseframebuffer.h vncbaseframebuffer.c \
 			vnccursor.h vnccursor.c \
+			vnccolormap.h vnccolormap.c \
 			vncconnection.h vncconnection.c \
 			vncconnectionblt.h \
 			vncconnectionenums.h vncconnectionenums.c \
@@ -193,6 +195,7 @@ GVNC_INTROSPECTION_SRCS = \
 			$(srcdir)/vncpixelformat.h \
 			$(srcdir)/vncframebuffer.h $(srcdir)/vncframebuffer.c \
 			$(srcdir)/vncbaseframebuffer.h $(srcdir)/vncbaseframebuffer.c \
+			$(srcdir)/vnccolormap.h $(srcdir)/vnccolormap.c \
 			$(srcdir)/vnccursor.h $(srcdir)/vnccursor.c \
 			$(srcdir)/vncconnection.h $(srcdir)/vncconnection.c \
 			$(builddir)/vncconnectionenums.h $(builddir)/vncconnectionenums.c \

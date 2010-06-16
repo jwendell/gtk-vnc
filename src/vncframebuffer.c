@@ -101,6 +101,13 @@ void vnc_framebuffer_rgb24_blt(VncFramebuffer *fb,
 }
 
 
+void vnc_framebuffer_set_color_map(VncFramebuffer *fb,
+				   VncColorMap *map)
+{
+	VNC_FRAMEBUFFER_GET_INTERFACE(fb)->set_color_map(fb, map);
+}
+
+
 GType
 vnc_framebuffer_get_type (void)
 {

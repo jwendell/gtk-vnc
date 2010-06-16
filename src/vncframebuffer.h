@@ -25,6 +25,7 @@
 #include <glib-object.h>
 
 #include <vncpixelformat.h>
+#include <vnccolormap.h>
 
 G_BEGIN_DECLS
 
@@ -69,7 +70,8 @@ struct _VncFramebufferInterface {
 			  int rowstride,
 			  guint16 x, guint16 y,
 			  guint16 width, guint16 height);
-
+	void (*set_color_map)(VncFramebuffer *fb,
+			      VncColorMap *map);
 };
 
 GType vnc_framebuffer_get_type(void) G_GNUC_CONST;
@@ -111,6 +113,8 @@ void vnc_framebuffer_rgb24_blt(VncFramebuffer *fb,
 			       guint16 x, guint16 y,
 			       guint16 width, guint16 height);
 
+void vnc_framebuffer_set_color_map(VncFramebuffer *fb,
+				   VncColorMap *map);
 
 
 G_END_DECLS

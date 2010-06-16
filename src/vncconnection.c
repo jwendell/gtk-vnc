@@ -164,9 +164,6 @@ struct _VncConnectionPrivate
 	vnc_connection_tight_compute_predicted_func *tight_compute_predicted;
 	vnc_connection_tight_sum_pixel_func *tight_sum_pixel;
 
-	struct vnc_connection_ops ops;
-	gpointer ops_data;
-
 	int wait_interruptable;
 	struct wait_queue wait;
 
@@ -2367,20 +2364,6 @@ static void vnc_connection_update(VncConnection *conn, int x, int y, int width, 
 	vnc_connection_emit_main_context(conn, VNC_FRAMEBUFFER_UPDATE, &sigdata);
 }
 
-static void vnc_connection_set_color_map_entry(VncConnection *conn, guint16 color,
-					       guint16 red, guint16 green,
-					       guint16 blue)
-{
-	VncConnectionPrivate *priv = conn->priv;
-
-	if (priv->has_error || !priv->ops.set_color_map_entry)
-		return;
-	if (!priv->ops.set_color_map_entry(priv->ops_data, color,
-					   red, green, blue)) {
-		VNC_DEBUG("Closing the connection: vnc_connection_set_color_map_entry");
-		priv->has_error = TRUE;
-	}
-}
 
 static void vnc_connection_bell(VncConnection *conn)
 {
@@ -2680,11 +2663,16 @@ static gboolean vnc_connection_server_message(VncConnection *conn)
 		guint16 first_color;
 		guint16 n_colors;
 		guint8 pad[1];
+		VncColorMap *map;
 		int i;
 
 		vnc_connection_read(conn, pad, 1);
 		first_color = vnc_connection_read_u16(conn);
 		n_colors = vnc_connection_read_u16(conn);
+
+		VNC_DEBUG("Colour map from %d with %d entries",
+			  first_color, n_colors);
+		map = vnc_color_map_new(first_color, n_colors);
 
 		for (i = 0; i < n_colors; i++) {
 			guint16 red, green, blue;
@@ -2693,10 +2681,13 @@ static gboolean vnc_connection_server_message(VncConnection *conn)
 			green = vnc_connection_read_u16(conn);
 			blue = vnc_connection_read_u16(conn);
 
-			vnc_connection_set_color_map_entry(conn,
-							   i + first_color,
-							   red, green, blue);
+			vnc_color_map_set(map, 
+					  i + first_color,
+					  red, green, blue);
 		}
+
+		vnc_framebuffer_set_color_map(priv->fb, map);
+		vnc_color_map_free(map);
 	}	break;
 	case 2: /* Bell */
 		vnc_connection_bell(conn);

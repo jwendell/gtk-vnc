@@ -56,6 +56,8 @@ struct _VncBaseFramebufferPrivate {
 	VncPixelFormat *localFormat;
 	VncPixelFormat *remoteFormat;
 
+	VncColorMap *colorMap;
+
 	/* TRUE if the following derived data needs reinitializing */
 	gboolean reinitRenderFuncs;
 
@@ -93,6 +95,7 @@ enum {
 	PROP_ROWSTRIDE,
 	PROP_LOCAL_FORMAT,
 	PROP_REMOTE_FORMAT,
+	PROP_COLOR_MAP,
 };
 
 
@@ -127,6 +130,10 @@ static void vnc_base_framebuffer_get_property(GObject *object,
 
 	case PROP_REMOTE_FORMAT:
 		g_value_set_boxed(value, priv->remoteFormat);
+		break;
+
+	case PROP_COLOR_MAP:
+		g_value_set_boxed(value, priv->colorMap);
 		break;
 
 	default:
@@ -177,6 +184,13 @@ static void vnc_base_framebuffer_set_property(GObject *object,
 		priv->reinitRenderFuncs = TRUE;
 		break;
 
+	case PROP_COLOR_MAP:
+		if (priv->colorMap)
+			vnc_color_map_free(priv->colorMap);
+		priv->colorMap = g_value_dup_boxed(value);
+		priv->reinitRenderFuncs = TRUE;
+		break;
+
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
         }
@@ -194,6 +208,8 @@ static void vnc_base_framebuffer_finalize(GObject *object)
 		vnc_pixel_format_free(priv->localFormat);
 	if (priv->remoteFormat)
 		vnc_pixel_format_free(priv->remoteFormat);
+	if (priv->colorMap)
+		vnc_color_map_free(priv->colorMap);
 
 	G_OBJECT_CLASS(vnc_base_framebuffer_parent_class)->finalize (object);
 }
@@ -280,6 +296,18 @@ static void vnc_base_framebuffer_class_init(VncBaseFramebufferClass *klass)
 							   G_PARAM_READABLE |
 							   G_PARAM_WRITABLE |
 							   G_PARAM_CONSTRUCT_ONLY |
+							   G_PARAM_STATIC_NAME |
+							   G_PARAM_STATIC_NICK |
+							   G_PARAM_STATIC_BLURB));
+
+	g_object_class_install_property(object_class,
+					PROP_COLOR_MAP,
+					g_param_spec_boxed("color-map",
+							   "Color map",
+							   "The color map",
+							   VNC_TYPE_COLOR_MAP,
+							   G_PARAM_READABLE |
+							   G_PARAM_WRITABLE |
 							   G_PARAM_STATIC_NAME |
 							   G_PARAM_STATIC_NICK |
 							   G_PARAM_STATIC_BLURB));
@@ -430,6 +458,23 @@ static guint32 vnc_base_framebuffer_swap_img_32(VncBaseFramebufferPrivate *priv,
 }
 
 
+/* local host native format -> X server image format */
+static guint32 vnc_base_framebuffer_swap_img_64(VncBaseFramebufferPrivate *priv, guint64 pixel)
+{
+	if (G_BYTE_ORDER != priv->localFormat->byte_order)
+		return  (((pixel >> 56) & 0xFF) <<  0) |
+			(((pixel >> 48) & 0xFF) <<  8) |
+			(((pixel >> 40) & 0xFF) << 16) |
+			(((pixel >> 32) & 0xFF) << 24) |
+			(((pixel >> 24) & 0xFF) << 32) |
+			(((pixel >> 16) & 0xFF) << 40) |
+			(((pixel >>  8) & 0xFF) << 48) |
+			(((pixel >>  0) & 0xFF) << 56);
+	else
+		return pixel;
+}
+
+
 /* VNC server RFB  format ->  local host native format */
 static guint32 vnc_base_framebuffer_swap_rfb_32(VncBaseFramebufferPrivate *priv, guint32 pixel)
 {
@@ -438,6 +483,22 @@ static guint32 vnc_base_framebuffer_swap_rfb_32(VncBaseFramebufferPrivate *priv,
 			(((pixel >> 16) & 0xFF) <<  8) |
 			(((pixel >>  8) & 0xFF) << 16) |
 			(((pixel >>  0) & 0xFF) << 24);
+	else
+		return pixel;
+}
+
+/* VNC server RFB  format ->  local host native format */
+static guint32 vnc_base_framebuffer_swap_rfb_64(VncBaseFramebufferPrivate *priv, guint64 pixel)
+{
+	if (priv->remoteFormat->byte_order != G_BYTE_ORDER)
+		return  (((pixel >> 56) & 0xFF) <<  0) |
+			(((pixel >> 48) & 0xFF) <<  8) |
+			(((pixel >> 40) & 0xFF) << 16) |
+			(((pixel >> 32) & 0xFF) << 24) |
+			(((pixel >> 24) & 0xFF) << 32) |
+			(((pixel >> 16) & 0xFF) << 40) |
+			(((pixel >>  8) & 0xFF) << 48) |
+			(((pixel >>  0) & 0xFF) << 56);
 	else
 		return pixel;
 }
@@ -460,6 +521,12 @@ static guint32 vnc_base_framebuffer_swap_rfb_32(VncBaseFramebufferPrivate *priv,
 #undef SRC
 #undef DST
 
+#define SRC 8
+#define DST 64
+#include "vncbaseframebufferblt.h"
+#undef SRC
+#undef DST
+
 
 #define SRC 16
 #define DST 8
@@ -479,6 +546,12 @@ static guint32 vnc_base_framebuffer_swap_rfb_32(VncBaseFramebufferPrivate *priv,
 #undef SRC
 #undef DST
 
+#define SRC 16
+#define DST 64
+#include "vncbaseframebufferblt.h"
+#undef SRC
+#undef DST
+
 
 #define SRC 32
 #define DST 8
@@ -498,46 +571,186 @@ static guint32 vnc_base_framebuffer_swap_rfb_32(VncBaseFramebufferPrivate *priv,
 #undef SRC
 #undef DST
 
-static vnc_base_framebuffer_set_pixel_at_func *vnc_base_framebuffer_set_pixel_at_table[3][3] = {
+#define SRC 32
+#define DST 64
+#include "vncbaseframebufferblt.h"
+#undef SRC
+#undef DST
+
+
+
+#define SRC 64
+#define DST 8
+#include "vncbaseframebufferblt.h"
+#undef SRC
+#undef DST
+
+#define SRC 64
+#define DST 16
+#include "vncbaseframebufferblt.h"
+#undef SRC
+#undef DST
+
+#define SRC 64
+#define DST 32
+#include "vncbaseframebufferblt.h"
+#undef SRC
+#undef DST
+
+#define SRC 64
+#define DST 64
+#include "vncbaseframebufferblt.h"
+#undef SRC
+#undef DST
+
+
+#define COLORMAP
+#define SRC 8
+#define DST 8
+#include "vncbaseframebufferblt.h"
+#undef SRC
+#undef DST
+
+#define SRC 8
+#define DST 16
+#include "vncbaseframebufferblt.h"
+#undef SRC
+#undef DST
+
+#define SRC 8
+#define DST 32
+#include "vncbaseframebufferblt.h"
+#undef SRC
+#undef DST
+
+#define SRC 8
+#define DST 64
+#include "vncbaseframebufferblt.h"
+#undef SRC
+#undef DST
+#undef COLORMAP
+
+
+
+#define COLORMAP
+#define SRC 16
+#define DST 8
+#include "vncbaseframebufferblt.h"
+#undef SRC
+#undef DST
+
+#define SRC 16
+#define DST 16
+#include "vncbaseframebufferblt.h"
+#undef SRC
+#undef DST
+
+#define SRC 16
+#define DST 32
+#include "vncbaseframebufferblt.h"
+#undef SRC
+#undef DST
+
+#define SRC 16
+#define DST 64
+#include "vncbaseframebufferblt.h"
+#undef SRC
+#undef DST
+#undef COLORMAP
+
+static vnc_base_framebuffer_set_pixel_at_func *vnc_base_framebuffer_set_pixel_at_table[6][4] = {
         { (vnc_base_framebuffer_set_pixel_at_func *)vnc_base_framebuffer_set_pixel_at_8x8,
           (vnc_base_framebuffer_set_pixel_at_func *)vnc_base_framebuffer_set_pixel_at_8x16,
-          (vnc_base_framebuffer_set_pixel_at_func *)vnc_base_framebuffer_set_pixel_at_8x32 },
+          (vnc_base_framebuffer_set_pixel_at_func *)vnc_base_framebuffer_set_pixel_at_8x32,
+          (vnc_base_framebuffer_set_pixel_at_func *)vnc_base_framebuffer_set_pixel_at_8x64 },
         { (vnc_base_framebuffer_set_pixel_at_func *)vnc_base_framebuffer_set_pixel_at_16x8,
           (vnc_base_framebuffer_set_pixel_at_func *)vnc_base_framebuffer_set_pixel_at_16x16,
-          (vnc_base_framebuffer_set_pixel_at_func *)vnc_base_framebuffer_set_pixel_at_16x32 },
+          (vnc_base_framebuffer_set_pixel_at_func *)vnc_base_framebuffer_set_pixel_at_16x32,
+          (vnc_base_framebuffer_set_pixel_at_func *)vnc_base_framebuffer_set_pixel_at_16x64 },
         { (vnc_base_framebuffer_set_pixel_at_func *)vnc_base_framebuffer_set_pixel_at_32x8,
           (vnc_base_framebuffer_set_pixel_at_func *)vnc_base_framebuffer_set_pixel_at_32x16,
-          (vnc_base_framebuffer_set_pixel_at_func *)vnc_base_framebuffer_set_pixel_at_32x32 },
+          (vnc_base_framebuffer_set_pixel_at_func *)vnc_base_framebuffer_set_pixel_at_32x32,
+          (vnc_base_framebuffer_set_pixel_at_func *)vnc_base_framebuffer_set_pixel_at_32x64 },
+        { (vnc_base_framebuffer_set_pixel_at_func *)vnc_base_framebuffer_set_pixel_at_64x8,
+          (vnc_base_framebuffer_set_pixel_at_func *)vnc_base_framebuffer_set_pixel_at_64x16,
+          (vnc_base_framebuffer_set_pixel_at_func *)vnc_base_framebuffer_set_pixel_at_64x32,
+          (vnc_base_framebuffer_set_pixel_at_func *)vnc_base_framebuffer_set_pixel_at_64x64 },
+        { (vnc_base_framebuffer_set_pixel_at_func *)vnc_base_framebuffer_set_pixel_at_cmap8x8,
+          (vnc_base_framebuffer_set_pixel_at_func *)vnc_base_framebuffer_set_pixel_at_cmap8x16,
+          (vnc_base_framebuffer_set_pixel_at_func *)vnc_base_framebuffer_set_pixel_at_cmap8x32,
+          (vnc_base_framebuffer_set_pixel_at_func *)vnc_base_framebuffer_set_pixel_at_cmap8x64 },
+        { (vnc_base_framebuffer_set_pixel_at_func *)vnc_base_framebuffer_set_pixel_at_cmap16x8,
+          (vnc_base_framebuffer_set_pixel_at_func *)vnc_base_framebuffer_set_pixel_at_cmap16x16,
+          (vnc_base_framebuffer_set_pixel_at_func *)vnc_base_framebuffer_set_pixel_at_cmap16x32,
+          (vnc_base_framebuffer_set_pixel_at_func *)vnc_base_framebuffer_set_pixel_at_cmap16x64 },
 };
 
-static vnc_base_framebuffer_fill_func *vnc_base_framebuffer_fill_table[3][3] = {
+static vnc_base_framebuffer_fill_func *vnc_base_framebuffer_fill_table[6][4] = {
         { (vnc_base_framebuffer_fill_func *)vnc_base_framebuffer_fill_8x8,
           (vnc_base_framebuffer_fill_func *)vnc_base_framebuffer_fill_8x16,
-          (vnc_base_framebuffer_fill_func *)vnc_base_framebuffer_fill_8x32 },
+          (vnc_base_framebuffer_fill_func *)vnc_base_framebuffer_fill_8x32,
+          (vnc_base_framebuffer_fill_func *)vnc_base_framebuffer_fill_8x64 },
         { (vnc_base_framebuffer_fill_func *)vnc_base_framebuffer_fill_16x8,
           (vnc_base_framebuffer_fill_func *)vnc_base_framebuffer_fill_16x16,
-          (vnc_base_framebuffer_fill_func *)vnc_base_framebuffer_fill_16x32 },
+          (vnc_base_framebuffer_fill_func *)vnc_base_framebuffer_fill_16x32,
+          (vnc_base_framebuffer_fill_func *)vnc_base_framebuffer_fill_16x64 },
         { (vnc_base_framebuffer_fill_func *)vnc_base_framebuffer_fill_32x8,
           (vnc_base_framebuffer_fill_func *)vnc_base_framebuffer_fill_32x16,
-          (vnc_base_framebuffer_fill_func *)vnc_base_framebuffer_fill_32x32 },
+          (vnc_base_framebuffer_fill_func *)vnc_base_framebuffer_fill_32x32,
+          (vnc_base_framebuffer_fill_func *)vnc_base_framebuffer_fill_32x64 },
+        { (vnc_base_framebuffer_fill_func *)vnc_base_framebuffer_fill_64x8,
+          (vnc_base_framebuffer_fill_func *)vnc_base_framebuffer_fill_64x16,
+          (vnc_base_framebuffer_fill_func *)vnc_base_framebuffer_fill_64x32,
+          (vnc_base_framebuffer_fill_func *)vnc_base_framebuffer_fill_64x64 },
+        { (vnc_base_framebuffer_fill_func *)vnc_base_framebuffer_fill_cmap8x8,
+          (vnc_base_framebuffer_fill_func *)vnc_base_framebuffer_fill_cmap8x16,
+          (vnc_base_framebuffer_fill_func *)vnc_base_framebuffer_fill_cmap8x32,
+          (vnc_base_framebuffer_fill_func *)vnc_base_framebuffer_fill_cmap8x64 },
+        { (vnc_base_framebuffer_fill_func *)vnc_base_framebuffer_fill_cmap16x8,
+          (vnc_base_framebuffer_fill_func *)vnc_base_framebuffer_fill_cmap16x16,
+          (vnc_base_framebuffer_fill_func *)vnc_base_framebuffer_fill_cmap16x32,
+          (vnc_base_framebuffer_fill_func *)vnc_base_framebuffer_fill_cmap16x64 },
 };
 
-static vnc_base_framebuffer_fill_func *vnc_base_framebuffer_fill_fast_table[3] = {
+static vnc_base_framebuffer_fill_func *vnc_base_framebuffer_fill_fast_table[4] = {
 	(vnc_base_framebuffer_fill_func *)vnc_base_framebuffer_fill_fast_8x8,
 	(vnc_base_framebuffer_fill_func *)vnc_base_framebuffer_fill_fast_16x16,
 	(vnc_base_framebuffer_fill_func *)vnc_base_framebuffer_fill_fast_32x32,
+	(vnc_base_framebuffer_fill_func *)vnc_base_framebuffer_fill_fast_64x64,
 };
 
-static vnc_base_framebuffer_blt_func *vnc_base_framebuffer_blt_table[3][3] = {
-        {  vnc_base_framebuffer_blt_8x8,  vnc_base_framebuffer_blt_8x16,  vnc_base_framebuffer_blt_8x32 },
-        { vnc_base_framebuffer_blt_16x8, vnc_base_framebuffer_blt_16x16, vnc_base_framebuffer_blt_16x32 },
-        { vnc_base_framebuffer_blt_32x8, vnc_base_framebuffer_blt_32x16, vnc_base_framebuffer_blt_32x32 },
+static vnc_base_framebuffer_blt_func *vnc_base_framebuffer_blt_table[6][4] = {
+        {  vnc_base_framebuffer_blt_8x8,
+	   vnc_base_framebuffer_blt_8x16,
+	   vnc_base_framebuffer_blt_8x32,
+	   vnc_base_framebuffer_blt_8x64 },
+        { vnc_base_framebuffer_blt_16x8,
+	  vnc_base_framebuffer_blt_16x16,
+	  vnc_base_framebuffer_blt_16x32,
+	  vnc_base_framebuffer_blt_16x64 },
+        { vnc_base_framebuffer_blt_32x8,
+	  vnc_base_framebuffer_blt_32x16,
+	  vnc_base_framebuffer_blt_32x32,
+	  vnc_base_framebuffer_blt_32x64 },
+        { vnc_base_framebuffer_blt_64x8,
+	  vnc_base_framebuffer_blt_64x16,
+	  vnc_base_framebuffer_blt_64x32,
+	  vnc_base_framebuffer_blt_64x64 },
+        { vnc_base_framebuffer_blt_cmap8x8,
+	  vnc_base_framebuffer_blt_cmap8x16,
+	  vnc_base_framebuffer_blt_cmap8x32,
+	  vnc_base_framebuffer_blt_cmap8x64 },
+        { vnc_base_framebuffer_blt_cmap16x8,
+	  vnc_base_framebuffer_blt_cmap16x16,
+	  vnc_base_framebuffer_blt_cmap16x32,
+	  vnc_base_framebuffer_blt_cmap16x64 },
 };
 
-static vnc_base_framebuffer_rgb24_blt_func *vnc_base_framebuffer_rgb24_blt_table[3] = {
+static vnc_base_framebuffer_rgb24_blt_func *vnc_base_framebuffer_rgb24_blt_table[4] = {
         (vnc_base_framebuffer_rgb24_blt_func *)vnc_base_framebuffer_rgb24_blt_32x8,
         (vnc_base_framebuffer_rgb24_blt_func *)vnc_base_framebuffer_rgb24_blt_32x16,
         (vnc_base_framebuffer_rgb24_blt_func *)vnc_base_framebuffer_rgb24_blt_32x32,
+        (vnc_base_framebuffer_rgb24_blt_func *)vnc_base_framebuffer_rgb24_blt_32x64,
 };
 
 
@@ -566,7 +779,18 @@ static void vnc_base_framebuffer_reinit_render_funcs(VncBaseFramebuffer *fb)
 	if (!priv->reinitRenderFuncs)
 		return;
 
-	if (priv->localFormat->bits_per_pixel == priv->remoteFormat->bits_per_pixel &&
+	if (!priv->remoteFormat->true_color_flag) {
+		priv->remoteFormat->red_max = ~(guint16)0;
+		priv->remoteFormat->green_max = ~(guint16)0;
+		priv->remoteFormat->blue_max = ~(guint16)0;
+		priv->remoteFormat->red_shift = 32;
+		priv->remoteFormat->green_shift = 16;
+		priv->remoteFormat->blue_shift = 0;
+		priv->remoteFormat->byte_order = G_BYTE_ORDER;
+	}
+
+	if (priv->remoteFormat->true_color_flag &&
+	    priv->localFormat->bits_per_pixel == priv->remoteFormat->bits_per_pixel &&
 	    priv->localFormat->red_max == priv->remoteFormat->red_max &&
 	    priv->localFormat->green_max == priv->remoteFormat->green_max &&
 	    priv->localFormat->blue_max == priv->remoteFormat->blue_max &&
@@ -623,9 +847,17 @@ static void vnc_base_framebuffer_reinit_render_funcs(VncBaseFramebuffer *fb)
 
 	i = priv->remoteFormat->bits_per_pixel / 8;
 	j = priv->localFormat->bits_per_pixel / 8;
-
 	if (i == 4) i = 3;
 	if (j == 4) j = 3;
+	if (i > 4) i = 4; /* XXX hardcoding int64 */
+	if (j > 4) j = 4; /* XXX hardcoding int64 */
+	if (!priv->remoteFormat->true_color_flag) {
+		if (priv->remoteFormat->bits_per_pixel == 8)
+			i = 5; /* 8bpp colourmap */
+		else
+			i = 6; /* 16bpp colourmap */
+		VNC_DEBUG("BPP i %d %d", priv->remoteFormat->bits_per_pixel, i);
+	}
 
 	priv->set_pixel_at = vnc_base_framebuffer_set_pixel_at_table[i - 1][j - 1];
 
@@ -731,6 +963,18 @@ static void vnc_base_framebuffer_rgb24_blt(VncFramebuffer *iface,
 }
 
 
+static void vnc_base_framebuffer_set_color_map(VncFramebuffer *iface,
+					       VncColorMap *map)
+{
+	VncBaseFramebuffer *fb = VNC_BASE_FRAMEBUFFER(iface);
+	VncBaseFramebufferPrivate *priv = fb->priv;
+
+	if (priv->colorMap)
+		vnc_color_map_free(priv->colorMap);
+	priv->colorMap = vnc_color_map_copy(map);
+}
+
+
 static void vnc_base_framebuffer_interface_init(gpointer g_iface,
 						gpointer iface_data G_GNUC_UNUSED)
 {
@@ -749,6 +993,7 @@ static void vnc_base_framebuffer_interface_init(gpointer g_iface,
     iface->copyrect = vnc_base_framebuffer_copyrect;
     iface->blt = vnc_base_framebuffer_blt;
     iface->rgb24_blt = vnc_base_framebuffer_rgb24_blt;
+    iface->set_color_map = vnc_base_framebuffer_set_color_map;
 }
 
 /*

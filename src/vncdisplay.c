@@ -967,14 +967,18 @@ static gboolean vnc_display_set_preferred_pixel_format(VncDisplay *display)
 
 	switch (priv->depth) {
 	case VNC_DISPLAY_DEPTH_COLOR_DEFAULT:
-		/* If current format is not true colour, then
-		 * fallthrough to next case
-		 */
-		if (currentFormat->true_color_flag == 1) {
-			VNC_DEBUG ("Using default colour depth %d (%d bpp)",
-				    currentFormat->depth, currentFormat->bits_per_pixel);
-			return TRUE;
-		}
+		VNC_DEBUG ("Using default colour depth %d (%d bpp) (true color? %d)",
+			   currentFormat->depth, currentFormat->bits_per_pixel,
+			   currentFormat->true_color_flag);
+#if 0
+		/* TigerVNC always sends back the encoding even if
+		   unchanged from what the server suggested. This
+		   does not appear to matter, so lets save the bytes */
+		memcpy(&fmt, currentFormat, sizeof(fmt));
+		break;
+#else
+		return TRUE;
+#endif
 
 	case VNC_DISPLAY_DEPTH_COLOR_FULL:
 		fmt.depth = 24;
@@ -1282,9 +1286,11 @@ static void on_initialized(VncConnection *conn G_GNUC_UNUSED,
 		n_encodings -= 2;
 	}
 
+	VNC_DEBUG("Sending %d encodings", n_encodings);
 	if (!vnc_connection_set_encodings(priv->conn, n_encodings, encodingsp))
 		goto error;
 
+	VNC_DEBUG("Requesting first framebuffer update");
 	if (!vnc_connection_framebuffer_update_request(priv->conn, 0, 0, 0,
 						       vnc_connection_get_width(priv->conn),
 						       vnc_connection_get_height(priv->conn)))

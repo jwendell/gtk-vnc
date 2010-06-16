@@ -27,7 +27,11 @@
 
 #define SPLICE_I(a, b) a ## b
 #define SPLICE(a, b) SPLICE_I(a, b)
+#ifdef COLORMAP
+#define SUFFIX() SPLICE(cmap,SPLICE(SRC,SPLICE(x,DST)))
+#else
 #define SUFFIX() SPLICE(SRC,SPLICE(x,DST))
+#endif
 
 #define src_pixel_t SPLICE(guint, SRC)
 #define ssrc_pixel_t SPLICE(gint, SRC)
@@ -43,7 +47,24 @@
 #define SWAP_RFB(priv, pixel) SPLICE(vnc_base_framebuffer_swap_rfb_, SRC)(priv, pixel)
 #define SWAP_IMG(priv, pixel) SPLICE(vnc_base_framebuffer_swap_img_, DST)(priv, pixel)
 #define COMPONENT(color, pixel) ((SWAP_RFB(priv, pixel) >> priv->remoteFormat->SPLICE(color, _shift) & priv->remoteFormat->SPLICE(color, _max)))
-
+#include <stdio.h>
+#ifdef COLORMAP
+static void SET_PIXEL(VncBaseFramebufferPrivate *priv,
+		      dst_pixel_t *dp, src_pixel_t spidx)
+{
+	guint64 sp;
+	guint16 red = 0;
+	guint16 green = 0;
+	guint16 blue = 0;
+	vnc_color_map_lookup(priv->colorMap,
+			     spidx,
+			     &red, &green, &blue);
+	sp = ((guint64)red << 32) | ((guint64)green << 16) | (guint64)blue;
+	*dp = SWAP_IMG(priv, ((sp >> priv->rrs) & priv->rm) << priv->rls
+		       | ((sp >> priv->grs) & priv->gm) << priv->gls
+		       | ((sp >> priv->brs) & priv->bm) << priv->bls);
+}
+#else
 static void SET_PIXEL(VncBaseFramebufferPrivate *priv,
 		      dst_pixel_t *dp, src_pixel_t sp)
 {
@@ -51,6 +72,7 @@ static void SET_PIXEL(VncBaseFramebufferPrivate *priv,
 		       | ((sp >> priv->grs) & priv->gm) << priv->gls
 		       | ((sp >> priv->brs) & priv->bm) << priv->bls);
 }
+#endif
 
 static void SET_PIXEL_AT(VncBaseFramebufferPrivate *priv,
 			 src_pixel_t *sp,
@@ -63,6 +85,7 @@ static void SET_PIXEL_AT(VncBaseFramebufferPrivate *priv,
 
 
 #if SRC == DST
+#ifndef COLORMAP
 static void FAST_FILL(VncBaseFramebufferPrivate *priv,
 		      src_pixel_t *sp,
 		      guint16 x, guint16 y,
@@ -86,6 +109,7 @@ static void FAST_FILL(VncBaseFramebufferPrivate *priv,
 		dst += priv->rowstride;
 	}
 }
+#endif
 #endif
 
 
