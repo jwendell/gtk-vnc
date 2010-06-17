@@ -727,6 +727,8 @@ static int vnc_connection_read_buf(VncConnection *conn)
 
 /*
  * Fill the 'data' buffer up with exactly 'len' bytes worth of data
+ *
+ * Must only be called from the VNC coroutine
  */
 static int vnc_connection_read(VncConnection *conn, void *data, size_t len)
 {
@@ -880,6 +882,10 @@ static void vnc_connection_flush(VncConnection *conn)
 	priv->write_offset = 0;
 }
 
+
+/*
+ * Must only be called from the VNC coroutine
+ */
 static void vnc_connection_write(VncConnection *conn, const void *data, size_t len)
 {
 	VncConnectionPrivate *priv = conn->priv;
@@ -945,11 +951,17 @@ static size_t vnc_connection_pixel_size(VncConnection *conn)
 	return priv->fmt.bits_per_pixel / 8;
 }
 
+/*
+ * Must only be called from the VNC coroutine
+ */
 static void vnc_connection_read_pixel(VncConnection *conn, guint8 *pixel)
 {
 	vnc_connection_read(conn, pixel, vnc_connection_pixel_size(conn));
 }
 
+/*
+ * Must only be called from the VNC coroutine
+ */
 static guint8 vnc_connection_read_u8(VncConnection *conn)
 {
 	guint8 value = 0;
@@ -957,6 +969,9 @@ static guint8 vnc_connection_read_u8(VncConnection *conn)
 	return value;
 }
 
+/*
+ * Must only be called from the VNC coroutine
+ */
 static int vnc_connection_read_u8_interruptable(VncConnection *conn, guint8 *value)
 {
 	VncConnectionPrivate *priv = conn->priv;
@@ -969,6 +984,9 @@ static int vnc_connection_read_u8_interruptable(VncConnection *conn, guint8 *val
 	return ret;
 }
 
+/*
+ * Must only be called from the VNC coroutine
+ */
 static guint16 vnc_connection_read_u16(VncConnection *conn)
 {
 	guint16 value = 0;
@@ -976,6 +994,9 @@ static guint16 vnc_connection_read_u16(VncConnection *conn)
 	return ntohs(value);
 }
 
+/*
+ * Must only be called from the VNC coroutine
+ */
 static guint32 vnc_connection_read_u32(VncConnection *conn)
 {
 	guint32 value = 0;
@@ -983,6 +1004,9 @@ static guint32 vnc_connection_read_u32(VncConnection *conn)
 	return ntohl(value);
 }
 
+/*
+ * Must only be called from the VNC coroutine
+ */
 static gint32 vnc_connection_read_s32(VncConnection *conn)
 {
 	gint32 value = 0;
@@ -990,24 +1014,18 @@ static gint32 vnc_connection_read_s32(VncConnection *conn)
 	return ntohl(value);
 }
 
+/*
+ * Must only be called from the VNC coroutine
+ */
 static void vnc_connection_write_u8(VncConnection *conn, guint8 value)
 {
 	vnc_connection_write(conn, &value, sizeof(value));
 }
 
-static void vnc_connection_write_u16(VncConnection *conn, guint16 value)
-{
-	value = htons(value);
-	vnc_connection_write(conn, &value, sizeof(value));
-}
-
+/*
+ * Must only be called from the VNC coroutine
+ */
 static void vnc_connection_write_u32(VncConnection *conn, guint32 value)
-{
-	value = htonl(value);
-	vnc_connection_write(conn, &value, sizeof(value));
-}
-
-static void vnc_connection_write_s32(VncConnection *conn, gint32 value)
 {
 	value = htonl(value);
 	vnc_connection_write(conn, &value, sizeof(value));
@@ -1313,6 +1331,9 @@ gboolean vnc_connection_get_shared(VncConnection *conn)
 }
 
 
+/*
+ * Must only be called from the SYSTEM coroutine
+ */
 static void vnc_connection_buffered_write(VncConnection *conn, const void *data, size_t size)
 {
 	VncConnectionPrivate *priv = conn->priv;
@@ -1332,23 +1353,44 @@ static void vnc_connection_buffered_write(VncConnection *conn, const void *data,
 	priv->xmit_buffer_size += size;
 }
 
+/*
+ * Must only be called from the SYSTEM coroutine
+ */
 static void vnc_connection_buffered_write_u8(VncConnection *conn, guint8 value)
 {
 	vnc_connection_buffered_write(conn, &value, 1);
 }
 
+/*
+ * Must only be called from the SYSTEM coroutine
+ */
 static void vnc_connection_buffered_write_u16(VncConnection *conn, guint16 value)
 {
 	value = htons(value);
 	vnc_connection_buffered_write(conn, &value, 2);
 }
 
+/*
+ * Must only be called from the SYSTEM coroutine
+ */
 static void vnc_connection_buffered_write_u32(VncConnection *conn, guint32 value)
 {
 	value = htonl(value);
 	vnc_connection_buffered_write(conn, &value, 4);
 }
 
+/*
+ * Must only be called from the SYSTEM coroutine
+ */
+static void vnc_connection_buffered_write_s32(VncConnection *conn, gint32 value)
+{
+	value = htonl(value);
+	vnc_connection_buffered_write(conn, &value, 4);
+}
+
+/*
+ * Must only be called from the SYSTEM coroutine
+ */
 static void vnc_connection_buffered_flush(VncConnection *conn)
 {
 	VncConnectionPrivate *priv = conn->priv;
@@ -1416,15 +1458,15 @@ gboolean vnc_connection_set_encodings(VncConnection *conn, int n_encoding, gint3
 		}
 
 	priv->has_ext_key_event = FALSE;
-	vnc_connection_write_u8(conn, 2);
-	vnc_connection_write(conn, pad, 1);
-	vnc_connection_write_u16(conn, n_encoding - skip_zrle);
+	vnc_connection_buffered_write_u8(conn, 2);
+	vnc_connection_buffered_write(conn, pad, 1);
+	vnc_connection_buffered_write_u16(conn, n_encoding - skip_zrle);
 	for (i = 0; i < n_encoding; i++) {
 		if (skip_zrle && encoding[i] == VNC_CONNECTION_ENCODING_ZRLE)
 			continue;
-		vnc_connection_write_s32(conn, encoding[i]);
+		vnc_connection_buffered_write_s32(conn, encoding[i]);
 	}
-	vnc_connection_flush(conn);
+	vnc_connection_buffered_flush(conn);
 	return !vnc_connection_has_error(conn);
 }
 
