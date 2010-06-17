@@ -4266,7 +4266,7 @@ static gboolean vnc_connection_initialize(VncConnection *conn)
 		priv->minor = 8;
 	}
 
-	snprintf(version, 12, "RFB %03d.%03d\n", priv->major, priv->minor);
+	snprintf(version, 13, "RFB %03d.%03d\n", priv->major, priv->minor);
 	vnc_connection_write(conn, version, 12);
 	vnc_connection_flush(conn);
 	VNC_DEBUG("Using version: %d.%d", priv->major, priv->minor);
