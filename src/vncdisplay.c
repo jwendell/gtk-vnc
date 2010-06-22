@@ -587,11 +587,11 @@ static gboolean motion_event(GtkWidget *widget, GdkEventMotion *motion)
 	int ww, wh;
 	int fbw, fbh;
 
-	fbw = vnc_framebuffer_get_width(VNC_FRAMEBUFFER(priv->fb));
-	fbh = vnc_framebuffer_get_height(VNC_FRAMEBUFFER(priv->fb));
-
 	if (priv->conn == NULL || !vnc_connection_is_initialized(priv->conn))
 		return FALSE;
+
+	fbw = vnc_framebuffer_get_width(VNC_FRAMEBUFFER(priv->fb));
+	fbh = vnc_framebuffer_get_height(VNC_FRAMEBUFFER(priv->fb));
 
 	/* In relative mode, only move the server mouse pointer
 	 * if the client grab is active */
