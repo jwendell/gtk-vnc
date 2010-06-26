@@ -1,0 +1,105 @@
+# Catalan translation of gtk-vnc.
+# Copyright © 2005, 2006 Free Software Foundation, Inc.
+# This file is distributed under the same license as the gtk-vnc package.
+# Gil Forcada <gilforcada@guifi.net>, 2009.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: gtk-vnc\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2010-06-26 13:17+0200\n"
+"PO-Revision-Date: 2010-06-19 17:13+0200\n"
+"Last-Translator: Gil Forcada <gilforcada@guifi.net>\n"
+"Language-Team: Catalan <tradgnome@softcatala.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+
+#: ../gnulib/lib/gai_strerror.c:44
+msgid "Address family for hostname not supported"
+msgstr "No s'admet aquesta família d'adreces per al nom de l'ordinador"
+
+#: ../gnulib/lib/gai_strerror.c:45
+msgid "Temporary failure in name resolution"
+msgstr "S'ha produït una errada temporal en resoldre noms"
+
+#: ../gnulib/lib/gai_strerror.c:46
+msgid "Bad value for ai_flags"
+msgstr "El valor d'«ai_flags» és erroni"
+
+#: ../gnulib/lib/gai_strerror.c:47
+msgid "Non-recoverable failure in name resolution"
+msgstr "S'ha produït un error no recuperable en la resolució de noms"
+
+#: ../gnulib/lib/gai_strerror.c:48
+msgid "ai_family not supported"
+msgstr "No s'admet l'«ai_family»"
+
+#: ../gnulib/lib/gai_strerror.c:49
+msgid "Memory allocation failure"
+msgstr "S'ha produït un error en l'assignació de memòria"
+
+#: ../gnulib/lib/gai_strerror.c:50
+msgid "No address associated with hostname"
+msgstr "No hi ha cap adreça associada al nom de l'ordinador"
+
+#: ../gnulib/lib/gai_strerror.c:51
+msgid "Name or service not known"
+msgstr "Es desconeix el nom o el servei"
+
+#: ../gnulib/lib/gai_strerror.c:52
+msgid "Servname not supported for ai_socktype"
+msgstr "L'«ai_socktype» no admet aquest tipus de nom de servidor"
+
+#: ../gnulib/lib/gai_strerror.c:53
+msgid "ai_socktype not supported"
+msgstr "No s'admet aquest «ai_socktype»"
+
+#: ../gnulib/lib/gai_strerror.c:54
+msgid "System error"
+msgstr "Error del sistema"
+
+#: ../gnulib/lib/gai_strerror.c:55
+msgid "Argument buffer too small"
+msgstr "La memòria intermèdia per als arguments és massa petita"
+
+#: ../gnulib/lib/gai_strerror.c:57
+msgid "Processing request in progress"
+msgstr "S'està duent a terme el processament de la petició"
+
+#: ../gnulib/lib/gai_strerror.c:58
+msgid "Request canceled"
+msgstr "S'ha cancel·lat la petició"
+
+#: ../gnulib/lib/gai_strerror.c:59
+msgid "Request not canceled"
+msgstr "No s'ha cancel·lat la petició"
+
+#: ../gnulib/lib/gai_strerror.c:60
+msgid "All requests done"
+msgstr "S'han finalitzat totes les peticions"
+
+#: ../gnulib/lib/gai_strerror.c:61
+msgid "Interrupted by a signal"
+msgstr "S'ha interromput degut a un senyal"
+
+#: ../gnulib/lib/gai_strerror.c:62
+msgid "Parameter string not correctly encoded"
+msgstr "No s'ha codificat correctament la cadena del paràmetre"
+
+#: ../gnulib/lib/gai_strerror.c:74
+msgid "Unknown error"
+msgstr "Error desconegut"
+
+#: ../src/vncdisplay.c:154
+msgid "Enables debug output"
+msgstr "Habilita la sortida de depuració"
+
+#: ../src/vncdisplay.c:2181
+msgid "GTK-VNC Options:"
+msgstr "Opcions del GTK-VNC:"
+
+#: ../src/vncdisplay.c:2181
+msgid "Show GTK-VNC Options"
+msgstr "Mostra les opcions del GTK-VNC"
