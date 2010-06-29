@@ -36,12 +36,16 @@ struct _VncColorMap {
 	guint16 offset;
 	guint16 size;
 	VncColorMapEntry *colors;
+
+	/* Do not add fields to this struct */
 };
 
 struct _VncColorMapEntry {
 	guint16 red;
 	guint16 green;
 	guint16 blue;
+
+	/* Do not add fields to this struct */
 };
 
 

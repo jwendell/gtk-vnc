@@ -42,6 +42,8 @@ struct _VncPixelFormat {
 	guint8 red_shift;
 	guint8 green_shift;
 	guint8 blue_shift;
+
+	/* Do not add fields to this struct */
 };
 
 GType vnc_pixel_format_get_type(void);

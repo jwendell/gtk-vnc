@@ -72,6 +72,8 @@ struct _VncFramebufferInterface {
 			  guint16 width, guint16 height);
 	void (*set_color_map)(VncFramebuffer *fb,
 			      VncColorMap *map);
+
+	/* Do not add fields to this struct */
 };
 
 GType vnc_framebuffer_get_type(void) G_GNUC_CONST;

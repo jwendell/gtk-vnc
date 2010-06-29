@@ -34,6 +34,8 @@ typedef struct _VncGrabSequence VncGrabSequence;
 struct _VncGrabSequence {
 	guint nkeysyms;
 	guint *keysyms;
+
+	/* Do not add fields to this struct */
 };
 
 GType vnc_grab_sequence_get_type(void);

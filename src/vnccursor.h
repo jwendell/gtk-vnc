@@ -23,6 +23,8 @@
 
 #include <glib-object.h>
 
+#include <vncutil.h>
+
 G_BEGIN_DECLS
 
 #define VNC_TYPE_CURSOR            (vnc_cursor_get_type())
@@ -42,11 +44,19 @@ struct _VncCursor
 	GObject parent;
 
 	VncCursorPrivate *priv;
+
+	/* Do not add fields to this struct */
 };
 
 struct _VncCursorClass
 {
 	GObjectClass parent_class;
+
+	/*
+	 * If adding fields to this struct, remove corresponding
+	 * amount of padding to avoid changing overall struct size
+	 */
+	gpointer _vnc_reserved[VNC_PADDING];
 };
 
 

@@ -24,8 +24,9 @@
 
 #include <glib.h>
 
-#include "vncframebuffer.h"
-#include "vnccursor.h"
+#include <vncframebuffer.h>
+#include <vnccursor.h>
+#include <vncutil.h>
 
 G_BEGIN_DECLS
 
@@ -46,6 +47,8 @@ struct _VncConnection
 	GObject parent;
 
 	VncConnectionPrivate *priv;
+
+	/* Do not add fields to this struct */
 };
 
 struct _VncConnectionClass
@@ -68,6 +71,12 @@ struct _VncConnectionClass
 	void (*vnc_connected)(VncConnection *conn);
 	void (*vnc_initialized)(VncConnection *conn);
 	void (*vnc_disconnected)(VncConnection *conn);
+
+	/*
+	 * If adding fields to this struct, remove corresponding
+	 * amount of padding to avoid changing overall struct size
+	 */
+	gpointer _vnc_reserved[VNC_PADDING_LARGE];
 };
 
 

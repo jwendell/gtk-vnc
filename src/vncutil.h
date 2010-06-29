@@ -34,6 +34,12 @@ gboolean vnc_util_get_debug(void);
 			g_debug(__FILE__ " " fmt, ## __VA_ARGS__);	\
 	} while (0)
 
+/* For normal VncXXXClass structs */
+#define VNC_PADDING 4
+
+/* For very extensible VncXXXClass structs */
+#define VNC_PADDING_LARGE 20
+
 G_END_DECLS
 
 #endif /* VNC_UTIL_H */

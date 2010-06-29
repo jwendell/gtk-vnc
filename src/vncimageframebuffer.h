@@ -25,6 +25,7 @@
 #include <gdk/gdk.h>
 
 #include <vncbaseframebuffer.h>
+#include <vncutil.h>
 
 G_BEGIN_DECLS
 
@@ -45,12 +46,19 @@ struct _VncImageFramebuffer
 	VncBaseFramebuffer parent;
 
 	VncImageFramebufferPrivate *priv;
+
+	/* Do not add fields to this struct */
 };
 
 struct _VncImageFramebufferClass
 {
 	VncBaseFramebufferClass parent_class;
 
+	/*
+	 * If adding fields to this struct, remove corresponding
+	 * amount of padding to avoid changing overall struct size
+	 */
+	gpointer _vnc_reserved[VNC_PADDING];
 };
 
 

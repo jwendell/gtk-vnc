@@ -25,6 +25,7 @@
 #include <glib-object.h>
 
 #include <vncframebuffer.h>
+#include <vncutil.h>
 
 G_BEGIN_DECLS
 
@@ -45,12 +46,19 @@ struct _VncBaseFramebuffer
 	GObject parent;
 
 	VncBaseFramebufferPrivate *priv;
+
+	/* Do not add fields to this struct */
 };
 
 struct _VncBaseFramebufferClass
 {
 	GObjectClass parent_class;
 
+	/*
+	 * If adding fields to this struct, remove corresponding
+	 * amount of padding to avoid changing overall struct size
+	 */
+	gpointer _vnc_reserved[VNC_PADDING];
 };
 
 

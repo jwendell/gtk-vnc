@@ -45,6 +45,8 @@ struct _VncDisplay
 	GtkDrawingArea parent;
 
 	VncDisplayPrivate *priv;
+
+	/* Do not add fields to this struct */
 };
 
 struct _VncDisplayClass
@@ -56,6 +58,8 @@ struct _VncDisplayClass
 	void		(* vnc_initialized)	(VncDisplay *display);
 	void		(* vnc_disconnected)	(VncDisplay *display);
 	void		(* vnc_auth_credential)	(VncDisplay *display, GValueArray *credList);
+
+	/* Do not add fields to this struct */
 };
 
 typedef enum
