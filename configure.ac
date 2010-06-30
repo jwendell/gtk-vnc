@@ -32,8 +32,6 @@ GOBJECT_REQUIRED=2.10.0
 AC_SUBST(GOBJECT_REQUIRED)
 GDK_PIXBUF_REQUIRED=2.10.0
 AC_SUBST(GDK_PIXBUF_REQUIRED)
-GTK_REQUIRED=2.18.0
-AC_SUBST(GTK_REQUIRED)
 GNUTLS_REQUIRED=1.4.0
 AC_SUBST(GNUTLS_REQUIRED)
 
@@ -72,6 +70,33 @@ AM_GLIB_GNU_GETTEXT
 
 dnl *******************************************************************************
 
+################################################################################
+# GTK+
+################################################################################
+
+AC_MSG_CHECKING([which gtk+ version to compile against])
+AC_ARG_WITH([gtk],
+  [AS_HELP_STRING([--with-gtk=2.0|3.0],[which gtk+ version to compile against (default: 2.0)])],
+  [case "$with_gtk" in
+     2.0|3.0) ;;
+     *) AC_MSG_ERROR([invalid gtk version specified]) ;;
+   esac],
+  [with_gtk=2.0])
+AC_MSG_RESULT([$with_gtk])
+
+case "$with_gtk" in
+  2.0) GTK_API_VERSION=2.0
+       GTK_REQUIRED=2.18.0
+       ;;
+  3.0) GTK_API_VERSION=3.0
+       GTK_REQUIRED=2.90.4
+       ;;
+esac
+
+AC_SUBST([GTK_API_VERSION])
+AC_SUBST([GTK_REQUIRED])
+AM_CONDITIONAL([HAVE_GTK_2],[test "$with_gtk" = "2.0"])
+AM_CONDITIONAL([HAVE_GTK_3],[test "$with_gtk" = "3.0"])
 
 AC_CHECK_HEADERS([pwd.h winsock2.h])
 
@@ -109,7 +134,7 @@ PKG_CHECK_MODULES(GDK_PIXBUF, gdk-pixbuf-2.0 >= $GDK_PIXBUF_REQUIRED)
 AC_SUBST(GDK_PIXBUF_CFLAGS)
 AC_SUBST(GDK_PIXBUF_LIBS)
 
-PKG_CHECK_MODULES(GTK, gtk+-2.0 >= $GTK_REQUIRED)
+PKG_CHECK_MODULES(GTK, gtk+-$GTK_API_VERSION >= $GTK_REQUIRED)
 AC_SUBST(GTK_CFLAGS)
 AC_SUBST(GTK_LIBS)
 
@@ -362,4 +387,5 @@ Configure summary:
 	Browser plugin .............:  ${enable_plugin}
 	Scaling support.............:  ${with_scaling}
 	SASL support................:  ${enable_sasl}
+	GTK+ version................:  ${GTK_API_VERSION}
 "
