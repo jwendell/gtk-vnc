@@ -22,6 +22,7 @@
 #include <config.h>
 
 #include <string.h>
+#include <gtk/gtk.h>
 
 #include "vncimageframebuffer.h"
 #include "vncutil.h"
@@ -132,33 +133,66 @@ VncImageFramebuffer *vnc_image_framebuffer_new(GdkImage *image,
 					       const VncPixelFormat *remoteFormat)
 {
         VncPixelFormat localFormat;
+        guint32 red_mask, green_mask, blue_mask;
+        gint red_shift, green_shift, blue_shift, w, h;
+        guint16 bpp, bpl, depth;
+        gpointer pixels;
+        GdkByteOrder byte_order;
+
+	#if GTK_CHECK_VERSION (2, 21, 1)
+	GdkVisual *visual = gdk_image_get_visual (image);
+	gdk_visual_get_red_pixel_details (visual, &red_mask, &red_shift, NULL);
+	gdk_visual_get_green_pixel_details (visual, &green_mask, &green_shift, NULL);
+	gdk_visual_get_blue_pixel_details (visual, &blue_mask, &blue_shift, NULL);
+	bpp = gdk_image_get_bytes_per_pixel (image);
+	depth = gdk_image_get_depth (image);
+	byte_order = gdk_image_get_byte_order (image);
+	bpl = gdk_image_get_bytes_per_line (image);
+	w = gdk_image_get_width (image);
+	h = gdk_image_get_height (image);
+	pixels = gdk_image_get_pixels (image);
+	#else
+	red_mask = image->visual->red_mask;
+	red_shift = image->visual->red_shift;
+	green_mask = image->visual->green_mask;
+	green_shift = image->visual->green_shift;
+	blue_mask = image->visual->blue_mask;
+	blue_shift = image->visual->blue_shift;
+	bpp = image->bpp;
+	depth = image->depth;
+	byte_order = image->byte_order;
+	bpl = image->bpl;
+	w = image->width;
+	h = image->height;
+	pixels = image->mem;
+	#endif
 
 	VNC_DEBUG("Visual mask: %3d %3d %3d\n      shift: %3d %3d %3d",
-		   image->visual->red_mask,
-		   image->visual->green_mask,
-		   image->visual->blue_mask,
-		   image->visual->red_shift,
-		   image->visual->green_shift,
-		   image->visual->blue_shift);
+		   red_mask,
+		   green_mask,
+		   blue_mask,
+		   red_shift,
+		   green_shift,
+		   blue_shift);
 
-	localFormat.red_max = image->visual->red_mask >> image->visual->red_shift;
-	localFormat.green_max = image->visual->green_mask >> image->visual->green_shift;
-	localFormat.blue_max = image->visual->blue_mask >> image->visual->blue_shift;
-	localFormat.red_shift = image->visual->red_shift;
-	localFormat.green_shift = image->visual->green_shift;
-	localFormat.blue_shift = image->visual->blue_shift;
-	localFormat.depth = image->depth;
-	localFormat.bits_per_pixel = image->bpp * 8;
-	localFormat.byte_order = image->byte_order == GDK_LSB_FIRST ? G_LITTLE_ENDIAN : G_BIG_ENDIAN;
+	localFormat.red_max = red_mask >> red_shift;
+	localFormat.green_max = green_mask >> green_shift;
+	localFormat.blue_max = blue_mask >> blue_shift;
+	localFormat.red_shift = red_shift;
+	localFormat.green_shift = green_shift;
+	localFormat.blue_shift = blue_shift;
+	localFormat.depth = depth;
+	localFormat.bits_per_pixel = bpp * 8;
+	localFormat.byte_order = byte_order == GDK_LSB_FIRST ? G_LITTLE_ENDIAN : G_BIG_ENDIAN;
 
-	memset(image->mem, 0, image->bpl * image->height);
+	memset(pixels, 0, bpl * h);
 
 	return VNC_IMAGE_FRAMEBUFFER(g_object_new(VNC_TYPE_IMAGE_FRAMEBUFFER,
 						  "image", image,
-						  "buffer", (guint8 *)image->mem,
-						  "width", image->width,
-						  "height", image->height,
-						  "rowstride", image->bpl,
+						  "buffer", (guint8 *)pixels,
+						  "width", w,
+						  "height", h,
+						  "rowstride", bpl,
 						  "local-format", &localFormat,
 						  "remote-format", remoteFormat,
 						  NULL));

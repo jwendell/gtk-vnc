@@ -1029,7 +1029,6 @@ static gboolean vnc_display_set_preferred_pixel_format(VncDisplay *display)
 		fmt.green_shift = 8;
 		fmt.blue_shift = 0;
 		fmt.true_color_flag = 1;
-		fmt.byte_order = v->byte_order == GDK_LSB_FIRST ? G_BIG_ENDIAN : G_LITTLE_ENDIAN;
 		break;
 
 	case VNC_DISPLAY_DEPTH_COLOR_MEDIUM:
@@ -1042,7 +1041,6 @@ static gboolean vnc_display_set_preferred_pixel_format(VncDisplay *display)
 		fmt.green_shift = 6;
 		fmt.blue_shift = 1;
 		fmt.true_color_flag = 1;
-		fmt.byte_order = v->byte_order == GDK_LSB_FIRST ? G_BIG_ENDIAN : G_LITTLE_ENDIAN;
 		break;
 
 	case VNC_DISPLAY_DEPTH_COLOR_LOW:
@@ -1055,7 +1053,6 @@ static gboolean vnc_display_set_preferred_pixel_format(VncDisplay *display)
 		fmt.green_shift = 2;
 		fmt.blue_shift = 0;
 		fmt.true_color_flag = 1;
-		fmt.byte_order = v->byte_order == GDK_LSB_FIRST ? G_BIG_ENDIAN : G_LITTLE_ENDIAN;
 		break;
 
 	case VNC_DISPLAY_DEPTH_COLOR_ULTRA_LOW:
@@ -1068,12 +1065,17 @@ static gboolean vnc_display_set_preferred_pixel_format(VncDisplay *display)
 		fmt.green_shift = 6;
 		fmt.blue_shift = 5;
 		fmt.true_color_flag = 1;
-		fmt.byte_order = v->byte_order == GDK_LSB_FIRST ? G_BIG_ENDIAN : G_LITTLE_ENDIAN;
 		break;
 
 	default:
 		g_assert_not_reached ();
 	}
+
+	#if GTK_CHECK_VERSION (2, 21, 1)
+	fmt.byte_order = gdk_visual_get_byte_order (v) == GDK_LSB_FIRST ? G_BIG_ENDIAN : G_LITTLE_ENDIAN;
+	#else
+	fmt.byte_order = v->byte_order == GDK_LSB_FIRST ? G_BIG_ENDIAN : G_LITTLE_ENDIAN;
+	#endif
 
 	VNC_DEBUG ("Set depth color to %d (%d bpp)", fmt.depth, fmt.bits_per_pixel);
 	if (!vnc_connection_set_pixel_format(priv->conn, &fmt))
@@ -1998,22 +2000,31 @@ GdkPixbuf *vnc_display_get_pixbuf(VncDisplay *obj)
 	VncDisplayPrivate *priv = obj->priv;
 	GdkPixbuf *pixbuf;
 	GdkImage *image;
+	gint w, h;
 
 	if (!priv->conn ||
 	    !vnc_connection_is_initialized(priv->conn))
 		return NULL;
 
 	image = vnc_image_framebuffer_get_image(priv->fb);
+	#if GTK_CHECK_VERSION(2, 21, 1)
+	w = gdk_image_get_width (image);
+	h = gdk_image_get_height (image);
+	#else
+	w = image->width;
+	h = image->height;
+	#endif
 
 	pixbuf = gdk_pixbuf_new(GDK_COLORSPACE_RGB, FALSE, 8,
-				image->width, image->height);
+				w,
+				h);
 
 	if (!gdk_pixbuf_get_from_image(pixbuf,
 				       image,
 				       gdk_colormap_get_system(),
 				       0, 0, 0, 0,
-				       image->width,
-				       image->height))
+				       w,
+				       h))
 		return NULL;
 
 	return pixbuf;

@@ -22,7 +22,7 @@
 #ifndef VNC_DISPLAY_H
 #define VNC_DISPLAY_H
 
-#include <gtk/gtkdrawingarea.h>
+#include <gtk/gtk.h>
 #include <glib.h>
 #include <vncgrabsequence.h>
 
