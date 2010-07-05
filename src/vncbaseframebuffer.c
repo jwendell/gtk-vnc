@@ -65,6 +65,7 @@ struct _VncBaseFramebufferPrivate {
 	int rm, gm, bm;
         int rrs, grs, brs;
         int rls, gls, bls;
+	int alpha_mask;
 
 	/* TRUE if localFormat == remoteFormat */
         gboolean perfect_match;
@@ -848,7 +849,10 @@ static void vnc_base_framebuffer_reinit_render_funcs(VncBaseFramebuffer *fb)
 	i = priv->remoteFormat->bits_per_pixel / 8;
 	j = priv->localFormat->bits_per_pixel / 8;
 	if (i == 4) i = 3;
-	if (j == 4) j = 3;
+	if (j == 4) {
+		j = 3;
+		priv->alpha_mask = 0xff000000;
+	}
 	if (i > 4) i = 4; /* XXX hardcoding int64 */
 	if (j > 4) j = 4; /* XXX hardcoding int64 */
 	if (!priv->remoteFormat->true_color_flag) {

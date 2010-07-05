@@ -60,7 +60,8 @@ static void SET_PIXEL(VncBaseFramebufferPrivate *priv,
 			     spidx,
 			     &red, &green, &blue);
 	sp = ((guint64)red << 32) | ((guint64)green << 16) | (guint64)blue;
-	*dp = SWAP_IMG(priv, ((sp >> priv->rrs) & priv->rm) << priv->rls
+	*dp = SWAP_IMG(priv, priv->alpha_mask
+		       | ((sp >> priv->rrs) & priv->rm) << priv->rls
 		       | ((sp >> priv->grs) & priv->gm) << priv->gls
 		       | ((sp >> priv->brs) & priv->bm) << priv->bls);
 }
@@ -68,7 +69,8 @@ static void SET_PIXEL(VncBaseFramebufferPrivate *priv,
 static void SET_PIXEL(VncBaseFramebufferPrivate *priv,
 		      dst_pixel_t *dp, src_pixel_t sp)
 {
-	*dp = SWAP_IMG(priv, ((sp >> priv->rrs) & priv->rm) << priv->rls
+	*dp = SWAP_IMG(priv, priv->alpha_mask
+		       | ((sp >> priv->rrs) & priv->rm) << priv->rls
 		       | ((sp >> priv->grs) & priv->gm) << priv->gls
 		       | ((sp >> priv->brs) & priv->bm) << priv->bls);
 }
