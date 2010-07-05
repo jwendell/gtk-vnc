@@ -1469,14 +1469,14 @@ gboolean vnc_connection_set_encodings(VncConnection *conn, int n_encoding, gint3
 
 
 gboolean vnc_connection_framebuffer_update_request(VncConnection *conn,
-						   guint8 incremental,
+						   gboolean incremental,
 						   guint16 x, guint16 y,
 						   guint16 width, guint16 height)
 {
 	VNC_DEBUG("Requesting framebuffer update at %d,%d size %dx%d, incremental %d",
-		  x, y, width, height, incremental);
+		  x, y, width, height, (int)incremental);
 	vnc_connection_buffered_write_u8(conn, 3);
-	vnc_connection_buffered_write_u8(conn, incremental);
+	vnc_connection_buffered_write_u8(conn, incremental ? 1 : 0);
 	vnc_connection_buffered_write_u16(conn, x);
 	vnc_connection_buffered_write_u16(conn, y);
 	vnc_connection_buffered_write_u16(conn, width);

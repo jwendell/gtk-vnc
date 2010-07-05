@@ -172,7 +172,7 @@ gboolean vnc_connection_key_event(VncConnection *conn, gboolean down_flag,
 				  guint32 key, guint16 scancode);
 
 gboolean vnc_connection_framebuffer_update_request(VncConnection *conn,
-						   guint8 incremental,
+						   gboolean incremental,
 						   guint16 x, guint16 y,
 						   guint16 width, guint16 height);
 
