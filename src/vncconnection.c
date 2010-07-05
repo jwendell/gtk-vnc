@@ -184,6 +184,14 @@ struct _VncConnectionPrivate
 	int zrle_pi_bits;
 
 	gboolean has_ext_key_event;
+
+	struct {
+		gboolean incremental;
+		guint16 x;
+		guint16 y;
+		guint16 width;
+		guint16 height;
+	} lastUpdateRequest;
 };
 
 G_DEFINE_TYPE(VncConnection, vnc_connection, G_TYPE_OBJECT);
@@ -618,7 +626,7 @@ static int vnc_connection_read_wire(VncConnection *conn, void *data, size_t len)
 			if (priv->wait_interruptable) {
 				if (!g_io_wait_interruptable(&priv->wait,
 							     priv->channel, G_IO_IN)) {
-					VNC_DEBUG("Read blocking interrupted %d", priv->has_error);
+					//VNC_DEBUG("Read blocking interrupted %d", priv->has_error);
 					return -EAGAIN;
 				}
 			} else
@@ -1016,6 +1024,15 @@ static gint32 vnc_connection_read_s32(VncConnection *conn)
  */
 static void vnc_connection_write_u8(VncConnection *conn, guint8 value)
 {
+	vnc_connection_write(conn, &value, sizeof(value));
+}
+
+/*
+ * Must only be called from the VNC coroutine
+ */
+static void vnc_connection_write_u16(VncConnection *conn, guint16 value)
+{
+	value = htons(value);
 	vnc_connection_write(conn, &value, sizeof(value));
 }
 
@@ -1473,8 +1490,17 @@ gboolean vnc_connection_framebuffer_update_request(VncConnection *conn,
 						   guint16 x, guint16 y,
 						   guint16 width, guint16 height)
 {
+	VncConnectionPrivate *priv = conn->priv;
+
 	VNC_DEBUG("Requesting framebuffer update at %d,%d size %dx%d, incremental %d",
 		  x, y, width, height, (int)incremental);
+
+	priv->lastUpdateRequest.incremental = incremental;
+	priv->lastUpdateRequest.x = x;
+	priv->lastUpdateRequest.y = y;
+	priv->lastUpdateRequest.width = width;
+	priv->lastUpdateRequest.height = height;
+
 	vnc_connection_buffered_write_u8(conn, 3);
 	vnc_connection_buffered_write_u8(conn, incremental ? 1 : 0);
 	vnc_connection_buffered_write_u16(conn, x);
@@ -1482,6 +1508,35 @@ gboolean vnc_connection_framebuffer_update_request(VncConnection *conn,
 	vnc_connection_buffered_write_u16(conn, width);
 	vnc_connection_buffered_write_u16(conn, height);
 	vnc_connection_buffered_flush(conn);
+
+	return !vnc_connection_has_error(conn);
+}
+
+
+/*
+ * This is called when getting a psuedo-encoding message that
+ * is not a desktop size, pixel format change.
+ */
+static gboolean
+vnc_connection_resend_framebuffer_update_request(VncConnection *conn)
+{
+	VncConnectionPrivate *priv = conn->priv;
+
+	VNC_DEBUG("Re-requesting framebuffer update at %d,%d size %dx%d, incremental %d",
+		  priv->lastUpdateRequest.x,
+		  priv->lastUpdateRequest.y,
+		  priv->lastUpdateRequest.width,
+		  priv->lastUpdateRequest.height,
+		  (int)priv->lastUpdateRequest.incremental);
+
+	vnc_connection_write_u8(conn, 3);
+	vnc_connection_write_u8(conn, priv->lastUpdateRequest.incremental ? 1 : 0);
+	vnc_connection_write_u16(conn, priv->lastUpdateRequest.x);
+	vnc_connection_write_u16(conn, priv->lastUpdateRequest.y);
+	vnc_connection_write_u16(conn, priv->lastUpdateRequest.width);
+	vnc_connection_write_u16(conn, priv->lastUpdateRequest.height);
+	vnc_connection_flush(conn);
+
 	return !vnc_connection_has_error(conn);
 }
 
@@ -2592,11 +2647,11 @@ static void vnc_connection_framebuffer_update(VncConnection *conn, gint32 etype,
 		vnc_connection_update(conn, x, y, width, height);
 		break;
 	case VNC_CONNECTION_ENCODING_DESKTOP_RESIZE:
-		vnc_connection_framebuffer_update_request (conn, 0, 0, 0, width, height);
 		vnc_connection_resize(conn, width, height);
 		break;
 	case VNC_CONNECTION_ENCODING_POINTER_CHANGE:
 		vnc_connection_pointer_type_change(conn, x);
+		vnc_connection_resend_framebuffer_update_request(conn);
 		break;
         case VNC_CONNECTION_ENCODING_WMVi:
                 vnc_connection_read_pixel_format(conn, &priv->fmt);
@@ -2604,12 +2659,15 @@ static void vnc_connection_framebuffer_update(VncConnection *conn, gint32 etype,
                 break;
 	case VNC_CONNECTION_ENCODING_RICH_CURSOR:
 		vnc_connection_rich_cursor(conn, x, y, width, height);
+		vnc_connection_resend_framebuffer_update_request(conn);
 		break;
 	case VNC_CONNECTION_ENCODING_XCURSOR:
 		vnc_connection_xcursor(conn, x, y, width, height);
+		vnc_connection_resend_framebuffer_update_request(conn);
 		break;
 	case VNC_CONNECTION_ENCODING_EXT_KEY_EVENT:
 		vnc_connection_ext_key_event(conn);
+		vnc_connection_resend_framebuffer_update_request(conn);
 		break;
 	default:
 		VNC_DEBUG("Received an unknown encoding type: %d", etype);

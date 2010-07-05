@@ -978,6 +978,8 @@ static void on_desktop_resize(VncConnection *conn G_GNUC_UNUSED,
 	remoteFormat = vnc_connection_get_pixel_format(priv->conn);
 
 	do_framebuffer_init(opaque, remoteFormat, width, height, FALSE);
+
+	vnc_connection_framebuffer_update_request(priv->conn, 0, 0, 0, width, height);
 }
 
 static void on_pixel_format_changed(VncConnection *conn G_GNUC_UNUSED,
@@ -990,6 +992,8 @@ static void on_pixel_format_changed(VncConnection *conn G_GNUC_UNUSED,
 	gint16 height = vnc_connection_get_height(priv->conn);
 
 	do_framebuffer_init(opaque, remoteFormat, width, height, TRUE);
+
+	vnc_connection_framebuffer_update_request(priv->conn, 0, 0, 0, width, height);
 }
 
 static gboolean vnc_display_set_preferred_pixel_format(VncDisplay *display)
