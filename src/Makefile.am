@@ -229,7 +229,7 @@ GVnc-1.0.gir: libgvnc-1.0.la $(G_IR_SCANNER) Makefile.am
                 --pkg=gobject-2.0 \
                 $(GVNC_INTROSPECTION_SRCS)
 
-GtkVnc-1.0.gir: libgtk-vnc-1.0.la $(G_IR_SCANNER) Makefile.am
+GtkVnc-1.0.gir: GVnc-1.0.gir libgtk-vnc-1.0.la $(G_IR_SCANNER) Makefile.am
 	$(AM_V_GEN)$(G_IR_SCANNER) -v \
                 --namespace GtkVnc \
                 --nsversion 1.0 \
