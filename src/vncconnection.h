@@ -168,7 +168,7 @@ gboolean vnc_connection_client_cut_text(VncConnection *conn,
 gboolean vnc_connection_pointer_event(VncConnection *conn, guint8 button_mask,
 				      guint16 x, guint16 y);
 
-gboolean vnc_connection_key_event(VncConnection *conn, guint8 down_flag,
+gboolean vnc_connection_key_event(VncConnection *conn, gboolean down_flag,
 				  guint32 key, guint16 scancode);
 
 gboolean vnc_connection_framebuffer_update_request(VncConnection *conn,

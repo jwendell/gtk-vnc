@@ -1484,7 +1484,7 @@ gboolean vnc_connection_framebuffer_update_request(VncConnection *conn,
 }
 
 
-gboolean vnc_connection_key_event(VncConnection *conn, guint8 down_flag,
+gboolean vnc_connection_key_event(VncConnection *conn, gboolean down_flag,
 				  guint32 key, guint16 scancode)
 {
 	VncConnectionPrivate *priv = conn->priv;
@@ -1494,12 +1494,12 @@ gboolean vnc_connection_key_event(VncConnection *conn, guint8 down_flag,
 	if (priv->has_ext_key_event) {
 		vnc_connection_buffered_write_u8(conn, 255);
 		vnc_connection_buffered_write_u8(conn, 0);
-		vnc_connection_buffered_write_u16(conn, down_flag);
+		vnc_connection_buffered_write_u16(conn, down_flag ? 1 : 0);
 		vnc_connection_buffered_write_u32(conn, key);
 		vnc_connection_buffered_write_u32(conn, scancode);
 	} else {
 		vnc_connection_buffered_write_u8(conn, 4);
-		vnc_connection_buffered_write_u8(conn, down_flag);
+		vnc_connection_buffered_write_u8(conn, down_flag ? 1 : 0);
 		vnc_connection_buffered_write(conn, pad, 2);
 		vnc_connection_buffered_write_u32(conn, key);
 	}
