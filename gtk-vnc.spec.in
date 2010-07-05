@@ -93,6 +93,15 @@ with the raw protocol itself.
 
 Libraries, includes, etc. to compile with the gvnc library
 
+%package -n gvnc-tools
+Summary: Command line VNC tools
+Group: Applications/Internet
+
+%description -n gvnc-tools
+Provides useful command line utilities for interacting with
+VNC servers. Includes the gvnccapture program for capturing
+screenshots of a VNC desktop
+
 %prep
 %setup -q
 
@@ -110,7 +119,7 @@ Libraries, includes, etc. to compile with the gvnc library
 %endif
 
 %configure %{plugin_arg} %{gir_arg}
-%__make %{?_smp_mflags}
+%__make %{?_smp_mflags} V=1
 
 %install
 rm -fr %{buildroot}
@@ -182,6 +191,12 @@ rm -fr %{buildroot}
 %if %{with_gir}
 %{_datadir}/gir-1.0/GVnc-1.0.gir
 %endif
+
+%files -n gvnc-tools
+%defattr(-, root, root)
+%doc AUTHORS ChangeLog NEWS README COPYING.LIB
+%{_bindir}/gvnccapture
+%{_mandir}/man1/gvnccapture.1*
 
 %changelog
 * Thu Sep 13 2007 Daniel P. Berrange <berrange@redhat.com> - 0.2.0-1

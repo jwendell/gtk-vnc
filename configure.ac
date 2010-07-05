@@ -358,6 +358,7 @@ AC_CONFIG_FILES(
   gnulib/lib/Makefile
   gnulib/tests/Makefile
   src/Makefile
+  tools/Makefile
   examples/Makefile
   plugin/Makefile
   po/Makefile.in

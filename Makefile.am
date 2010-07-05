@@ -1,4 +1,4 @@
-SUBDIRS = gnulib/lib src examples plugin gnulib/tests po
+SUBDIRS = gnulib/lib src tools examples plugin gnulib/tests po
 ACLOCAL_AMFLAGS = -I gnulib/m4 ${ACLOCAL_FLAGS}
 
 pkgconfig_DATA = @PACKAGE@-1.0.pc gvnc-1.0.pc
