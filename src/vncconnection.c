@@ -869,7 +869,7 @@ static void vnc_connection_flush(VncConnection *conn)
 {
 	VncConnectionPrivate *priv = conn->priv;
 
-	//VNC_DEBUG("STart write %d", priv->has_error);
+	//VNC_DEBUG("Start flush write %d", priv->has_error);
 #if HAVE_SASL
 	if (priv->saslconn)
 		vnc_connection_flush_sasl(conn);
@@ -1473,6 +1473,8 @@ gboolean vnc_connection_framebuffer_update_request(VncConnection *conn,
 						   guint16 x, guint16 y,
 						   guint16 width, guint16 height)
 {
+	VNC_DEBUG("Requesting framebuffer update at %d,%d size %dx%d, incremental %d",
+		  x, y, width, height, incremental);
 	vnc_connection_buffered_write_u8(conn, 3);
 	vnc_connection_buffered_write_u8(conn, incremental);
 	vnc_connection_buffered_write_u16(conn, x);
@@ -4555,10 +4557,8 @@ gboolean vnc_connection_set_auth_type(VncConnection *conn, unsigned int type)
             type != VNC_CONNECTION_AUTH_TLS &&
             type != VNC_CONNECTION_AUTH_VENCRYPT &&
             type != VNC_CONNECTION_AUTH_SASL) {
-		struct signal_data sigdata;
 		VNC_DEBUG("Unsupported auth type %u", type);
-		sigdata.params.authUnsupported = type;
-		vnc_connection_emit_main_context(conn, VNC_AUTH_UNSUPPORTED, &sigdata);
+		g_signal_emit(conn, VNC_AUTH_UNSUPPORTED, 0, type);
                 priv->has_error = TRUE;
                 return !vnc_connection_has_error(conn);
         }
