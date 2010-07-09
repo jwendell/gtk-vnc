@@ -29,6 +29,7 @@ BuildRequires: mingw32-gnutls
 BuildRequires: mingw32-gtk2
 BuildRequires: pkgconfig
 BuildRequires: intltool
+BuildRequires: perl(Text::CSV)
 
 Requires: pkgconfig
 

@@ -77,7 +77,8 @@ struct _VncDisplayPrivate
 	gboolean force_size;
 
 	GSList *preferable_auths;
-	const guint8 const *keycode_map;
+	size_t keycode_maplen;
+	const guint16 const *keycode_map;
 
 	VncGrabSequence *vncgrabseq; /* the configured key sequence */
 	gboolean *vncactiveseq; /* the currently pressed keys */
@@ -753,6 +754,7 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *key)
 		/* We were pressed, and now we're released, so... */
 		if (priv->down_scancode[i] == key->hardware_keycode) {
 			guint16 scancode = vnc_display_keymap_gdk2rfb(priv->keycode_map,
+								      priv->keycode_maplen,
 								      key->hardware_keycode);
 			/*
 			 * ..send the key release event we're dealing with
@@ -775,6 +777,7 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *key)
 		for (i = 0 ; i < (int)(sizeof(priv->down_keyval)/sizeof(priv->down_keyval[0])) ; i++) {
 			if (priv->down_scancode[i] == 0) {
 				guint16 scancode = vnc_display_keymap_gdk2rfb(priv->keycode_map,
+									      priv->keycode_maplen,
 									      key->hardware_keycode);
 				priv->down_keyval[i] = keyval;
 				priv->down_scancode[i] = key->hardware_keycode;
@@ -840,6 +843,7 @@ static gboolean focus_event(GtkWidget *widget, GdkEventFocus *focus G_GNUC_UNUSE
 		/* We are currently pressed so... */
 		if (priv->down_scancode[i] != 0) {
 			guint16 scancode = vnc_display_keymap_gdk2rfb(priv->keycode_map,
+								      priv->keycode_maplen,
 								      priv->down_scancode[i]);
 			/* ..send the fake key release event to match */
 			vnc_connection_key_event(priv->conn, 0,
@@ -1444,7 +1448,7 @@ static guint get_scancode_from_keyval(VncDisplay *obj, guint keyval)
 		g_free(keys);
 	}
 
-	return vnc_display_keymap_gdk2rfb(priv->keycode_map, keycode);
+	return vnc_display_keymap_gdk2rfb(priv->keycode_map, priv->keycode_maplen, keycode);
 }
 
 void vnc_display_send_keys_ex(VncDisplay *obj, const guint *keyvals,
@@ -1943,7 +1947,7 @@ static void vnc_display_init(VncDisplay *display)
 	g_signal_connect(G_OBJECT(priv->conn), "vnc-disconnected",
 			 G_CALLBACK(on_disconnected), display);
 
-	priv->keycode_map = vnc_display_keymap_gdk2rfb_table();
+	priv->keycode_map = vnc_display_keymap_gdk2rfb_table(&priv->keycode_maplen);
 }
 
 gboolean vnc_display_set_credential(VncDisplay *obj, int type, const gchar *data)

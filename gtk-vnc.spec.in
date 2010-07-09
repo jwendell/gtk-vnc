@@ -28,6 +28,7 @@ BuildRequires: gobject-introspection-devel
 BuildRequires: gir-repository-devel
 %endif
 %endif
+BuildRequires: perl(Text::CSV)
 %if %{with_plugin}
 %if 0%{?fedora} > 8
 BuildRequires: xulrunner-devel

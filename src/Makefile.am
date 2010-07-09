@@ -123,6 +123,41 @@ libgtk_vnc_2_0_la_LDFLAGS = $(gtk_vnc_LDFLAGS) -version-info 0:2:0
 libgtk_vnc_2_0_la_SOURCES = $(gtk_vnc_SOURCES)
 endif
 
+EXTRA_DIST += keymap-gen.pl keymaps.csv
+
+KEYMAP_GEN = $(srcdir)/keymap-gen.pl
+
+KEYMAPS = \
+	vncdisplaykeymap_xorgevdev2rfb.c \
+	vncdisplaykeymap_xorgkbd2rfb.c \
+	vncdisplaykeymap_xorgxquartz2rfb.c \
+	vncdisplaykeymap_xorgxwin2rfb.c \
+	vncdisplaykeymap_osx2rfb.c \
+	vncdisplaykeymap_win322rfb.c
+
+$(KEYMAPS): $(KEYMAP_GEN) keymaps.csv
+BUILT_SOURCES += $(KEYMAPS)
+
+vncdisplaykeymap.c: $(KEYMAPS)
+
+vncdisplaykeymap_xorgevdev2rfb.c:
+	$(AM_V_GEN)$(PERL) $(KEYMAP_GEN) $(srcdir)/keymaps.csv xorgevdev rfb > $@ || rm $@
+
+vncdisplaykeymap_xorgkbd2rfb.c:
+	$(AM_V_GEN)$(PERL) $(KEYMAP_GEN) $(srcdir)/keymaps.csv xorgkbd rfb > $@ || rm $@
+
+vncdisplaykeymap_xorgxquartz2rfb.c:
+	$(AM_V_GEN)$(PERL) $(KEYMAP_GEN) $(srcdir)/keymaps.csv xorgxquartz rfb > $@ || rm $@
+
+vncdisplaykeymap_xorgxwin2rfb.c:
+	$(AM_V_GEN)$(PERL) $(KEYMAP_GEN) $(srcdir)/keymaps.csv xorgxwin rfb > $@ || rm $@
+
+vncdisplaykeymap_osx2rfb.c:
+	$(AM_V_GEN)$(PERL) $(KEYMAP_GEN) $(srcdir)/keymaps.csv osx rfb > $@ || rm $@
+
+vncdisplaykeymap_win322rfb.c:
+	$(AM_V_GEN)$(PERL) $(KEYMAP_GEN) $(srcdir)/keymaps.csv win32 rfb > $@ || rm $@
+
 
 vncdisplayenums.c: vncdisplay.h
 	$(AM_V_GEN)glib-mkenums    --fhead "#include <glib-object.h>\n" \
@@ -187,9 +222,11 @@ vncdisplay.c:: vncmarshal.h vncdisplayenums.h
 
 vncconnection.c:: vncmarshal.h vncconnectionenums.h
 
-CLEANFILES = vncmarshal.c vncmarshal.h \
+BUILT_SOURCES += vncmarshal.c vncmarshal.h \
 	vncdisplayenums.h vncdisplayenums.c \
 	vncconnectionenums.h vncconnectionenums.c
+
+CLEANFILES = $(BUILT_SOURCES)
 
 if WITH_PYTHON
 pyexec_LTLIBRARIES = gtkvnc.la

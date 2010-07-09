@@ -1569,7 +1569,7 @@ gboolean vnc_connection_key_event(VncConnection *conn, gboolean down_flag,
 	VncConnectionPrivate *priv = conn->priv;
 	guint8 pad[2] = {0};
 
-	VNC_DEBUG("Key event %d %d %d %d", key, scancode, down_flag, priv->has_ext_key_event);
+	VNC_DEBUG("Key event %d %d %d Extended: %d", key, scancode, down_flag, priv->has_ext_key_event);
 	if (priv->has_ext_key_event) {
 		vnc_connection_buffered_write_u8(conn, 255);
 		vnc_connection_buffered_write_u8(conn, 0);
