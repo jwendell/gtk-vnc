@@ -32,6 +32,9 @@ BuildRequires:  pkgconfig
 %package -n mingw32-gvnc
 Summary: MinGW Windows port of VNC GObject
 
+%package -n mingw32-gvnc-tools
+Summary: Command line VNC tools
+Group: Applications/Internet
 
 %description
 gtk-vnc is a VNC viewer widget for GTK. It is built using coroutines
@@ -41,6 +44,11 @@ allowing it to be completely asynchronous while remaining single threaded.
 gvnc is a GObject for managing a VNC connection. It provides all the
 infrastructure required to build a VNC client without having to deal
 with the raw protocol itself.
+
+%description -n mingw32-gvnc-tools
+Provides useful command line utilities for interacting with
+VNC servers. Includes the gvnccapture program for capturing
+screenshots of a VNC desktop
 
 %prep
 %setup -q -n gtk-vnc-%{version}
@@ -55,8 +63,9 @@ rm -rf $RPM_BUILD_ROOT
 make DESTDIR=$RPM_BUILD_ROOT install
 
 # Remove static libraries but DON'T remove *.dll.a files.
-rm $RPM_BUILD_ROOT%{_mingw32_libdir}/libgtk-vnc-1.0.a
-rm $RPM_BUILD_ROOT%{_mingw32_libdir}/libgvnc-1.0.a
+rm -f $RPM_BUILD_ROOT%{_mingw32_libdir}/libgtk-vnc-1.0.a
+rm -f $RPM_BUILD_ROOT%{_mingw32_libdir}/libgvnc-1.0.a
+rm -f $RPM_BUILD_ROOT%{_mingw32_mandir}/man1/gvnccapture.1*
 
 %find_lang gtk-vnc
 
@@ -81,6 +90,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_mingw32_libdir}/pkgconfig/gvnc-1.0.pc
 %{_mingw32_includedir}/gvnc-1.0
 
+%files -n mingw32-gvnc-tools
+%defattr(-,root,root)
+%{_mingw32_bindir}/gvnccapture.exe
 
 %changelog
 * Sun Dec  7 2008 Daniel P. Berrange <berrange@redhat.com> - 0.3.7-1
