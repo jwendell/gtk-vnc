@@ -3,6 +3,24 @@ EXTRA_DIST = libgvnc_sym.version libgtk-vnc_sym.version vncmarshal.txt
 
 lib_LTLIBRARIES = libgvnc-1.0.la libgtk-vnc-1.0.la
 
+BUILT_SOURCES =
+if USE_VERSION_DEFS
+GVNC_VERSION_FILE = $(builddir)/libgvnc_sym.def
+GTK_VNC_VERSION_FILE = $(builddir)/libgtk-vnc_sym.def
+BUILT_SOURCES += $(GVNC_VERSION_FILE) $(GTK_VNC_VERSION_FILE)
+else
+GVNC_VERSION_FILE = $(srcdir)/libgvnc_sym.version
+GTK_VNC_VERSION_FILE = $(srcdir)/libgtk-vnc_sym.version
+endif
+
+%.def: %.version
+	$(AM_V_GEN)rm -f -- $@-tmp $@ ; \
+	printf 'EXPORTS\n' > $@-tmp && \
+	sed -e '/^$$/d; /#/d; /:/d; /\}/d; /\*/d; /LIBVIRT_/d; s/[ \t]*\(.*\)\;/    \1/g' $^ >> $@-tmp && \
+	chmod a-w $@-tmp && \
+	mv $@-tmp $@
+
+
 libgvnc_1_0_la_LIBADD = \
 			@GOBJECT_LIBS@ \
 			@GTHREAD_LIBS@ \
@@ -23,8 +41,8 @@ libgvnc_1_0_la_CFLAGS = \
 			-I$(top_srcdir)/gnulib/lib \
 			-I../gnulib/lib
 libgvnc_1_0_la_LDFLAGS = \
-			@VERSION_SCRIPT_FLAGS@$(srcdir)/libgvnc_sym.version \
-			-version-info 0:1:0 -Wl,--no-undefined
+			$(VERSION_SCRIPT_FLAGS)$(GVNC_VERSION_FILE) \
+			-version-info 0:1:0 $(NO_UNDEFINED_FLAGS)
 
 gvnc_includedir = $(includedir)/gvnc-1.0/
 gvnc_include_HEADERS = \
@@ -78,8 +96,8 @@ libgtk_vnc_1_0_la_CFLAGS = \
 			-I$(top_srcdir)/gnulib/lib \
 			-I../gnulib/lib
 libgtk_vnc_1_0_la_LDFLAGS = \
-			@VERSION_SCRIPT_FLAGS@$(srcdir)/libgtk-vnc_sym.version \
-			-version-info 0:1:0 -Wl,--no-undefined
+			$(VERSION_SCRIPT_FLAGS)$(GTK_VNC_VERSION_FILE) \
+			-version-info 0:1:0 $(NO_UNDEFINED_FLAGS)
 
 gtk_vnc_includedir = $(includedir)/gtk-vnc-1.0/
 gtk_vnc_include_HEADERS = \

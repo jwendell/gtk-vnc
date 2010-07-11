@@ -120,10 +120,32 @@ AC_ARG_WITH(examples,
 WITH_EXAMPLES=$withval
 
 
+NO_UNDEFINED_LDFLAGS=
+VERSION_SCRIPT_FLAGS=
+USE_VERSION_DEFS=0
+case "$host" in
+  *-*-mingw*)
+    VERSION_SCRIPT_FLAGS="-Wl,"
+    USE_VERSION_DEFS=1
+    NO_UNDEFINED_FLAGS="-no-undefined"
+    ;;
+
+  *-*-cygwin*)
+    NO_UNDEFINED_LDFLAGS="-no-undefined"
+    ;;
+
+  *)
+    NO_UNDEFINED_FLAGS="-Wl,--no-undefined"
+    VERSION_SCRIPT_FLAGS=-Wl,--version-script=
+    `ld --help 2>&1 | grep -- --version-script >/dev/null` || \
+      VERSION_SCRIPT_FLAGS="-Wl,-M -Wl,"
+    ;;
+esac
+AC_SUBST([NO_UNDEFINED_FLAGS])
+AC_SUBST([VERSION_SCRIPT_FLAGS])
+AM_CONDITIONAL([USE_VERSION_DEFS], [test "$USE_VERSION_DEFS" = "1"])
+
 dnl check ld support --version-script
-VERSION_SCRIPT_FLAGS=-Wl,--version-script=
-`ld --help 2>&1 | grep -- --version-script >/dev/null` || \
-    VERSION_SCRIPT_FLAGS="-Wl,-M -Wl,"
 AC_SUBST(VERSION_SCRIPT_FLAGS)
 
 PKG_CHECK_MODULES(GOBJECT, gobject-2.0 >= $GOBJECT_REQUIRED)
@@ -381,6 +403,7 @@ Configure summary:
 
 	Compiler ...................:  ${CC}
 	Compiler Flags .............:  ${CFLAGS}
+	Extra Link Flags ...........:  ${VERSION_SCRIPT_FLAGS} ${NO_UNDEFINED_FLAGS}
 	Prefix......................:  ${prefix}
 
 	Python binding .............:  ${WITH_PYTHON}
