@@ -141,8 +141,9 @@ do_vnc_get_credential(const gchar *prompt, gboolean doecho)
 #ifdef HAVE_TERMIOS_H
 	struct termios old, new;
 #endif
-	gchar *res = NULL;
-	size_t n;
+	gchar buf[100];
+	gchar *res;
+	int n = sizeof(buf);
 	ssize_t len;
 
 	printf("%s", prompt);
@@ -161,11 +162,11 @@ do_vnc_get_credential(const gchar *prompt, gboolean doecho)
 #endif
 
 	/* Read the password. */
-	if ((len = getline(&res, &n, stdin)) < 0)
-		res = NULL;
-
-	if (res && res[len-1] == '\n')
-		res[len-1] = '\0';
+	if ((res = fgets(buf, n, stdin)) != NULL) {
+		len = strlen(res);
+		if (res[len-1] == '\n')
+			res[len-1] = '\0';
+	}
 
 #ifdef HAVE_TERMIOS_H
 	/* Restore terminal. */
@@ -175,7 +176,7 @@ do_vnc_get_credential(const gchar *prompt, gboolean doecho)
 	}
 #endif
 
-	return res;
+	return res ? g_strdup(res) : NULL;
 }
 
 
