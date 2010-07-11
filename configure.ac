@@ -15,8 +15,6 @@ LT_INIT([win32-dll disable-static])
 
 AC_CONFIG_MACRO_DIR([gnulib/m4])
 
-GNOME_COMPILE_WARNINGS([maximum])
-GNOME_CXX_WARNINGS([yes])
 GNOME_MAINTAINER_MODE_DEFINES
 
 # Use the silent-rules feature when possible.
