@@ -22,8 +22,11 @@ URL: http://live.gnome.org/gtk-vnc
 BuildRequires: gtk2-devel >= 2.14
 BuildRequires: pygtk2-devel python-devel zlib-devel
 BuildRequires: gnutls-devel cyrus-sasl-devel intltool
+%if %{with_gir}
+BuildRequires: gobject-introspection-devel gir-repository-devel
+%endif
 %if %{with_plugin}
-%if "%{fedora}" > "8"
+%if 0%{fedora} > 8
 BuildRequires: xulrunner-devel
 %else
 BuildRequires: firefox-devel
