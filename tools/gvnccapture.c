@@ -88,7 +88,9 @@ vinagre(1)
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#ifdef HAVE_TERMIOS_H
 #include <termios.h>
+#endif
 #include <unistd.h>
 #include <glib/gi18n.h>
 #include <gdk-pixbuf/gdk-pixbuf.h>
@@ -136,7 +138,9 @@ static const guint preferable_auths[] = {
 static gchar *
 do_vnc_get_credential(const gchar *prompt, gboolean doecho)
 {
+#ifdef HAVE_TERMIOS_H
 	struct termios old, new;
+#endif
 	gchar *res = NULL;
 	size_t n;
 	ssize_t len;
@@ -144,6 +148,7 @@ do_vnc_get_credential(const gchar *prompt, gboolean doecho)
 	printf("%s", prompt);
 	fflush(stdout);
 
+#ifdef HAVE_TERMIOS_H
 	/* Turn echoing off and fail if we can't. */
 	if (!doecho && tcgetattr (fileno (stdin), &old) != 0)
 		return NULL;
@@ -151,6 +156,9 @@ do_vnc_get_credential(const gchar *prompt, gboolean doecho)
 	new.c_lflag &= ~ECHO;
 	if (!doecho && tcsetattr(fileno(stdin), TCSAFLUSH, &new) != 0)
 		return NULL;
+#else
+	doecho = TRUE; /* Avoid unused parameter compile warning */
+#endif
 
 	/* Read the password. */
 	if ((len = getline(&res, &n, stdin)) < 0)
@@ -159,11 +167,13 @@ do_vnc_get_credential(const gchar *prompt, gboolean doecho)
 	if (res && res[len-1] == '\n')
 		res[len-1] = '\0';
 
+#ifdef HAVE_TERMIOS_H
 	/* Restore terminal. */
 	if (!doecho) {
 		printf("\n");
 		(void) tcsetattr(fileno (stdin), TCSAFLUSH, &old);
 	}
+#endif
 
 	return res;
 }

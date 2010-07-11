@@ -98,7 +98,7 @@ AC_SUBST([GTK_REQUIRED])
 AM_CONDITIONAL([HAVE_GTK_2],[test "$with_gtk" = "2.0"])
 AM_CONDITIONAL([HAVE_GTK_3],[test "$with_gtk" = "3.0"])
 
-AC_CHECK_HEADERS([pwd.h winsock2.h])
+AC_CHECK_HEADERS([pwd.h winsock2.h termios.h])
 
 AC_ARG_WITH(python,
 [  --with-python           build python bindings],
