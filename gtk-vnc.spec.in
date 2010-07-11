@@ -146,7 +146,7 @@ rm -fr %{buildroot}
 
 %files -f %{name}.lang
 %defattr(-, root, root)
-%doc AUTHORS ChangeLog NEWS README COPYING.LIB
+%doc AUTHORS ChangeLog ChangeLog-old NEWS README COPYING.LIB
 %{_libdir}/libgtk-vnc-1.0.so.*
 %if %{with_gir}
 %{_libdir}/girepository-1.0/GtkVnc-1.0.typelib
@@ -154,8 +154,10 @@ rm -fr %{buildroot}
 
 %files devel
 %defattr(-, root, root)
-%doc AUTHORS ChangeLog NEWS README COPYING.LIB
 %doc examples/gvncviewer.c
+%if %{with_gir}
+%doc examples/gvncviewer.js
+%endif
 %{_libdir}/libgtk-vnc-1.0.so
 %dir %{_includedir}/%{name}-1.0/
 %{_includedir}/%{name}-1.0/*.h
@@ -166,7 +168,6 @@ rm -fr %{buildroot}
 
 %files python
 %defattr(-, root, root)
-%doc AUTHORS ChangeLog NEWS README COPYING.LIB
 %doc examples/gvncviewer.py
 %{_libdir}/python*/site-packages/gtkvnc.so
 
@@ -178,7 +179,6 @@ rm -fr %{buildroot}
 
 %files -n gvnc
 %defattr(-, root, root)
-%doc AUTHORS ChangeLog NEWS README COPYING.LIB
 %{_libdir}/libgvnc-1.0.so.*
 %if %{with_gir}
 %{_libdir}/girepository-1.0/GVnc-1.0.typelib
@@ -186,7 +186,6 @@ rm -fr %{buildroot}
 
 %files -n gvnc-devel
 %defattr(-, root, root)
-%doc AUTHORS ChangeLog NEWS README COPYING.LIB
 %{_libdir}/libgvnc-1.0.so
 %dir %{_includedir}/gvnc-1.0/
 %{_includedir}/gvnc-1.0/*.h

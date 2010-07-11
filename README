@@ -1,16 +1,17 @@
    GTK VNC  Readme
    ===============
 
-gtk-vnc is a VNC viewer widget for GTK. It is built using
-coroutines allowing it to be completely asynchronous while
-remaining single threaded. It provides a core C library, and
-bindings for Python (PyGTK)
+gtk-vnc is a project providing client side APIs for the
+RFB protocol / VNC remote desktop technology.
 
-The API is still in early stages of development & so until
-version 1.0 is declared, the API may change. The primary
-public API is provided by the vncdisplay.h class & should
-be reasonably free of API churn. The other header files are
-internal VNC protocol implementation & will very likely change.
+It is built using coroutines allowing it to be completely
+asynchronous while remaining single threaded. It provides
+two core C libraries, libgvnc for interacting with the core
+RFB protocol and libgtk-vnc for a GTK display widget.
+
+There is a traditional Python binding built on PyGTK, and
+evolving support for arbitrary languages via the GObject
+Introspection system.
 
 For information about the project visit the webpage at:
 

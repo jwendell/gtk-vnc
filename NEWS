@@ -1,6 +1,32 @@
     GTK VNC News
     ============
 
+Jul 11, 2010: Release 0.4.0
+===========================
+
+Bug fixes:
+
+ o Fix protocol greeting so wireshark detects stream
+ o Fix build with GSEAL
+ o Try next DNS address after any connect failure
+ o Plugin build with newer mozilla
+ o Fix linkage to libgpg-error
+ o Fix linker flags on solaris
+ o Fix gcrypt threading callbacks
+ o Fix multiple memory leaks
+ o Remove use of PATH_MAX to fix Hurd
+
+New features:
+
+ o Refactored gvnc module to provide a full GObject
+   for interacting with the RFB protcol.
+ o Create a libgvnc.so for non-GTK related APIs for
+   dealing with RFB protcol
+ o Add gvnccapture command line tool for screenshot
+   capture
+ o Many updated translations
+
+
 Oct 20, 2009: Release 0.3.10
 ============================
 
