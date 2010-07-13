@@ -29,6 +29,19 @@ To browse or report bugs, go to our bugzilla page at:
 Installation caveats
 --------------------
 
+ * GTK3: The build defaults to using GTK2. To enable GTK3 support
+   the flag '--with-gtk' must be passed to configure.
+
+         ./configure --with-gtk=3.0
+
+   NB: the traditional python bindings are disabled when gtk3
+   is used. Applications should use the GObject introspection
+   bindings instead.
+
+   NB: when built against GTK3, the library name for gtk-vnc
+   will become 'gtk-vnc-2.0.so' and the pkg-config file will
+   also be 'gtk-vnc-2.0'.  The gvnc library is unaffected.
+
  * NetBSD: You must run configure using
 
     --with-coroutine=gthread

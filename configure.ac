@@ -85,14 +85,17 @@ AC_MSG_RESULT([$with_gtk])
 case "$with_gtk" in
   2.0) GTK_API_VERSION=2.0
        GTK_REQUIRED=2.18.0
+       GTK_VNC_API_VERSION=1.0
        ;;
   3.0) GTK_API_VERSION=3.0
        GTK_REQUIRED=2.90.4
+       GTK_VNC_API_VERSION=2.0
        ;;
 esac
 
 AC_SUBST([GTK_API_VERSION])
 AC_SUBST([GTK_REQUIRED])
+AC_SUBST([GTK_VNC_API_VERSION])
 AM_CONDITIONAL([HAVE_GTK_2],[test "$with_gtk" = "2.0"])
 AM_CONDITIONAL([HAVE_GTK_3],[test "$with_gtk" = "3.0"])
 
@@ -105,7 +108,12 @@ AC_ARG_WITH(python,
    *)      AC_MSG_ERROR([bad value ${withval} for python option]) ;;
  esac],[withval=yes])
 
-WITH_PYTHON=$withval
+if test "$with_gtk" = "3.0"
+then
+  WITH_PYTHON=no
+else
+  WITH_PYTHON=$withval
+fi
 
 GTK_VNC_COMPILE_WARNINGS
 
@@ -384,6 +392,7 @@ AC_CONFIG_FILES(
   po/Makefile.in
   gvnc-1.0.pc
   gtk-vnc-1.0.pc
+  gtk-vnc-2.0.pc
   gtk-vnc.spec
   mingw32-gtk-vnc.spec
   )

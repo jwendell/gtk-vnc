@@ -1,7 +1,7 @@
 
 EXTRA_DIST = libgvnc_sym.version libgtk-vnc_sym.version vncmarshal.txt
 
-lib_LTLIBRARIES = libgvnc-1.0.la libgtk-vnc-1.0.la
+lib_LTLIBRARIES = libgvnc-1.0.la
 
 BUILT_SOURCES =
 if USE_VERSION_DEFS
@@ -79,14 +79,12 @@ libgvnc_1_0_la_SOURCES += coroutine_gthread.c
 EXTRA_DIST += continuation.h continuation.c coroutine_ucontext.c
 endif
 
-
-
-libgtk_vnc_1_0_la_LIBADD = \
+gtk_vnc_LIBADD = \
 			@GTK_LIBS@ \
 			@X11_LIBS@ \
 			libgvnc-1.0.la \
 			../gnulib/lib/libgnu.la
-libgtk_vnc_1_0_la_CFLAGS = \
+gtk_vnc_CFLAGS = \
 			@GTK_CFLAGS@ \
 			@X11_CFLAGS@ \
 			@WARNING_CFLAGS@ \
@@ -95,24 +93,40 @@ libgtk_vnc_1_0_la_CFLAGS = \
 			-DG_LOG_DOMAIN=\"gtk-vnc\" \
 			-I$(top_srcdir)/gnulib/lib \
 			-I../gnulib/lib
-libgtk_vnc_1_0_la_LDFLAGS = \
-			$(VERSION_SCRIPT_FLAGS)$(GTK_VNC_VERSION_FILE) \
-			-version-info 0:1:0 $(NO_UNDEFINED_FLAGS)
 
-gtk_vnc_includedir = $(includedir)/gtk-vnc-1.0/
+gtk_vnc_includedir = $(includedir)/gtk-vnc-$(GTK_VNC_API_VERSION)/
 gtk_vnc_include_HEADERS = \
 			vncdisplay.h \
 			vncdisplayenums.h \
 			vncgrabsequence.h \
 			vncimageframebuffer.h
 
-libgtk_vnc_1_0_la_SOURCES = \
+gtk_vnc_SOURCES = \
 			vncimageframebuffer.h vncimageframebuffer.c \
 			vncdisplay.h vncdisplay.c \
 			vncdisplayenums.h vncdisplayenums.c \
 			vncdisplaykeymap.h vncdisplaykeymap.c \
 			vncgrabsequence.h vncgrabsequence.c \
 			vncmarshal.h vncmarshal.c
+
+gtk_vnc_LDFLAGS = \
+			$(VERSION_SCRIPT_FLAGS)$(GTK_VNC_VERSION_FILE) \
+			$(NO_UNDEFINED_FLAGS)
+
+if HAVE_GTK_2
+lib_LTLIBRARIES += libgtk-vnc-1.0.la
+libgtk_vnc_1_0_la_LIBADD = $(gtk_vnc_LIBADD)
+libgtk_vnc_1_0_la_CFLAGS = $(gtk_vnc_CFLAGS)
+libgtk_vnc_1_0_la_LDFLAGS = $(gtk_vnc_LDFLAGS) -version-info 0:1:0
+libgtk_vnc_1_0_la_SOURCES = $(gtk_vnc_SOURCES)
+else
+lib_LTLIBRARIES += libgtk-vnc-2.0.la
+libgtk_vnc_2_0_la_LIBADD = $(gtk_vnc_LIBADD)
+libgtk_vnc_2_0_la_CFLAGS = $(gtk_vnc_CFLAGS)
+libgtk_vnc_2_0_la_LDFLAGS = $(gtk_vnc_LDFLAGS) -version-info 0:2:0
+libgtk_vnc_2_0_la_SOURCES = $(gtk_vnc_SOURCES)
+endif
+
 
 vncdisplayenums.c: vncdisplay.h
 	$(AM_V_GEN)glib-mkenums    --fhead "#include <glib-object.h>\n" \
@@ -184,7 +198,7 @@ CLEANFILES = vncmarshal.c vncmarshal.h \
 if WITH_PYTHON
 pyexec_LTLIBRARIES = gtkvnc.la
 
-gtkvnc_la_LIBADD = libgtk-vnc-1.0.la @PYGTK_LIBS@
+gtkvnc_la_LIBADD = libgtk-vnc-$(GTK_VNC_API_VERSION).la @PYGTK_LIBS@
 gtkvnc_la_CFLAGS = @GTK_CFLAGS@ @PYTHON_INCLUDES@ \
 		   @PYGTK_CFLAGS@ @WARNING_PYTHON_CFLAGS@
 gtkvnc_la_LDFLAGS = -module -avoid-version -fPIC
@@ -247,15 +261,15 @@ GVnc-1.0.gir: libgvnc-1.0.la $(G_IR_SCANNER) Makefile.am
                 --pkg=gobject-2.0 \
                 $(GVNC_INTROSPECTION_SRCS)
 
-GtkVnc-1.0.gir: GVnc-1.0.gir libgtk-vnc-1.0.la $(G_IR_SCANNER) Makefile.am
+GtkVnc-$(GTK_VNC_API_VERSION).gir: GVnc-1.0.gir libgtk-vnc-$(GTK_VNC_API_VERSION).la $(G_IR_SCANNER) Makefile.am
 	$(AM_V_GEN)$(G_IR_SCANNER) -v \
                 --namespace GtkVnc \
-                --nsversion 1.0 \
+                --nsversion $(GTK_VNC_API_VERSION) \
 		--include GObject-2.0 \
-		--include Gtk-2.0 \
+		--include Gtk-$(GTK_API_VERSION) \
 		--include GVnc-1.0 \
 		--strip-prefix=Vnc \
-                --library=$(builddir)/libgtk-vnc-1.0.la \
+                --library=$(builddir)/libgtk-vnc-$(GTK_VNC_API_VERSION).la \
                 --add-include-path=$(top_srcdir) \
                 --add-include-path=$(srcdir) \
                 --add-include-path=$(builddir) \
@@ -267,19 +281,20 @@ GtkVnc-1.0.gir: GVnc-1.0.gir libgtk-vnc-1.0.la $(G_IR_SCANNER) Makefile.am
                 --pkg=gthread-2.0 \
                 --pkg=gdk-pixbuf-2.0 \
                 --pkg=gobject-2.0 \
-                --pkg=gtk+-2.0 \
+                --pkg=gtk+-$(GTK_API_VERSION) \
                 $(GTK_VNC_INTROSPECTION_SRCS)
 
 girdir = $(datadir)/gir-1.0
-gir_DATA = GVnc-1.0.gir GtkVnc-1.0.gir
+gir_DATA = GVnc-1.0.gir GtkVnc-$(GTK_VNC_API_VERSION).gir
 
 typelibsdir = $(libdir)/girepository-1.0
-typelibs_DATA = GVnc-1.0.typelib GtkVnc-1.0.typelib
+typelibs_DATA = GVnc-1.0.typelib GtkVnc-$(GTK_VNC_API_VERSION).typelib
 
 %.typelib: %.gir
 	$(AM_V_GEN)$(G_IR_COMPILER) \
 		--includedir=$(srcdir) \
 		--includedir=$(builddir) \
+		--includedir=$(girdir) \
 		-o $@ $<
 
 CLEANFILES += $(gir_DATA) $(typelibs_DATA)
