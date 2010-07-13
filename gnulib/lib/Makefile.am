@@ -552,7 +552,7 @@ EXTRA_libgnu_la_SOURCES += asnprintf.c printf-args.c printf-parse.c vasnprintf.c
 ## begin gnulib module vc-list-files
 
 
-EXTRA_DIST += $(top_srcdir)/./vc-list-files
+EXTRA_DIST += $(top_srcdir)/build-aux/vc-list-files
 
 ## end   gnulib module vc-list-files
 

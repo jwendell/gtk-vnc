@@ -443,9 +443,9 @@ int main(int argc, char **argv)
 	gboolean quiet = FALSE;
 	const GOptionEntry options [] = {
 		{ "debug", 'd', G_OPTION_FLAG_NO_ARG,  G_OPTION_ARG_CALLBACK,
-		  vnc_debug_option_arg, N_("Enables debug output"), NULL },
+		  vnc_debug_option_arg, "Enables debug output", NULL },
 		{ "quiet", 'q', 0, G_OPTION_ARG_NONE,
-		  &quiet, N_("Don't print any status to console"), NULL },
+		  &quiet, "Don't print any status to console", NULL },
 		{ G_OPTION_REMAINING, '\0', 0, G_OPTION_ARG_STRING_ARRAY, &args,
 		  NULL, "HOSTNAME[:DISPLAY] FILENAME" },
 		{ NULL, 0, 0, G_OPTION_ARG_NONE, NULL, NULL, 0 }

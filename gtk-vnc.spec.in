@@ -137,6 +137,10 @@ rm -f %{buildroot}%{_libdir}/mozilla/plugins/%{name}-plugin.la
 %endif
 %find_lang %{name}
 
+
+%check
+make check
+
 %clean
 rm -fr %{buildroot}
 

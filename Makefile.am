@@ -50,7 +50,14 @@ MAINTAINERCLEANFILES = 		\
 	m4/ltoptions.m4			\
 	m4/ltsugar.m4			\
 	m4/ltversion.m4			\
-	build-aux/*			\
+	build-aux/compile		\
+	build-aux/config.guess		\
+	build-aux/config.sub		\
+	build-aux/depcomp		\
+	build-aux/install-sh		\
+	build-aux/ltmain.sh		\
+	build-aux/missing		\
+	build-aux/mkinstalldirs		\
 	`find "$(srcdir)" -type f -name Makefile.in -print`
 
 GITIGNOREFILES = plugin/gtk-vnc-plugin.la plugin/gtk-vnc-plugin.so
