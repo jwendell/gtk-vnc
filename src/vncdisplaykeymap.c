@@ -37,7 +37,7 @@
  * THE SOFTWARE.
  */
 
-static const guint8 x_keycode_to_pc_keycode_table[61] = {
+static const guint8 xkbd_keycode_to_rfb_keycode_table[61] = {
 	0xc7,      /*  97  Home   */
 	0xc8,      /*  98  Up     */
 	0xc9,      /*  99  PgUp   */
@@ -106,7 +106,7 @@ static const guint8 x_keycode_to_pc_keycode_table[61] = {
  * and  /usr/share/X11/xkb/keycodes/xfree86
  */
 
-static const guint8 evdev_keycode_to_pc_keycode[61] = {
+static const guint8 xevdev_keycode_to_rfb_keycode[61] = {
 	0,         /*  97 EVDEV - RO   ("Internet" Keyboards) */
 	0,         /*  98 EVDEV - KATA (Katakana) */
 	0,         /*  99 EVDEV - HIRA (Hiragana) */
@@ -185,7 +185,7 @@ static unsigned int ref_count_for_untranslated_keys = 0;
 /* As best as I can tell, windows passes PC scan codes.  This code definitely
  * won't compile on windows so let's put in a guard anyway */
 
-#ifndef WIN32
+#if defined(GDK_WINDOWING_X11)
 #include <gdk/gdkx.h>
 #include <X11/XKBlib.h>
 #include <stdbool.h>
@@ -193,47 +193,54 @@ static unsigned int ref_count_for_untranslated_keys = 0;
 
 #define STRPREFIX(a,b) (strncmp((a),(b),strlen((b))) == 0)
 
-static gboolean check_for_evdev(void)
+const guint8 const *vnc_display_keymap_gdk2rfb_table(void)
 {
 	XkbDescPtr desc;
-	gboolean has_evdev = FALSE;
 	const gchar *keycodes;
 
 	desc = XkbGetKeyboard(GDK_DISPLAY(), XkbGBN_AllComponentsMask,
 			      XkbUseCoreKbd);
 	if (desc == NULL || desc->names == NULL)
-		return FALSE;
+		return NULL;
 
 	keycodes = gdk_x11_get_xatom_name(desc->names->keycodes);
-	if (keycodes == NULL)
-		g_warning("could not lookup keycode name\n");
-	else if (STRPREFIX(keycodes, "evdev_"))
-		has_evdev = TRUE;
-	else if (!STRPREFIX(keycodes, "xfree86_"))
-		g_warning("unknown keycodes `%s', please report to gtk-vnc-devel\n",
-			  keycodes);
-
 	XkbFreeClientMap(desc, XkbGBN_AllComponentsMask, True);
 
-	return has_evdev;
+	if (keycodes == NULL) {
+		g_warning("could not lookup keycode name\n");
+		return NULL;
+	} else if (STRPREFIX(keycodes, "e2vdev_")) {
+		VNC_DEBUG("Using evdev keycode mapping");
+		return xevdev_keycode_to_rfb_keycode;
+	} else if (STRPREFIX(keycodes, "xfr2ee86_")) {
+		VNC_DEBUG("Using xfree86 keycode mapping");
+		return xkbd_keycode_to_rfb_keycode_table;
+       } else {
+               g_warning("Unknown keycode mapping.\n"
+                          "Please report to gtk-vnc-list@gnome.org\n"
+                         "including the following information:\n"
+                         "\n"
+                         "  - Operating system\n"
+                         "  - GTK build\n"
+                         "  - X11 Server\n"
+                         "  - xprop -root\n"
+                         "  - xdpyinfo\n");
+               return NULL;
+	}
 }
 #else
-static gboolean check_for_evdev(void)
+const guint8 const *vnc_display_keymap_gdk2rfb_table(void)
 {
-	return FALSE;
+	g_warning("Unsupported GDK Windowing platform.\n"
+                 "Please report to gtk-vnc-list@gnome.org\n"
+		  "including the following information:\n"
+		  "\n"
+		  "  - Operating system\n"
+		  "  - GTK Windowing system build\n");
+	return NULL;
 }
 #endif
 
-const guint8 const *vnc_display_keymap_x2pc_table(void)
-{
-	if (check_for_evdev()) {
-		VNC_DEBUG("Using evdev keycode mapping");
-		return evdev_keycode_to_pc_keycode;
-	} else {
-		VNC_DEBUG("Using xfree86 keycode mapping");
-		return x_keycode_to_pc_keycode_table;
-	}
-}
 
 /* All keycodes from 0 to 0xFF correspond to the hardware keycodes generated
  * by a US101 PC keyboard with the following encoding:
@@ -245,9 +252,12 @@ const guint8 const *vnc_display_keymap_x2pc_table(void)
 
 #define VKC_PAUSE	0x100
 
-guint16 vnc_display_keymap_x2pc(const guint8 const *keycode_map,
-				guint16 keycode)
+guint16 vnc_display_keymap_gdk2rfb(const guint8 const *keycode_map,
+				   guint16 keycode)
 {
+	if (keycode_map == NULL)
+		return 0;
+
 	if (keycode == GDK_Pause)
 		return VKC_PAUSE;
 

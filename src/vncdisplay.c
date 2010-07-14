@@ -752,8 +752,8 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *key)
 	for (i = 0 ; i < (int)(sizeof(priv->down_keyval)/sizeof(priv->down_keyval[0])) ; i++) {
 		/* We were pressed, and now we're released, so... */
 		if (priv->down_scancode[i] == key->hardware_keycode) {
-			guint16 scancode = vnc_display_keymap_x2pc(priv->keycode_map,
-								   key->hardware_keycode);
+			guint16 scancode = vnc_display_keymap_gdk2rfb(priv->keycode_map,
+								      key->hardware_keycode);
 			/*
 			 * ..send the key release event we're dealing with
 			 *
@@ -774,8 +774,8 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *key)
 	if (key->type == GDK_KEY_PRESS) {
 		for (i = 0 ; i < (int)(sizeof(priv->down_keyval)/sizeof(priv->down_keyval[0])) ; i++) {
 			if (priv->down_scancode[i] == 0) {
-				guint16 scancode = vnc_display_keymap_x2pc(priv->keycode_map,
-									   key->hardware_keycode);
+				guint16 scancode = vnc_display_keymap_gdk2rfb(priv->keycode_map,
+									      key->hardware_keycode);
 				priv->down_keyval[i] = keyval;
 				priv->down_scancode[i] = key->hardware_keycode;
 				/* Send the actual key event we're dealing with */
@@ -839,8 +839,8 @@ static gboolean focus_event(GtkWidget *widget, GdkEventFocus *focus G_GNUC_UNUSE
 	for (i = 0 ; i < (int)(sizeof(priv->down_keyval)/sizeof(priv->down_keyval[0])) ; i++) {
 		/* We are currently pressed so... */
 		if (priv->down_scancode[i] != 0) {
-			guint16 scancode = vnc_display_keymap_x2pc(priv->keycode_map,
-								   priv->down_scancode[i]);
+			guint16 scancode = vnc_display_keymap_gdk2rfb(priv->keycode_map,
+								      priv->down_scancode[i]);
 			/* ..send the fake key release event to match */
 			vnc_connection_key_event(priv->conn, 0,
 						 priv->down_keyval[i], scancode);
@@ -1334,6 +1334,9 @@ static void on_initialized(VncConnection *conn G_GNUC_UNUSED,
 		REMOVE_ENCODING(VNC_CONNECTION_ENCODING_TIGHT);
 	}
 
+	if (priv->keycode_map == NULL)
+		REMOVE_ENCODING(VNC_CONNECTION_ENCODING_EXT_KEY_EVENT);
+
 	VNC_DEBUG("Sending %d encodings", n_encodings);
 	if (!vnc_connection_set_encodings(priv->conn, n_encodings, encodings))
 		goto error;
@@ -1441,7 +1444,7 @@ static guint get_scancode_from_keyval(VncDisplay *obj, guint keyval)
 		g_free(keys);
 	}
 
-	return vnc_display_keymap_x2pc(priv->keycode_map, keycode);
+	return vnc_display_keymap_gdk2rfb(priv->keycode_map, keycode);
 }
 
 void vnc_display_send_keys_ex(VncDisplay *obj, const guint *keyvals,
@@ -1940,7 +1943,7 @@ static void vnc_display_init(VncDisplay *display)
 	g_signal_connect(G_OBJECT(priv->conn), "vnc-disconnected",
 			 G_CALLBACK(on_disconnected), display);
 
-	priv->keycode_map = vnc_display_keymap_x2pc_table();
+	priv->keycode_map = vnc_display_keymap_gdk2rfb_table();
 }
 
 gboolean vnc_display_set_credential(VncDisplay *obj, int type, const gchar *data)
