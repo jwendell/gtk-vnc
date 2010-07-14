@@ -2124,7 +2124,7 @@ static void vnc_connection_read_tpixel(VncConnection *conn, guint8 *pixel)
 	VncConnectionPrivate *priv = conn->priv;
 
 	if (priv->fmt.depth == 24) {
-		uint32_t val;
+		guint32 val;
 		vnc_connection_read(conn, pixel, 3);
 		val = (pixel[0] << priv->fmt.red_shift)
 			| (pixel[1] << priv->fmt.green_shift)

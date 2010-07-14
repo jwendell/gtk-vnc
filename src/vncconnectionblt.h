@@ -24,9 +24,9 @@
  */
 #define SPLICE_I(a, b) a ## b
 #define SPLICE(a, b) SPLICE_I(a, b)
-#define src_pixel_t SPLICE(SPLICE(uint, SRC), _t)
-#define ssrc_pixel_t SPLICE(SPLICE(int, SRC), _t)
-#define dst_pixel_t SPLICE(SPLICE(uint, DST), _t)
+#define src_pixel_t SPLICE(guint, SRC)
+#define ssrc_pixel_t SPLICE(gint, SRC)
+#define dst_pixel_t SPLICE(guint, DST)
 #define SUFFIX() SPLICE(SRC,SPLICE(x,DST))
 #define RICH_CURSOR_BLIT SPLICE(vnc_connection_rich_cursor_blt_, SUFFIX())
 #define TIGHT_COMPUTE_PREDICTED SPLICE(vnc_connection_tight_compute_predicted_, SUFFIX())
