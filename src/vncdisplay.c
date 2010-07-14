@@ -1283,8 +1283,10 @@ static void on_initialized(VncConnection *conn G_GNUC_UNUSED,
 {
 	VncDisplay *obj = VNC_DISPLAY(opaque);
 	VncDisplayPrivate *priv = obj->priv;
+	int i;
 
-	/* this order is extremely important! */
+	/* The order determines which encodings the
+	 * server prefers when it has a choice to use */
 	gint32 encodings[] = {  VNC_CONNECTION_ENCODING_TIGHT_JPEG5,
 				VNC_CONNECTION_ENCODING_TIGHT,
 				VNC_CONNECTION_ENCODING_EXT_KEY_EVENT,
@@ -1298,8 +1300,22 @@ static void on_initialized(VncConnection *conn G_GNUC_UNUSED,
 				VNC_CONNECTION_ENCODING_RRE,
 				VNC_CONNECTION_ENCODING_COPY_RECT,
 				VNC_CONNECTION_ENCODING_RAW };
-	gint32 *encodingsp;
-	int n_encodings;
+	int n_encodings = G_N_ELEMENTS(encodings);
+
+#define REMOVE_ENCODING(e)                                             \
+	for (i = 0 ; i < n_encodings ; i++) {			       \
+		if (encodings[i] == e) {			       \
+			encodings[i] = 0;			       \
+			if (i < (n_encodings - 1))		       \
+				memmove(encodings,		       \
+					encodings + i,		       \
+					sizeof(gint32) *	       \
+					(n_encodings - (i + 1)));      \
+			n_encodings--;				       \
+			VNC_DEBUG("Removed encoding %d", e);	       \
+			break;					       \
+		}						       \
+	}
 
 	if (!vnc_display_set_preferred_pixel_format(obj))
 		goto error;
@@ -1310,21 +1326,16 @@ static void on_initialized(VncConnection *conn G_GNUC_UNUSED,
 			    vnc_connection_get_height(priv->conn),
 			    FALSE);
 
-	encodingsp = encodings;
-	n_encodings = G_N_ELEMENTS(encodings);
-
 	if (check_pixbuf_support("jpeg")) {
-		if (!priv->allow_lossy) {
-			encodingsp++;
-			n_encodings--;
-		}
+		if (!priv->allow_lossy)
+			REMOVE_ENCODING(VNC_CONNECTION_ENCODING_TIGHT_JPEG5);
 	} else {
-		encodingsp += 2;
-		n_encodings -= 2;
+		REMOVE_ENCODING(VNC_CONNECTION_ENCODING_TIGHT_JPEG5);
+		REMOVE_ENCODING(VNC_CONNECTION_ENCODING_TIGHT);
 	}
 
 	VNC_DEBUG("Sending %d encodings", n_encodings);
-	if (!vnc_connection_set_encodings(priv->conn, n_encodings, encodingsp))
+	if (!vnc_connection_set_encodings(priv->conn, n_encodings, encodings))
 		goto error;
 
 	VNC_DEBUG("Requesting first framebuffer update");
