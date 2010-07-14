@@ -1,5 +1,5 @@
-SUBDIRS = gnulib/lib src tools examples plugin gnulib/tests po
-ACLOCAL_AMFLAGS = -I gnulib/m4 ${ACLOCAL_FLAGS}
+SUBDIRS = src tools examples plugin po
+ACLOCAL_AMFLAGS = ${ACLOCAL_FLAGS}
 
 pkgconfig_DATA = @PACKAGE@-$(GTK_VNC_API_VERSION).pc gvnc-1.0.pc
 pkgconfigdir = $(libdir)/pkgconfig
@@ -37,14 +37,6 @@ MAINTAINERCLEANFILES = 		\
 	omf.make		\
 	py-compile		\
 	xmldocs.make		\
-	gnulib/m4/gnome-doc-utils.m4	\
-	gnulib/m4/gtk-doc.m4		\
-	gnulib/m4/intltool.m4		\
-	gnulib/m4/libtool.m4		\
-	gnulib/m4/ltoptions.m4		\
-	gnulib/m4/ltsugar.m4		\
-	gnulib/m4/ltversion.m4		\
-	gnulib/m4/lt~obsolete.m4	\
 	m4/libtool.m4			\
 	m4/lt~obsolete.m4		\
 	m4/ltoptions.m4			\

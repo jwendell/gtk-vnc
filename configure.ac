@@ -13,7 +13,7 @@ AM_INIT_AUTOMAKE([1.10 -Wno-portability])
 LT_PREREQ([2.2.6])
 LT_INIT([win32-dll disable-static])
 
-AC_CONFIG_MACRO_DIR([gnulib/m4])
+AC_CONFIG_MACRO_DIR([m4])
 
 GNOME_MAINTAINER_MODE_DEFINES
 
@@ -43,13 +43,6 @@ PYTHON_REQUIRED=2.4
 FIREFOX_PLUGIN_REQUIRED=2.0.0
 MOZILLA_PLUGIN_REQUIRED=1.8
 GOBJECT_INTROSPECTION_REQUIRED=0.6.2
-
-dnl *******************************************************************************
-dnl Setup GNULIB - must be before anything else in this file
-dnl *******************************************************************************
-
-gl_EARLY
-gl_INIT
 
 dnl *******************************************************************************
 dnl Setup core compilers / build helpers
@@ -389,8 +382,6 @@ AM_CONDITIONAL([WITH_GOBJECT_INTROSPECTION], [test "x$enable_introspection" = "x
 
 AC_CONFIG_FILES(
   Makefile
-  gnulib/lib/Makefile
-  gnulib/tests/Makefile
   src/Makefile
   tools/Makefile
   examples/Makefile

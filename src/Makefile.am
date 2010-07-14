@@ -27,8 +27,7 @@ libgvnc_1_0_la_LIBADD = \
 			@GTHREAD_LIBS@ \
 			@GDK_PIXBUF_LIBS@ \
 			@GNUTLS_LIBS@ \
-			@SASL_LIBS@ \
-			../gnulib/lib/libgnu.la
+			@SASL_LIBS@
 libgvnc_1_0_la_CFLAGS = \
 			@GOBJECT_CFLAGS@ \
 			@GIO_CFLAGS@ \
@@ -39,9 +38,7 @@ libgvnc_1_0_la_CFLAGS = \
 			@WARNING_CFLAGS@ \
 			-DSYSCONFDIR=\""$(sysconfdir)"\" \
 			-DPACKAGE_LOCALE_DIR=\""$(datadir)/locale"\" \
-			-DG_LOG_DOMAIN=\"gvnc\" \
-			-I$(top_srcdir)/gnulib/lib \
-			-I../gnulib/lib
+			-DG_LOG_DOMAIN=\"gvnc\"
 libgvnc_1_0_la_LDFLAGS = \
 			$(VERSION_SCRIPT_FLAGS)$(GVNC_VERSION_FILE) \
 			-version-info 0:1:0 $(NO_UNDEFINED_FLAGS)
@@ -84,17 +81,14 @@ endif
 gtk_vnc_LIBADD = \
 			@GTK_LIBS@ \
 			@X11_LIBS@ \
-			libgvnc-1.0.la \
-			../gnulib/lib/libgnu.la
+			libgvnc-1.0.la
 gtk_vnc_CFLAGS = \
 			@GTK_CFLAGS@ \
 			@X11_CFLAGS@ \
 			@WARNING_CFLAGS@ \
 			-DSYSCONFDIR=\""$(sysconfdir)"\" \
 			-DPACKAGE_LOCALE_DIR=\""$(datadir)/locale"\" \
-			-DG_LOG_DOMAIN=\"gtk-vnc\" \
-			-I$(top_srcdir)/gnulib/lib \
-			-I../gnulib/lib
+			-DG_LOG_DOMAIN=\"gtk-vnc\"
 
 gtk_vnc_includedir = $(includedir)/gtk-vnc-$(GTK_VNC_API_VERSION)/
 gtk_vnc_include_HEADERS = \
