@@ -2,7 +2,7 @@
 
 AC_PREREQ(2.63)
 
-AC_INIT([gtk-vnc],[0.4.0],[https://bugzilla.gnome.org/enter_bug.cgi?product=gtk-vnc],[gtk-vnc],[http://live.gnome.org/gtk-vnc/])
+AC_INIT([gtk-vnc],[0.4.1],[https://bugzilla.gnome.org/enter_bug.cgi?product=gtk-vnc],[gtk-vnc],[http://live.gnome.org/gtk-vnc/])
 AC_CONFIG_SRCDIR([src/vncconnection.c])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_HEADERS([config.h])

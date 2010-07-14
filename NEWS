@@ -1,6 +1,16 @@
     GTK VNC News
     ============
 
+Jul 14, 2010: Release 0.4.1
+===========================
+
+Bug fixes:
+
+ o Fix test suite execution
+ o Ensure builds against GTK3 get a separate library soname,
+   pkg-config file and include directory to allow parallel
+   install with GTK2 builds.
+
 Jul 11, 2010: Release 0.4.0
 ===========================
 
