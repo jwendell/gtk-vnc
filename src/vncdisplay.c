@@ -40,13 +40,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#ifdef HAVE_WINSOCK2_H
-#include <winsock2.h>
-#endif
-
-static void winsock_startup (void);
-static void winsock_cleanup (void);
-
 #define VNC_DISPLAY_GET_PRIVATE(obj) \
       (G_TYPE_INSTANCE_GET_PRIVATE((obj), VNC_TYPE_DISPLAY, VncDisplayPrivate))
 
@@ -259,7 +252,6 @@ vnc_display_set_property (GObject      *object,
 
 GtkWidget *vnc_display_new(void)
 {
-	winsock_startup ();
 	return GTK_WIDGET(g_object_new(VNC_TYPE_DISPLAY, NULL));
 }
 
@@ -1527,8 +1519,6 @@ static void vnc_display_finalize (GObject *obj)
 	vnc_display_keyval_free_entries();
 
 	G_OBJECT_CLASS (vnc_display_parent_class)->finalize (obj);
-
-	winsock_cleanup();
 }
 
 static void vnc_display_class_init(VncDisplayClass *klass)
@@ -2223,49 +2213,6 @@ vnc_display_request_update(VncDisplay *obj)
 							 vnc_connection_get_width(obj->priv->conn),
 							 vnc_connection_get_width(obj->priv->conn));
 }
-
-#ifdef WIN32
-
-/* On Windows, we must call WSAStartup before using any sockets and we
- * must call WSACleanup afterwards.  And we have to balance any calls
- * to WSAStartup with a corresponding call to WSACleanup.
- *
- * Note that Wine lets you do socket calls anyway, but real Windows
- * doesn't. (http://bugs.winehq.org/show_bug.cgi?id=11965)
- */
-
-static void
-winsock_startup (void)
-{
-	WORD winsock_version, err;
-	WSADATA winsock_data;
-
-	/* http://msdn2.microsoft.com/en-us/library/ms742213.aspx */
-	winsock_version = MAKEWORD (2, 2);
-	err = WSAStartup (winsock_version, &winsock_data);
-	if (err != 0)
-		VNC_DEBUG ("ignored error %d from WSAStartup", err);
-}
-
-static void
-winsock_cleanup (void)
-{
-	WSACleanup ();
-}
-
-#else /* !WIN32 */
-
-static void
-winsock_startup (void)
-{
-}
-
-static void
-winsock_cleanup (void)
-{
-}
-
-#endif /* !WIN32 */
 
 /*
  * Local variables:

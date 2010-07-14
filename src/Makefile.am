@@ -23,6 +23,7 @@ endif
 
 libgvnc_1_0_la_LIBADD = \
 			@GOBJECT_LIBS@ \
+			@GIO_LIBS@ \
 			@GTHREAD_LIBS@ \
 			@GDK_PIXBUF_LIBS@ \
 			@GNUTLS_LIBS@ \
@@ -30,6 +31,7 @@ libgvnc_1_0_la_LIBADD = \
 			../gnulib/lib/libgnu.la
 libgvnc_1_0_la_CFLAGS = \
 			@GOBJECT_CFLAGS@ \
+			@GIO_CFLAGS@ \
 			@GTHREAD_CFLAGS@ \
 			@GDK_PIXBUF_CFLAGS@ \
 			@GNUTLS_CFLAGS@ \
