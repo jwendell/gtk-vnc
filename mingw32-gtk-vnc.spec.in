@@ -4,30 +4,33 @@
 %define __find_requires %{_mingw32_findrequires}
 %define __find_provides %{_mingw32_findprovides}
 
-%define _default_patch_fuzz 2
+Name: mingw32-gtk-vnc
+Version: @VERSION@
+Release: 1%{?dist}%{?extra_release}
+Summary: MinGW Windows port of VNC client GTK widget
 
-Name:           mingw32-gtk-vnc
-Version:        @VERSION@
-Release:        1%{?dist}%{?extra_release}
-Summary:        MinGW Windows port of VNC client GTK widget
+License: LGPLv2+
+Group: Development/Libraries
+Source: http://ftp.gnome.org/pub/GNOME/sources/gtk-vnc/0.4/gtk-vnc-%{version}.tar.gz
+URL: http://live.gnome.org/gtk-vnc
+BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
-License:        LGPLv2+
-Group:          Development/Libraries
-URL:            http://gtk-vnc.sf.net/
-Source0:        http://downloads.sourceforge.net/gtk-vnc/gtk-vnc-%{version}.tar.gz
-BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
+BuildArch: noarch
 
-BuildArch:      noarch
+BuildRequires: mingw32-filesystem >= 40
+BuildRequires: mingw32-gcc
+BuildRequires: mingw32-binutils
 
-BuildRequires:  mingw32-filesystem >= 30
-BuildRequires:  mingw32-gcc
-BuildRequires:  mingw32-binutils
-BuildRequires:  mingw32-gtk2 >= 2.14
-BuildRequires:  mingw32-gnutls
-BuildRequires:  autoconf
-BuildRequires:  automake
-BuildRequires:  libtool
-BuildRequires:  pkgconfig
+BuildRequires: mingw32-cairo
+BuildRequires: mingw32-dlfcn
+BuildRequires: mingw32-gettext
+BuildRequires: mingw32-iconv
+BuildRequires: mingw32-gnutls
+BuildRequires: mingw32-gtk2
+BuildRequires: pkgconfig
+BuildRequires: intltool
+
+Requires: pkgconfig
 
 %package -n mingw32-gvnc
 Summary: MinGW Windows port of VNC GObject

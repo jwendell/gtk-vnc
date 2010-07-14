@@ -16,17 +16,20 @@ Version: @VERSION@
 Release: 1%{?dist}%{?extra_release}
 License: LGPLv2+
 Group: Development/Libraries
-Source: http://ftp.gnome.org/pub/GNOME/sources/%{name}/0.3/%{name}-%{version}.tar.gz
+Source: http://ftp.gnome.org/pub/GNOME/sources/%{name}/0.4/%{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 URL: http://live.gnome.org/gtk-vnc
 BuildRequires: gtk2-devel >= 2.14
 BuildRequires: pygtk2-devel python-devel zlib-devel
 BuildRequires: gnutls-devel cyrus-sasl-devel intltool
 %if %{with_gir}
-BuildRequires: gobject-introspection-devel gir-repository-devel
+BuildRequires: gobject-introspection-devel
+%if 0%{?fedora} < 14
+BuildRequires: gir-repository-devel
+%endif
 %endif
 %if %{with_plugin}
-%if 0%{fedora} > 8
+%if 0%{?fedora} > 8
 BuildRequires: xulrunner-devel
 %else
 BuildRequires: firefox-devel
@@ -42,7 +45,7 @@ Summary: Libraries, includes, etc. to compile with the gtk-vnc library
 Group: Development/Libraries
 Requires: %{name} = %{version}-%{release}
 Requires: pkgconfig
-Requires: pygtk2-devel gtk2-devel
+Requires: gtk2-devel gnutls-devel
 
 %description devel
 gtk-vnc is a VNC viewer widget for GTK. It is built using coroutines
@@ -136,10 +139,6 @@ rm -f %{buildroot}%{_libdir}/mozilla/plugins/%{name}-plugin.a
 rm -f %{buildroot}%{_libdir}/mozilla/plugins/%{name}-plugin.la
 %endif
 %find_lang %{name}
-
-
-%check
-make check
 
 %clean
 rm -fr %{buildroot}
