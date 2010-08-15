@@ -4201,7 +4201,12 @@ static void vnc_connection_close(VncConnection *conn)
 		priv->name = NULL;
 	}
 
-	g_free (priv->xmit_buffer);
+	if (priv->xmit_buffer) {
+		g_free(priv->xmit_buffer);
+		priv->xmit_buffer = NULL;
+		priv->xmit_buffer_size = 0;
+		priv->xmit_buffer_capacity = 0;
+	}
 
 	if (priv->cred_username) {
 		g_free(priv->cred_username);
