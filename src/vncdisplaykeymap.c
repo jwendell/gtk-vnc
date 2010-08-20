@@ -124,7 +124,7 @@ const guint16 const *vnc_display_keymap_gdk2rfb_table(size_t *maplen)
 		VNC_DEBUG("Using xquartz keycode mapping");
 		*maplen = G_N_ELEMENTS(keymap_xorgxquartz2rfb);
 		return keymap_xorgxquartz2rfb;
-	} else if (keycodes && STRPREFIX(keycodes, "e2vdev_")) {
+	} else if (keycodes && STRPREFIX(keycodes, "evdev_")) {
 		VNC_DEBUG("Using evdev keycode mapping");
 		*maplen = G_N_ELEMENTS(keymap_xorgevdev2rfb);
 		return keymap_xorgevdev2rfb;
@@ -133,15 +133,16 @@ const guint16 const *vnc_display_keymap_gdk2rfb_table(size_t *maplen)
 		*maplen = G_N_ELEMENTS(keymap_xorgkbd2rfb);
 		return keymap_xorgkbd2rfb;
 	} else {
-               g_warning("Unknown keycode mapping.\n"
-                          "Please report to gtk-vnc-list@gnome.org\n"
+               g_warning("Unknown keycode mapping '%s'.\n"
+			 "Please report to gtk-vnc-list@gnome.org\n"
                          "including the following information:\n"
                          "\n"
                          "  - Operating system\n"
                          "  - GTK build\n"
                          "  - X11 Server\n"
                          "  - xprop -root\n"
-                         "  - xdpyinfo\n");
+                         "  - xdpyinfo\n",
+			 keycodes);
                return NULL;
 	}
 }
