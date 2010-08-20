@@ -279,13 +279,7 @@ static gboolean expose_event(GtkWidget *widget, GdkEventExpose *expose)
 	VncDisplayPrivate *priv = obj->priv;
 	int ww, wh;
 	int mx = 0, my = 0;
-#if WITH_GTK_CAIRO
 	cairo_t *cr;
-#else
-	int x, y, w, h;
-	GdkRectangle drawn;
-	GdkRegion *clear, *copy;
-#endif
 	int fbw = 0, fbh = 0;
 
 	if (priv->fb) {
@@ -306,7 +300,6 @@ static gboolean expose_event(GtkWidget *widget, GdkEventExpose *expose)
 	if (wh > fbh)
 		my = (wh - fbh) / 2;
 
-#if WITH_GTK_CAIRO
 	cr = gdk_cairo_create(gtk_widget_get_window(GTK_WIDGET(obj)));
 	cairo_rectangle(cr,
 			expose->area.x,
@@ -351,43 +344,6 @@ static gboolean expose_event(GtkWidget *widget, GdkEventExpose *expose)
 	}
 
 	cairo_destroy(cr);
-#else
-	x = MIN(expose->area.x - mx, fbw);
-	y = MIN(expose->area.y - my, fbh);
-	w = MIN(expose->area.x + expose->area.width - mx, fbw);
-	h = MIN(expose->area.y + expose->area.height - my, fbh);
-	x = MAX(0, x);
-	y = MAX(0, y);
-	w = MAX(0, w);
-	h = MAX(0, h);
-
-	w -= x;
-	h -= y;
-
-	drawn.x = x + mx;
-	drawn.y = y + my;
-	drawn.width = w;
-	drawn.height = h;
-
-	clear = gdk_region_rectangle(&expose->area);
-	copy = gdk_region_rectangle(&drawn);
-	gdk_region_subtract(clear, copy);
-
-	if (priv->pixmap != NULL) {
-		gdk_gc_set_clip_region(priv->gc, copy);
-		gdk_draw_drawable(widget->window, priv->gc, priv->pixmap,
-				  x, y, x + mx, y + my, w, h);
-	}
-
-	gdk_gc_set_clip_region(priv->gc, clear);
-	gdk_draw_rectangle(widget->window, priv->gc, TRUE,
-			   expose->area.x, expose->area.y,
-			   expose->area.width, expose->area.height);
-
-	gdk_region_destroy(clear);
-	gdk_region_destroy(copy);
-#endif
-
 
 	return TRUE;
 }
@@ -2084,7 +2040,6 @@ void vnc_display_set_shared_flag(VncDisplay *obj, gboolean shared)
 	obj->priv->shared_flag = shared;
 }
 
-#if WITH_GTK_CAIRO
 gboolean vnc_display_set_scaling(VncDisplay *obj,
 				 gboolean enable)
 {
@@ -2099,13 +2054,6 @@ gboolean vnc_display_set_scaling(VncDisplay *obj,
 
 	return TRUE;
 }
-#else
-gboolean vnc_display_set_scaling(VncDisplay *obj G_GNUC_UNUSED,
-				 gboolean enable G_GNUC_UNUSED)
-{
-	return FALSE;
-}
-#endif
 
 
 void vnc_display_set_force_size(VncDisplay *obj, gboolean enabled)

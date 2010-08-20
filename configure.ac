@@ -39,6 +39,7 @@ PYGTK_REQUIRED=2.0.0
 VIEW_REQUIRED=0.6.0
 GTHREAD_REQUIRED=2.0.0
 PYTHON_REQUIRED=2.4
+CAIRO_REQUIRED=1.2.0
 
 FIREFOX_PLUGIN_REQUIRED=2.0.0
 MOZILLA_PLUGIN_REQUIRED=1.8
@@ -169,15 +170,9 @@ PKG_CHECK_MODULES(X11, x11,,AC_MSG_NOTICE([Not building against X11]))
 AC_SUBST(X11_CFLAGS)
 AC_SUBST(X11_LIBS)
 
-save_CFLAGS="$CFLAGS"
-save_LIBS="$LIBS"
-CFLAGS="$CFLAGS $GTK_CFLAGS"
-LIBS="$LIBS $GTK_LIBS"
-AC_CHECK_FUNC([gdk_cairo_create], [WITH_GTK_CAIRO=1], [WITH_GTK_CAIRO=0])
-CFLAGS="$save_CFLAGS"
-LIBS="$save_LIBS"
-
-AC_DEFINE_UNQUOTED(WITH_GTK_CAIRO, [$WITH_GTK_CAIRO], [Whether to use cairo for GTK rendering])
+PKG_CHECK_MODULES(CAIRO, cairo >= $CAIRO_REQUIRED)
+AC_SUBST(CAIRO_CFLAGS)
+AC_SUBST(CAIRO_LIBS)
 
 
 AC_ARG_WITH(libview,
@@ -396,12 +391,6 @@ AC_CONFIG_FILES(
 
 AC_OUTPUT
 
-if [ test "$WITH_GTK_CAIRO" = 1 ]; then
-  with_scaling=yes
-else
-  with_scaling=no
-fi
-
 echo "
 Configure summary:
 
@@ -413,7 +402,6 @@ Configure summary:
 	Python binding .............:  ${WITH_PYTHON}
 	Install example programs ...:  ${WITH_EXAMPLES}
 	Browser plugin .............:  ${enable_plugin}
-	Scaling support.............:  ${with_scaling}
 	SASL support................:  ${enable_sasl}
 	GTK+ version................:  ${GTK_API_VERSION}
 "
