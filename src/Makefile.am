@@ -98,12 +98,19 @@ gtk_vnc_include_HEADERS = \
 			vncimageframebuffer.h
 
 gtk_vnc_SOURCES = \
-			vncimageframebuffer.h vncimageframebuffer.c \
+			vnccairoframebuffer.h vnccairoframebuffer.c \
 			vncdisplay.h vncdisplay.c \
 			vncdisplayenums.h vncdisplayenums.c \
 			vncdisplaykeymap.h vncdisplaykeymap.c \
 			vncgrabsequence.h vncgrabsequence.c \
 			vncmarshal.h vncmarshal.c
+
+if HAVE_GTK_2
+gtk_vnc_SOURCES += \
+			vncimageframebuffer.h vncimageframebuffer.c
+else
+EXTRA_DIST +=		vncimageframebuffer.h vncimageframebuffer.c
+endif
 
 gtk_vnc_LDFLAGS = \
 			$(VERSION_SCRIPT_FLAGS)$(GTK_VNC_VERSION_FILE) \
@@ -269,10 +276,16 @@ GVNC_INTROSPECTION_SRCS = \
 			$(srcdir)/vncutil.h $(srcdir)/vncutil.c
 
 GTK_VNC_INTROSPECTION_SRCS = \
-			$(srcdir)/vncimageframebuffer.h $(srcdir)/vncimageframebuffer.c \
+			$(srcdir)/vnccairoframebuffer.h $(srcdir)/vnccairoframebuffer.c \
 			$(srcdir)/vncdisplay.h $(srcdir)/vncdisplay.c \
 			$(srcdir)/vncgrabsequence.h $(srcdir)/vncgrabsequence.c \
 			$(builddir)/vncdisplayenums.h $(builddir)/vncdisplayenums.c
+
+if HAVE_GTK_2
+GTK_VNC_INTROSPECTION_SRCS += \
+			$(srcdir)/vncimageframebuffer.h $(srcdir)/vncimageframebuffer.c \
+else
+endif
 
 GVnc-1.0.gir: libgvnc-1.0.la $(G_IR_SCANNER) Makefile.am
 	$(AM_V_GEN)$(G_IR_SCANNER) -v \

@@ -24,11 +24,11 @@
 
 #include "vncdisplay.h"
 #include "vncconnection.h"
-#include "vncimageframebuffer.h"
 #include "vncutil.h"
 #include "vncmarshal.h"
 #include "vncdisplaykeymap.h"
 #include "vncdisplayenums.h"
+#include "vnccairoframebuffer.h"
 
 #include <gtk/gtk.h>
 #include <glib/gi18n.h>
@@ -45,13 +45,12 @@
 
 struct _VncDisplayPrivate
 {
-	GdkGC *gc;
 	GdkPixmap *pixmap;
 	GdkCursor *null_cursor;
 	GdkCursor *remote_cursor;
 
 	VncConnection *conn;
-	VncImageFramebuffer *fb;
+	VncCairoFramebuffer *fb;
 
 	VncDisplayDepthColor depth;
 
@@ -258,17 +257,20 @@ GtkWidget *vnc_display_new(void)
 
 static GdkCursor *create_null_cursor(void)
 {
-	GdkBitmap *image;
-	gchar data[4] = {0};
+	cairo_t *cr;
 	GdkColor fg = { 0, 0, 0, 0 };
 	GdkCursor *cursor;
+	GdkPixmap *pixmap;
 
-	image = gdk_bitmap_create_from_data(NULL, data, 1, 1);
+	pixmap = gdk_pixmap_new(NULL, 1, 1, 1);
+	cr = gdk_cairo_create(pixmap);
+	cairo_rectangle(cr, 0, 0, 1, 1);
+	cairo_fill(cr);
+	cairo_destroy(cr);
 
-	cursor = gdk_cursor_new_from_pixmap(GDK_PIXMAP(image),
-					    GDK_PIXMAP(image),
+	cursor = gdk_cursor_new_from_pixmap(pixmap, pixmap,
 					    &fg, &fg, 0, 0);
-	g_object_unref(image);
+	g_object_unref(pixmap);
 
 	return cursor;
 }
@@ -302,10 +304,10 @@ static gboolean expose_event(GtkWidget *widget, GdkEventExpose *expose)
 
 	cr = gdk_cairo_create(gtk_widget_get_window(GTK_WIDGET(obj)));
 	cairo_rectangle(cr,
-			expose->area.x,
-			expose->area.y,
-			expose->area.width + 1,
-			expose->area.height + 1);
+			expose->area.x-1,
+			expose->area.y-1,
+			expose->area.width + 2,
+			expose->area.height + 2);
 	cairo_clip(cr);
 
 	/* If we don't have a pixmap, or we're not scaling, then
@@ -820,17 +822,22 @@ static void on_framebuffer_update(VncConnection *conn G_GNUC_UNUSED,
 	VncDisplay *obj = VNC_DISPLAY(widget);
 	VncDisplayPrivate *priv = obj->priv;
 	int ww, wh;
-	GdkRectangle r = { x, y, w, h };
 	int fbw, fbh;
+	cairo_surface_t *surface;
+	cairo_t *cr;
 
 	fbw = vnc_framebuffer_get_width(VNC_FRAMEBUFFER(priv->fb));
 	fbh = vnc_framebuffer_get_height(VNC_FRAMEBUFFER(priv->fb));
 
-	/* Copy pixbuf to pixmap */
-	gdk_gc_set_clip_rectangle(priv->gc, &r);
-	gdk_draw_image(priv->pixmap, priv->gc,
-		       vnc_image_framebuffer_get_image(priv->fb),
-		       x, y, x, y, w, h);
+	cr = gdk_cairo_create(priv->pixmap);
+	cairo_rectangle(cr, x, y, w, h);
+	cairo_clip(cr);
+
+	surface = vnc_cairo_framebuffer_get_surface(priv->fb);
+	cairo_set_source_surface(cr, surface, 0, 0);
+	cairo_paint(cr);
+
+	cairo_destroy(cr);
 
 	gdk_drawable_get_size(gtk_widget_get_window(widget), &ww, &wh);
 
@@ -873,8 +880,6 @@ static void do_framebuffer_init(VncDisplay *obj,
 				int width, int height, gboolean quiet)
 {
 	VncDisplayPrivate *priv = obj->priv;
-	GdkVisual *visual;
-	GdkImage *image;
 
 	if (priv->conn == NULL || !vnc_connection_is_initialized(priv->conn))
 		return;
@@ -888,23 +893,16 @@ static void do_framebuffer_init(VncDisplay *obj,
 		priv->pixmap = NULL;
 	}
 
-	if (priv->gc == NULL) {
-		if (!priv->null_cursor)
-			priv->null_cursor = create_null_cursor();
+	if (priv->null_cursor == NULL) {
+		priv->null_cursor = create_null_cursor();
 		if (priv->local_pointer)
 			do_pointer_show(obj);
 		else if (priv->in_pointer_grab || priv->absolute)
 			do_pointer_hide(obj);
-		priv->gc = gdk_gc_new(gtk_widget_get_window(GTK_WIDGET(obj)));
 	}
 
-	visual = gdk_drawable_get_visual(gtk_widget_get_window(GTK_WIDGET(obj)));
-	image = gdk_image_new(GDK_IMAGE_FASTEST, visual, width, height);
-
-	priv->fb = vnc_image_framebuffer_new(image, remoteFormat);
+	priv->fb = vnc_cairo_framebuffer_new(width, height, remoteFormat);
 	priv->pixmap = gdk_pixmap_new(gtk_widget_get_window(GTK_WIDGET(obj)), width, height, -1);
-
-	g_object_unref(G_OBJECT(image));
 
 	vnc_connection_set_framebuffer(priv->conn, VNC_FRAMEBUFFER(priv->fb));
 
@@ -1479,10 +1477,6 @@ static void vnc_display_finalize (GObject *obj)
 		priv->remote_cursor = NULL;
 	}
 
-	if (priv->gc) {
-		g_object_unref (priv->gc);
-		priv->gc = NULL;
-	}
 	if (priv->vncgrabseq) {
 		vnc_grab_sequence_free(priv->vncgrabseq);
 		priv->vncgrabseq = NULL;
@@ -1913,7 +1907,7 @@ gboolean vnc_display_set_credential(VncDisplay *obj, int type, const gchar *data
 
 void vnc_display_set_pointer_local(VncDisplay *obj, gboolean enable)
 {
-	if (obj->priv->gc) {
+	if (obj->priv->null_cursor) {
 		if (enable)
 			do_pointer_show(obj);
 		else if (obj->priv->in_pointer_grab || obj->priv->absolute)
@@ -1967,32 +1961,26 @@ GdkPixbuf *vnc_display_get_pixbuf(VncDisplay *obj)
 {
 	VncDisplayPrivate *priv = obj->priv;
 	GdkPixbuf *pixbuf;
-	GdkImage *image;
+	cairo_surface_t *surface;
 	gint w, h;
 
 	if (!priv->conn ||
 	    !vnc_connection_is_initialized(priv->conn))
 		return NULL;
 
-	image = vnc_image_framebuffer_get_image(priv->fb);
-	#if GTK_CHECK_VERSION(2, 21, 1)
-	w = gdk_image_get_width (image);
-	h = gdk_image_get_height (image);
-	#else
-	w = image->width;
-	h = image->height;
-	#endif
+	surface = vnc_cairo_framebuffer_get_surface(priv->fb);
+	w = vnc_framebuffer_get_width(VNC_FRAMEBUFFER(priv->fb));
+	h = vnc_framebuffer_get_height(VNC_FRAMEBUFFER(priv->fb));
 
 	pixbuf = gdk_pixbuf_new(GDK_COLORSPACE_RGB, FALSE, 8,
 				w,
 				h);
 
-	if (!gdk_pixbuf_get_from_image(pixbuf,
-				       image,
-				       gdk_colormap_get_system(),
-				       0, 0, 0, 0,
-				       w,
-				       h))
+	if (!gdk_pixbuf_get_from_drawable(pixbuf,
+					  priv->pixmap,
+					  NULL,
+					  0, 0, 0, 0,
+					  w, h))
 		return NULL;
 
 	return pixbuf;
