@@ -111,38 +111,35 @@ void vnc_dh_free(struct vnc_dh *dh)
        g_free(dh);
 }
 
-/* convert from big-endian to little-endian:
-   68 183 219 160 0 0 0 0 becomes
-   0 0 0 0 68 183 219 160 */
-static void convert (unsigned char *input, int size)
+void vnc_mpi_to_bytes(const gcry_mpi_t value, guchar* result, size_t size)
 {
-  int i, count=0;
+       gcry_error_t error;
+       size_t len;
+       int i;
 
-  for (i = size-1; i >= 0; i--)
-    if (input[i] == 0)
-      count++;
-    else
-      break;
+       error = gcry_mpi_print(GCRYMPI_FMT_USG, result, size, &len, value);
+       if (gcry_err_code (error) != GPG_ERR_NO_ERROR) {
+	       VNC_DEBUG ("MPI error: %s", gcry_strerror (error));
+	       abort();
+       }
 
-  for (i = 0; i< size-count; i++)
-    {
-      input[i+count] = input[i];
-      input[i] = 0;
-    }
+       /* right adjust the result
+	  68 183 219 160 0 0 0 0 becomes
+	  0 0 0 0 68 183 219 160 */
+       for(i=size-1;i>(int)size-1-(int)len;--i) {
+	       result[i] = result[i-size+len];
+       }
+       for(;i>=0;--i) {
+	       result[i] = 0;
+       }
 }
 
-void vnc_mpi_to_bytes(const gcry_mpi_t value, guchar* result)
-{
-       gcry_mpi_print(GCRYMPI_FMT_STD, result, 8, NULL, value);
-       convert (result, 8);
-}
-
-gcry_mpi_t vnc_bytes_to_mpi(const guchar* value)
+gcry_mpi_t vnc_bytes_to_mpi(const guchar* value, size_t size)
 {
        gcry_mpi_t ret;
        gcry_error_t error;
 
-       error = gcry_mpi_scan(&ret, GCRYMPI_FMT_STD, value, 8, NULL);
+       error = gcry_mpi_scan(&ret, GCRYMPI_FMT_USG, value, size, NULL);
        if (gcry_err_code (error) != GPG_ERR_NO_ERROR)
          VNC_DEBUG ("MPI error: %s", gcry_strerror (error));
 

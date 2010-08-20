@@ -2989,19 +2989,19 @@ static gboolean vnc_connection_perform_auth_mslogon(VncConnection *conn)
 	vnc_connection_read(conn, mod, sizeof(mod));
 	vnc_connection_read(conn, resp, sizeof(resp));
 
-	genmpi = vnc_bytes_to_mpi(gen);
-	modmpi = vnc_bytes_to_mpi(mod);
-	respmpi = vnc_bytes_to_mpi(resp);
+	genmpi = vnc_bytes_to_mpi(gen,sizeof(gen));
+	modmpi = vnc_bytes_to_mpi(mod,sizeof(mod));
+	respmpi = vnc_bytes_to_mpi(resp,sizeof(resp));
 
 	dh = vnc_dh_new(genmpi, modmpi);
 
 	pubmpi = vnc_dh_gen_secret(dh);
-	vnc_mpi_to_bytes(pubmpi, pub);
+	vnc_mpi_to_bytes(pubmpi, pub, sizeof(pub));
 
 	vnc_connection_write(conn, pub, sizeof(pub));
 
 	keympi = vnc_dh_gen_key(dh, respmpi);
-	vnc_mpi_to_bytes(keympi, key);
+	vnc_mpi_to_bytes(keympi, key, sizeof(key));
 
 	passwordLen = strlen(priv->cred_password);
 	usernameLen = strlen(priv->cred_username);
@@ -3029,6 +3029,146 @@ static gboolean vnc_connection_perform_auth_mslogon(VncConnection *conn)
 
 	return vnc_connection_check_auth_result(conn);
 }
+
+static gboolean vnc_connection_perform_auth_ard(VncConnection *conn)
+{
+	VncConnectionPrivate *priv = conn->priv;
+	struct vnc_dh *dh;
+	guchar gen[2], len[2];
+	size_t keylen;
+	guchar *mod, *resp, *pub, *key, *shared;
+	gcry_mpi_t genmpi, modmpi, respmpi, pubmpi, keympi;
+	guchar userpass[128], ciphertext[128];
+	guint passwordLen, usernameLen;
+	gcry_md_hd_t md5;
+	gcry_cipher_hd_t aes;
+	gcry_error_t error;
+
+	VNC_DEBUG("Do Challenge");
+	priv->want_cred_password = TRUE;
+	priv->want_cred_username = TRUE;
+	priv->want_cred_x509 = FALSE;
+	if (!vnc_connection_gather_credentials(conn))
+		return FALSE;
+
+	vnc_connection_read(conn, gen, sizeof(gen));
+	vnc_connection_read(conn, len, sizeof(len));
+
+	keylen = 256*len[0] + len[1];
+	mod = malloc(keylen);
+	if (mod == NULL) {
+		VNC_DEBUG("malloc failed\n");
+		return FALSE;
+	}
+	resp = malloc(keylen);
+	if (resp == NULL) {
+		free(mod);
+		VNC_DEBUG("malloc failed\n");
+		return FALSE;
+	}
+	pub = malloc(keylen);
+	if (pub == NULL) {
+		free(resp);
+		free(mod);
+		VNC_DEBUG("malloc failed\n");
+		return FALSE;
+	}
+	key = malloc(keylen);
+	if (key == NULL) {
+		free(pub);
+		free(resp);
+		free(mod);
+		VNC_DEBUG("malloc failed\n");
+		return FALSE;
+	}
+
+	vnc_connection_read(conn, mod, keylen);
+	vnc_connection_read(conn, resp, keylen);
+
+	genmpi = vnc_bytes_to_mpi(gen,sizeof(gen));
+	modmpi = vnc_bytes_to_mpi(mod,keylen);
+	respmpi = vnc_bytes_to_mpi(resp,keylen);
+
+	dh = vnc_dh_new(genmpi, modmpi);
+
+	pubmpi = vnc_dh_gen_secret(dh);
+	vnc_mpi_to_bytes(pubmpi, pub, keylen);
+
+	keympi = vnc_dh_gen_key(dh, respmpi);
+	vnc_mpi_to_bytes(keympi, key, keylen);
+
+	error=gcry_md_open(&md5, GCRY_MD_MD5, 0);
+	if (gcry_err_code (error) != GPG_ERR_NO_ERROR) {
+		VNC_DEBUG("gcry_md_open error: %s\n", gcry_strerror(error));
+		free(pub);
+		free(resp);
+		free(mod);
+		return FALSE;
+	}
+	gcry_md_write(md5, key, keylen);
+	error=gcry_md_final(md5);
+	if (gcry_err_code (error) != GPG_ERR_NO_ERROR) {
+		VNC_DEBUG("gcry_md_final error: %s\n", gcry_strerror(error));
+		free(pub);
+		free(resp);
+		free(mod);
+		return FALSE;
+	}
+	shared = gcry_md_read(md5, GCRY_MD_MD5);
+
+	passwordLen = strlen(priv->cred_password)+1;
+	usernameLen = strlen(priv->cred_username)+1;
+	if (passwordLen > sizeof(userpass)/2)
+		passwordLen = sizeof(userpass)/2;
+	if (usernameLen > sizeof(userpass)/2)
+		usernameLen = sizeof(userpass)/2;
+
+	gcry_randomize(userpass, sizeof(userpass), GCRY_STRONG_RANDOM);
+	memcpy(userpass, priv->cred_username, usernameLen);
+	memcpy(userpass+sizeof(userpass)/2, priv->cred_password, passwordLen);
+	
+	error=gcry_cipher_open(&aes, GCRY_CIPHER_AES128, GCRY_CIPHER_MODE_ECB, 0);
+	if (gcry_err_code (error) != GPG_ERR_NO_ERROR) {
+		VNC_DEBUG("gcry_cipher_open error: %s\n", gcry_strerror(error));
+		free(pub);
+		free(resp);
+		free(mod);
+		return FALSE;
+	}
+	error=gcry_cipher_setkey(aes, shared, 16);
+	if (gcry_err_code (error) != GPG_ERR_NO_ERROR) {
+		VNC_DEBUG("gcry_cipher_setkey error: %s\n", gcry_strerror(error));
+		free(pub);
+		free(resp);
+		free(mod);
+		return FALSE;
+	}
+	error=gcry_cipher_encrypt(aes, ciphertext, sizeof(ciphertext), userpass, sizeof(userpass));
+	if (gcry_err_code (error) != GPG_ERR_NO_ERROR) {
+		VNC_DEBUG("gcry_cipher_encrypt error: %s\n", gcry_strerror(error));
+		free(pub);
+		free(resp);
+		free(mod);
+		return FALSE;
+	}
+
+	vnc_connection_write(conn, ciphertext, sizeof(ciphertext));
+	vnc_connection_write(conn, pub, keylen);
+	vnc_connection_flush(conn);
+
+	free(mod);
+	free(resp);
+	free(pub);
+	free(key);
+	gcry_md_close(md5);
+	gcry_mpi_release(genmpi);
+	gcry_mpi_release(modmpi);
+	gcry_mpi_release(respmpi);
+	vnc_dh_free (dh);
+
+	return vnc_connection_check_auth_result(conn);
+}
+
 
 #if HAVE_SASL
 /*
@@ -3918,6 +4058,9 @@ static gboolean vnc_connection_perform_auth(VncConnection *conn)
 	case VNC_CONNECTION_AUTH_MSLOGON:
 		return vnc_connection_perform_auth_mslogon(conn);
 
+	case VNC_CONNECTION_AUTH_ARD:
+		return vnc_connection_perform_auth_ard(conn);
+
 	default:
 		{
 			struct signal_data sigdata;
@@ -4610,6 +4753,7 @@ gboolean vnc_connection_set_auth_type(VncConnection *conn, unsigned int type)
         if (type != VNC_CONNECTION_AUTH_NONE &&
             type != VNC_CONNECTION_AUTH_VNC &&
             type != VNC_CONNECTION_AUTH_MSLOGON &&
+            type != VNC_CONNECTION_AUTH_ARD &&
             type != VNC_CONNECTION_AUTH_TLS &&
             type != VNC_CONNECTION_AUTH_VENCRYPT &&
             type != VNC_CONNECTION_AUTH_SASL) {

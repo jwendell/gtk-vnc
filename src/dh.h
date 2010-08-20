@@ -32,7 +32,7 @@ gcry_mpi_t vnc_dh_gen_secret(struct vnc_dh *dh);
 gcry_mpi_t vnc_dh_gen_key(struct vnc_dh *dh, gcry_mpi_t inter);
 void vnc_dh_free(struct vnc_dh *dh);
 
-void vnc_mpi_to_bytes(const gcry_mpi_t value, guchar* result);
-gcry_mpi_t vnc_bytes_to_mpi(const guchar* value);
+void vnc_mpi_to_bytes(const gcry_mpi_t value, guchar* result, size_t size);
+gcry_mpi_t vnc_bytes_to_mpi(const guchar* value, size_t size);
 
 #endif
