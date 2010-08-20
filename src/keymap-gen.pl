@@ -16,6 +16,28 @@ my %namecolumns = (
     win32 => 10,
     );
 
+# Base data sources:
+#
+#  linux:     Linux: linux/input.h                                  (master set)
+#    osx:      OS-X: Carbon/HIToolbox/Events.h                      (manually mapped)
+# atset1:  AT Set 1: linux/drivers/input/keyboard/atkbd.c           (atkbd_set2_keycode + atkbd_unxlate_table)
+# atset2:  AT Set 2: linux/drivers/input/keyboard/atkbd.c           (atkbd_set2_keycode)
+# atset3:  AT Set 3: linux/drivers/input/keyboard/atkbd.c           (atkbd_set3_keycode)
+#     xt:        XT: linux/drivers/input/keyboard/xt.c              (xtkbd_keycode)
+#  xtkbd: Linux RAW: linux/drivers/char/keyboard.c                  (x86_keycodes)
+#    usb:   USB HID: linux/drivers/hid/usbhid/usbkbd.c              (usb_kbd_keycode)
+#  win32:     Win32: mingw32/winuser.h                              (manually mapped)
+# xwinxt:   XWin XT: xorg-server/hw/xwin/{winkeybd.c,winkeynames.h} (xt + manually transcribed)
+# xkbdxt:   XKBD XT: xf86-input-keyboard/src/at_scancode.c          (xt + manually transcribed)
+#
+# Derived data sources
+#
+#    xorgevdev: Xorg +  evdev: linux + an offset
+#      xorgkbd: Xorg +    kbd: xkbdxt + an offset
+#  xorgxquartz: Xorg +   OS-X: osx + an offset
+#     xorgxwin: Xorg + Cygwin: xwinxt + an offset
+#          rfb:   XT over RFB: xtkbd + special re-encoding of high bit
+
 my @basemaps = qw(linux osx atset1 atset2 atset3 xt xtkbd usb win32 xwinxt xkbdxt);
 my @derivedmaps = qw(xorgevdev xorgkbd xorgxquartz xorgxwin rfb);
 my @maps = (@basemaps, @derivedmaps);
