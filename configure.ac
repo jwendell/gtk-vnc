@@ -16,6 +16,7 @@ LT_INIT([win32-dll disable-static])
 AC_CONFIG_MACRO_DIR([m4])
 
 GNOME_MAINTAINER_MODE_DEFINES
+AM_MAINTAINER_MODE([enable])
 
 # Use the silent-rules feature when possible.
 m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
