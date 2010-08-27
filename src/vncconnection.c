@@ -4397,9 +4397,12 @@ void vnc_connection_shutdown(VncConnection *conn)
 		priv->open_id = 0;
 	}
 
-	g_socket_close(priv->sock, NULL);
-	g_object_unref(priv->sock);
-	priv->sock = NULL;
+	if (priv->sock) {
+		g_socket_close(priv->sock, NULL);
+		g_object_unref(priv->sock);
+		priv->sock = NULL;
+	}
+
 	priv->fd = -1;
 	priv->has_error = 1;
 	VNC_DEBUG("Waking up couroutine to shutdown gracefully");
