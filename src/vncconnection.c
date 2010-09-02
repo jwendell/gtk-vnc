@@ -604,6 +604,9 @@ static int vnc_connection_read_wire(VncConnection *conn, void *data, size_t len)
 	gboolean blocking = FALSE;
 
  reread:
+
+	if (priv->has_error) return -EINVAL;
+
 	if (priv->tls_session) {
 		ret = gnutls_read(priv->tls_session, data, len);
 		if (ret < 0) {
@@ -797,6 +800,8 @@ static void vnc_connection_flush_wire(VncConnection *conn,
 	while (offset < datalen) {
 		int ret;
 		gboolean blocking = FALSE;
+
+		if (priv->has_error) return;
 
 		if (priv->tls_session) {
 			ret = gnutls_write(priv->tls_session,
