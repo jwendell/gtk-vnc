@@ -1263,10 +1263,9 @@ static void on_initialized(VncConnection *conn G_GNUC_UNUSED,
 #define REMOVE_ENCODING(e)                                             \
 	for (i = 0 ; i < n_encodings ; i++) {			       \
 		if (encodings[i] == e) {			       \
-			encodings[i] = 0;			       \
 			if (i < (n_encodings - 1))		       \
-				memmove(encodings,		       \
-					encodings + i,		       \
+				memmove(encodings + i,		       \
+					encodings + (i + 1),	       \
 					sizeof(gint32) *	       \
 					(n_encodings - (i + 1)));      \
 			n_encodings--;				       \
