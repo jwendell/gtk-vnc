@@ -4610,6 +4610,7 @@ static gboolean vnc_connection_open_host_internal(VncConnection *conn)
 	while (!sock &&
 	       (sockaddr = g_socket_address_enumerator_next(enumerator, NULL, &conn_error))) {
 		VNC_DEBUG("Trying one socket");
+		g_clear_error(&conn_error);
 		sock = vnc_connection_connect_socket(sockaddr, &conn_error);
 		g_object_unref(sockaddr);
 	}
