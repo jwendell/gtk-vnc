@@ -4615,22 +4615,11 @@ static gboolean vnc_connection_open_host_internal(VncConnection *conn)
 		g_object_unref(sockaddr);
 	}
 	g_object_unref(enumerator);
+	g_clear_error(&conn_error);
 	if (sock) {
-		/* We couldn't connect to the first address, but we succeeded
-		 * in connecting to a later address.
-		 */
-		if (conn_error)
-			g_error_free (conn_error);
 		priv->sock = sock;
 		return TRUE;
-	} else if (conn_error) {
-		/* Either the initial lookup failed, or else the caller
-		 * cancelled us.
-		 */
-		if (conn_error)
-			g_error_free (conn_error);
 	}
-
 	return FALSE;
 }
 
