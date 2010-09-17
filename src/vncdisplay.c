@@ -76,6 +76,7 @@ struct _VncDisplayPrivate
 	gboolean force_size;
 
 	GSList *preferable_auths;
+	GSList *preferable_vencrypt_subauths;
 	size_t keycode_maplen;
 	const guint16 const *keycode_map;
 
@@ -1063,7 +1064,7 @@ static void on_auth_cred(VncConnection *conn G_GNUC_UNUSED,
 	g_signal_emit(G_OBJECT(obj), signals[VNC_AUTH_CREDENTIAL], 0, creds);
 }
 
-static void on_auth_choose_type(VncConnection *conn G_GNUC_UNUSED,
+static void on_auth_choose_type(VncConnection *conn,
 				GValueArray *types,
 				gpointer opaque)
 {
@@ -1072,8 +1073,11 @@ static void on_auth_choose_type(VncConnection *conn G_GNUC_UNUSED,
 	GSList *l;
 	guint i;
 
-	if (!types->n_values)
+	if (!types->n_values) {
+		VNC_DEBUG("No auth types available to choose from");
+		vnc_connection_shutdown(conn);
 		return;
+	}
 
 	for (l = priv->preferable_auths; l; l=l->next) {
 		int pref = GPOINTER_TO_UINT (l->data);
@@ -1081,17 +1085,18 @@ static void on_auth_choose_type(VncConnection *conn G_GNUC_UNUSED,
 		for (i=0; i< types->n_values; i++) {
 			GValue *type = g_value_array_get_nth(types, i);
 			if (pref == g_value_get_enum(type)) {
-				vnc_connection_set_auth_type(priv->conn, pref);
+				vnc_connection_set_auth_type(conn, pref);
 				return;
 			}
 		}
 	}
 
-	GValue *type = g_value_array_get_nth(types, 0);
-	vnc_connection_set_auth_type(priv->conn, g_value_get_enum(type));
+	/* No sub-auth matching our supported auth so have to give up */
+	VNC_DEBUG("No preferred auth type found");
+	vnc_connection_shutdown(conn);
 }
 
-static void on_auth_choose_subtype(VncConnection *conn G_GNUC_UNUSED,
+static void on_auth_choose_subtype(VncConnection *conn,
 				   unsigned int type,
 				   GValueArray *subtypes,
 				   gpointer opaque)
@@ -1101,25 +1106,41 @@ static void on_auth_choose_subtype(VncConnection *conn G_GNUC_UNUSED,
 	GSList *l;
 	guint i;
 
-	if (!subtypes->n_values)
+	if (!subtypes->n_values) {
+		VNC_DEBUG("No subtypes available to choose from");
+		vnc_connection_shutdown(conn);
 		return;
+	}
 
 	if (type == VNC_CONNECTION_AUTH_TLS) {
-		for (l = priv->preferable_auths; l; l=l->next) {
-			int pref = GPOINTER_TO_UINT (l->data);
+		l = priv->preferable_auths;
+	} else if (type == VNC_CONNECTION_AUTH_VENCRYPT) {
+		l = priv->preferable_vencrypt_subauths;
+	} else {
+		VNC_DEBUG("Unexpected stackable auth type %d", type);
+		vnc_connection_shutdown(conn);
+		return;
+	}
 
-			for (i=0; i< subtypes->n_values; i++) {
-				GValue *subtype = g_value_array_get_nth(subtypes, i);
-				if (pref == g_value_get_enum(subtype)) {
-					vnc_connection_set_auth_type(priv->conn, pref);
-					return;
-				}
+	for (; l; l=l->next) {
+		int pref = GPOINTER_TO_UINT (l->data);
+
+		/* Don't want to recursively do the same major auth */
+		if (pref == type)
+			continue;
+
+		for (i=0; i< subtypes->n_values; i++) {
+			GValue *subtype = g_value_array_get_nth(subtypes, i);
+			if (pref == g_value_get_enum(subtype)) {
+				vnc_connection_set_auth_subtype(conn, pref);
+				return;
 			}
 		}
 	}
 
-	GValue *subtype = g_value_array_get_nth(subtypes, 0);
-	vnc_connection_set_auth_subtype(priv->conn, g_value_get_enum(subtype));
+	/* No sub-auth matching our supported auth so have to give up */
+	VNC_DEBUG("No preferred auth subtype found");
+	vnc_connection_shutdown(conn);
 }
 
 static void on_auth_failure(VncConnection *conn G_GNUC_UNUSED,
@@ -1482,6 +1503,7 @@ static void vnc_display_finalize (GObject *obj)
 	}
 
 	g_slist_free (priv->preferable_auths);
+	g_slist_free (priv->preferable_vencrypt_subauths);
 
 	vnc_display_keyval_free_entries();
 
@@ -1863,6 +1885,30 @@ static void vnc_display_init(VncDisplay *display)
 	 * Or nothing at all
 	 */
 	priv->preferable_auths = g_slist_append (priv->preferable_auths, GUINT_TO_POINTER (VNC_CONNECTION_AUTH_NONE));
+
+
+	/* Prefered order for VeNCrypt subtypes */
+	priv->preferable_vencrypt_subauths = g_slist_append(priv->preferable_vencrypt_subauths,
+							    GUINT_TO_POINTER(VNC_CONNECTION_AUTH_VENCRYPT_X509SASL));
+	priv->preferable_vencrypt_subauths = g_slist_append(priv->preferable_vencrypt_subauths,
+							    GUINT_TO_POINTER(VNC_CONNECTION_AUTH_VENCRYPT_X509PLAIN));
+	priv->preferable_vencrypt_subauths = g_slist_append(priv->preferable_vencrypt_subauths,
+							    GUINT_TO_POINTER(VNC_CONNECTION_AUTH_VENCRYPT_X509VNC));
+	priv->preferable_vencrypt_subauths = g_slist_append(priv->preferable_vencrypt_subauths,
+							    GUINT_TO_POINTER(VNC_CONNECTION_AUTH_VENCRYPT_X509NONE));
+	priv->preferable_vencrypt_subauths = g_slist_append(priv->preferable_vencrypt_subauths,
+							    GUINT_TO_POINTER(VNC_CONNECTION_AUTH_VENCRYPT_TLSSASL));
+	priv->preferable_vencrypt_subauths = g_slist_append(priv->preferable_vencrypt_subauths,
+							    GUINT_TO_POINTER(VNC_CONNECTION_AUTH_VENCRYPT_TLSPLAIN));
+	priv->preferable_vencrypt_subauths = g_slist_append(priv->preferable_vencrypt_subauths,
+							    GUINT_TO_POINTER(VNC_CONNECTION_AUTH_VENCRYPT_TLSVNC));
+	priv->preferable_vencrypt_subauths = g_slist_append(priv->preferable_vencrypt_subauths,
+							    GUINT_TO_POINTER(VNC_CONNECTION_AUTH_VENCRYPT_TLSNONE));
+	/*
+	 * Refuse fully cleartext passwords
+	priv->preferable_vencrypt_subauths = g_slist_append(priv->preferable_vencrypt_subauths,
+							    GUINT_TO_POINTER(VNC_CONNECTION_AUTH_VENCRYPT_PLAIN));
+	*/
 
 	priv->conn = vnc_connection_new();
 

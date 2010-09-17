@@ -3832,7 +3832,7 @@ static gboolean vnc_connection_perform_auth_tls(VncConnection *conn)
 
 	if (priv->has_error)
 		return FALSE;
-	vnc_connection_choose_auth(conn, VNC_AUTH_CHOOSE_TYPE, nauth, auth);
+	vnc_connection_choose_auth(conn, VNC_AUTH_CHOOSE_SUBTYPE, nauth, auth);
 	if (priv->has_error)
 		return FALSE;
 
@@ -4804,6 +4804,7 @@ static int vnc_connection_best_path(char **buf,
 		}
 		g_free(tmp);
 	}
+	VNC_DEBUG("Failed to find certificate %s/%s", basedir, basefile);
 	return -1;
 }
 
@@ -4825,6 +4826,8 @@ static gboolean vnc_connection_set_credential_x509(VncConnection *conn,
 #else
 	char *dirs[] = { sysdir };
 #endif
+	for (int i = 0 ; i < sizeof(dirs)/sizeof(dirs[0]) ; i++)
+		VNC_DEBUG("Searching for certs in %s", dirs[i]);
 
 	if (vnc_connection_best_path(&priv->cred_x509_cacert, "CA", "cacert.pem",
 				     dirs, sizeof(dirs)/sizeof(dirs[0])) < 0)
