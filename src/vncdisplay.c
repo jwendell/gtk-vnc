@@ -591,9 +591,8 @@ static gboolean motion_event(GtkWidget *widget, GdkEventMotion *motion)
 
 	/* Next adjust the real client pointer */
 	if (!priv->absolute) {
-		GdkDrawable *drawable = GDK_DRAWABLE(gtk_widget_get_window(widget));
-		GdkDisplay *display = gdk_drawable_get_display(drawable);
-		GdkScreen *screen = gdk_drawable_get_screen(drawable);
+		GdkDisplay *display = gdk_window_get_display(window);
+		GdkScreen *screen = gdk_window_get_screen(window);
 		int x = (int)motion->x_root;
 		int y = (int)motion->y_root;
 
@@ -962,7 +961,7 @@ static void on_pixel_format_changed(VncConnection *conn G_GNUC_UNUSED,
 static gboolean vnc_display_set_preferred_pixel_format(VncDisplay *display)
 {
 	VncDisplayPrivate *priv = display->priv;
-	GdkVisual *v =  gdk_drawable_get_visual(gtk_widget_get_window(GTK_WIDGET(display)));
+	GdkVisual *v =  gdk_window_get_visual(gtk_widget_get_window(GTK_WIDGET(display)));
 	VncPixelFormat fmt;
 	const VncPixelFormat *currentFormat;
 
@@ -1213,7 +1212,7 @@ static void on_cursor_changed(VncConnection *conn G_GNUC_UNUSED,
 	}
 
 	if (cursor) {
-		GdkDisplay *display = gdk_drawable_get_display(GDK_DRAWABLE(gtk_widget_get_window(GTK_WIDGET(obj))));
+		GdkDisplay *display = gdk_window_get_display(GDK_DRAWABLE(gtk_widget_get_window(GTK_WIDGET(obj))));
 		GdkPixbuf *pixbuf = gdk_pixbuf_new_from_data(vnc_cursor_get_data(cursor),
 							     GDK_COLORSPACE_RGB,
 							     TRUE, 8,
