@@ -44,7 +44,7 @@ static struct {
 	GdkKeymapKey *keys;
 	gint n_keys;
 	guint keyval;
-} untranslated_keys[] = {{NULL, 0, GDK_Tab}};
+} untranslated_keys[] = {{NULL, 0, GDK_KEY_Tab}};
 
 static unsigned int ref_count_for_untranslated_keys = 0;
 
