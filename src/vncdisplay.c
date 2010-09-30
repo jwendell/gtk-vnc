@@ -258,24 +258,27 @@ GtkWidget *vnc_display_new(void)
 
 static GdkCursor *create_null_cursor(void)
 {
-	cairo_t *cr;
-	GdkColor fg = { 0, 0, 0, 0 };
+	GdkPixbuf *pixbuf;
 	GdkCursor *cursor;
-	GdkPixmap *pixmap;
+	guchar data[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
-	pixmap = gdk_pixmap_new(NULL, 1, 1, 1);
-	cr = gdk_cairo_create(pixmap);
-	cairo_rectangle(cr, 0, 0, 1, 1);
-	cairo_fill(cr);
-	cairo_destroy(cr);
-
-	cursor = gdk_cursor_new_from_pixmap(pixmap, pixmap,
-					    &fg, &fg, 0, 0);
-	g_object_unref(pixmap);
+	pixbuf = gdk_pixbuf_new_from_data (data,
+					   GDK_COLORSPACE_RGB,
+					   FALSE,
+					   8,
+					   2,
+					   2,
+					   8,
+					   NULL,
+					   NULL);
+	cursor = gdk_cursor_new_from_pixbuf (gdk_display_get_default (),
+					     pixbuf,
+					     0,
+					     0);
+	g_object_unref (pixbuf);
 
 	return cursor;
 }
-
 static gboolean expose_event(GtkWidget *widget, GdkEventExpose *expose)
 {
 	VncDisplay *obj = VNC_DISPLAY(widget);
