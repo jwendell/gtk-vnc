@@ -292,7 +292,7 @@ GVnc-1.0.gir: libgvnc-1.0.la $(G_IR_SCANNER) Makefile.am
                 --namespace GVnc \
                 --nsversion 1.0 \
 		--include GObject-2.0 \
-		--strip-prefix=Vnc \
+		--identifier-prefix=Vnc \
                 --library=$(builddir)/libgvnc-1.0.la \
                 --add-include-path=$(top_srcdir) \
                 --add-include-path=$(srcdir) \
@@ -314,7 +314,7 @@ GtkVnc-$(GTK_VNC_API_VERSION).gir: GVnc-1.0.gir libgtk-vnc-$(GTK_VNC_API_VERSION
 		--include GObject-2.0 \
 		--include Gtk-$(GTK_API_VERSION) \
 		--include GVnc-1.0 \
-		--strip-prefix=Vnc \
+		--identifier-prefix=Vnc \
                 --library=$(builddir)/libgtk-vnc-$(GTK_VNC_API_VERSION).la \
                 --add-include-path=$(top_srcdir) \
                 --add-include-path=$(srcdir) \
