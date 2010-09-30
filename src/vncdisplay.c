@@ -287,6 +287,7 @@ static gboolean expose_event(GtkWidget *widget, GdkEventExpose *expose)
 	int mx = 0, my = 0;
 	cairo_t *cr;
 	int fbw = 0, fbh = 0;
+	GdkWindow *window;
 
 	if (priv->fb) {
 		fbw = vnc_framebuffer_get_width(VNC_FRAMEBUFFER(priv->fb));
@@ -299,14 +300,16 @@ static gboolean expose_event(GtkWidget *widget, GdkEventExpose *expose)
 		   expose->area.x,
 		   expose->area.y);
 
-	gdk_drawable_get_size(gtk_widget_get_window(widget), &ww, &wh);
+	window = gtk_widget_get_window(widget);
+	ww = gdk_window_get_width(window);
+	wh = gdk_window_get_height(window);
 
 	if (ww > fbw)
 		mx = (ww - fbw) / 2;
 	if (wh > fbh)
 		my = (wh - fbh) / 2;
 
-	cr = gdk_cairo_create(gtk_widget_get_window(GTK_WIDGET(obj)));
+	cr = gdk_cairo_create(window);
 	cairo_rectangle(cr,
 			expose->area.x-1,
 			expose->area.y-1,
@@ -541,6 +544,7 @@ static gboolean motion_event(GtkWidget *widget, GdkEventMotion *motion)
 	VncDisplayPrivate *priv = VNC_DISPLAY(widget)->priv;
 	int ww, wh;
 	int fbw, fbh;
+	GdkWindow *window;
 
 	if (priv->conn == NULL || !vnc_connection_is_initialized(priv->conn))
 		return FALSE;
@@ -556,7 +560,9 @@ static gboolean motion_event(GtkWidget *widget, GdkEventMotion *motion)
 	if (priv->read_only)
 		return FALSE;
 
-	gdk_drawable_get_size(gtk_widget_get_window(widget), &ww, &wh);
+	window = gtk_widget_get_window(widget);
+	ww = gdk_window_get_width(window);
+	wh = gdk_window_get_height(window);
 
 	/* First apply adjustments to the coords in the motion event */
 	if (priv->allow_scaling) {
@@ -829,6 +835,7 @@ static void on_framebuffer_update(VncConnection *conn G_GNUC_UNUSED,
 	int fbw, fbh;
 	cairo_surface_t *surface;
 	cairo_t *cr;
+	GdkWindow *window;
 
 	fbw = vnc_framebuffer_get_width(VNC_FRAMEBUFFER(priv->fb));
 	fbh = vnc_framebuffer_get_height(VNC_FRAMEBUFFER(priv->fb));
@@ -843,7 +850,9 @@ static void on_framebuffer_update(VncConnection *conn G_GNUC_UNUSED,
 
 	cairo_destroy(cr);
 
-	gdk_drawable_get_size(gtk_widget_get_window(widget), &ww, &wh);
+	window = gtk_widget_get_window(widget);
+	ww = gdk_window_get_width(window);
+	wh = gdk_window_get_height(window);
 
 	if (priv->allow_scaling) {
 		double sx, sy;
@@ -1390,18 +1399,20 @@ void vnc_display_close(VncDisplay *obj)
 {
 	VncDisplayPrivate *priv = obj->priv;
 	GtkWidget *widget = GTK_WIDGET(obj);
+	GdkWindow *window;
 
 	if (vnc_connection_is_open(priv->conn)) {
 		VNC_DEBUG("Requesting graceful shutdown of connection");
 		vnc_connection_shutdown(priv->conn);
 	}
 
-	if (gtk_widget_get_window(widget)) {
-		gint width, height;
-
-		gdk_drawable_get_size(gtk_widget_get_window(widget), &width, &height);
-		gtk_widget_queue_draw_area(widget, 0, 0, width, height);
-	}
+	window = gtk_widget_get_window(widget);
+	if (window)
+		gtk_widget_queue_draw_area(widget,
+					   0,
+					   0,
+					   gdk_window_get_width(window),
+					   gdk_window_get_height(window));
 }
 
 
@@ -2078,13 +2089,15 @@ void vnc_display_set_shared_flag(VncDisplay *obj, gboolean shared)
 gboolean vnc_display_set_scaling(VncDisplay *obj,
 				 gboolean enable)
 {
-	int ww, wh;
-
 	obj->priv->allow_scaling = enable;
 
 	if (obj->priv->pixmap != NULL) {
-		gdk_drawable_get_size(gtk_widget_get_window(GTK_WIDGET(obj)), &ww, &wh);
-		gtk_widget_queue_draw_area(GTK_WIDGET(obj), 0, 0, ww, wh);
+		GdkWindow *window = gtk_widget_get_window(GTK_WIDGET(obj));
+		gtk_widget_queue_draw_area(GTK_WIDGET(obj),
+					   0,
+					   0,
+					   gdk_window_get_width(window),
+					   gdk_window_get_height(window));
 	}
 
 	return TRUE;
