@@ -1464,12 +1464,12 @@ void vnc_display_send_pointer(VncDisplay *obj, gint x, gint y, int button_mask)
 	}
 }
 
-static void vnc_display_destroy (GtkObject *obj)
+static void vnc_display_destroy (GtkWidget *obj)
 {
 	VncDisplay *display = VNC_DISPLAY (obj);
 	VNC_DEBUG("Display destroy, requesting that VNC connection close");
 	vnc_display_close(display);
-	GTK_OBJECT_CLASS (vnc_display_parent_class)->destroy (obj);
+	GTK_WIDGET_CLASS (vnc_display_parent_class)->destroy (obj);
 }
 
 
@@ -1516,7 +1516,6 @@ static void vnc_display_finalize (GObject *obj)
 static void vnc_display_class_init(VncDisplayClass *klass)
 {
 	GObjectClass *object_class = G_OBJECT_CLASS (klass);
-	GtkObjectClass *gtkobject_class = GTK_OBJECT_CLASS (klass);
 	GtkWidgetClass *gtkwidget_class = GTK_WIDGET_CLASS (klass);
 
 	gtkwidget_class->expose_event = expose_event;
@@ -1529,12 +1528,11 @@ static void vnc_display_class_init(VncDisplayClass *klass)
 	gtkwidget_class->enter_notify_event = enter_event;
 	gtkwidget_class->leave_notify_event = leave_event;
 	gtkwidget_class->focus_out_event = focus_event;
+	gtkwidget_class->destroy = vnc_display_destroy;
 
 	object_class->finalize = vnc_display_finalize;
 	object_class->get_property = vnc_display_get_property;
 	object_class->set_property = vnc_display_set_property;
-
-	gtkobject_class->destroy = vnc_display_destroy;
 
 	g_object_class_install_property (object_class,
 					 PROP_POINTER_LOCAL,
