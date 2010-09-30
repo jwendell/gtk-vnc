@@ -45,7 +45,6 @@
 
 struct _VncDisplayPrivate
 {
-	GdkPixmap *pixmap;
 	GdkCursor *null_cursor;
 	GdkCursor *remote_cursor;
 
@@ -279,13 +278,12 @@ static GdkCursor *create_null_cursor(void)
 
 	return cursor;
 }
-static gboolean expose_event(GtkWidget *widget, GdkEventExpose *expose)
+static gboolean draw_event(GtkWidget *widget, cairo_t *cr)
 {
 	VncDisplay *obj = VNC_DISPLAY(widget);
 	VncDisplayPrivate *priv = obj->priv;
 	int ww, wh;
 	int mx = 0, my = 0;
-	cairo_t *cr;
 	int fbw = 0, fbh = 0;
 	GdkWindow *window;
 
@@ -293,12 +291,6 @@ static gboolean expose_event(GtkWidget *widget, GdkEventExpose *expose)
 		fbw = vnc_framebuffer_get_width(VNC_FRAMEBUFFER(priv->fb));
 		fbh = vnc_framebuffer_get_height(VNC_FRAMEBUFFER(priv->fb));
 	}
-
-	VNC_DEBUG("Expose area %dx%d at location %d,%d",
-		   expose->area.width,
-		   expose->area.height,
-		   expose->area.x,
-		   expose->area.y);
 
 	window = gtk_widget_get_window(widget);
 	ww = gdk_window_get_width(window);
@@ -309,17 +301,9 @@ static gboolean expose_event(GtkWidget *widget, GdkEventExpose *expose)
 	if (wh > fbh)
 		my = (wh - fbh) / 2;
 
-	cr = gdk_cairo_create(window);
-	cairo_rectangle(cr,
-			expose->area.x-1,
-			expose->area.y-1,
-			expose->area.width + 2,
-			expose->area.height + 2);
-	cairo_clip(cr);
-
 	/* If we don't have a pixmap, or we're not scaling, then
 	   we need to fill with background color */
-	if (!priv->pixmap ||
+	if (!priv->fb ||
 	    !priv->allow_scaling) {
 		cairo_rectangle(cr, 0, 0, ww, wh);
 		/* Optionally cut out the inner area where the pixmap
@@ -327,32 +311,32 @@ static gboolean expose_event(GtkWidget *widget, GdkEventExpose *expose)
 		   not double-buffering. Note we're using the undocumented
 		   behaviour of drawing the rectangle from right to left
 		   to cut out the whole */
-		if (priv->pixmap)
+		if (priv->fb)
 			cairo_rectangle(cr, mx + fbw, my,
 					-1 * fbw, fbh);
 		cairo_fill(cr);
 	}
 
 	/* Draw the VNC display */
-	if (priv->pixmap) {
+	if (priv->fb) {
 		if (priv->allow_scaling) {
 			double sx, sy;
 			/* Scale to fill window */
 			sx = (double)ww / (double)fbw;
 			sy = (double)wh / (double)fbh;
 			cairo_scale(cr, sx, sy);
-			gdk_cairo_set_source_pixmap(cr,
-						    priv->pixmap,
-						    0, 0);
+			cairo_set_source_surface(cr,
+						 vnc_cairo_framebuffer_get_surface(priv->fb),
+						 0,
+						 0);
 		} else {
-			gdk_cairo_set_source_pixmap(cr,
-						    priv->pixmap,
-						    mx, my);
+			cairo_set_source_surface(cr,
+						 vnc_cairo_framebuffer_get_surface(priv->fb),
+						 mx,
+						 my);
 		}
 		cairo_paint(cr);
 	}
-
-	cairo_destroy(cr);
 
 	return TRUE;
 }
@@ -839,14 +823,13 @@ static void on_framebuffer_update(VncConnection *conn G_GNUC_UNUSED,
 	fbw = vnc_framebuffer_get_width(VNC_FRAMEBUFFER(priv->fb));
 	fbh = vnc_framebuffer_get_height(VNC_FRAMEBUFFER(priv->fb));
 
-	cr = gdk_cairo_create(priv->pixmap);
+	cr = gdk_cairo_create(gtk_widget_get_window(widget));
 	cairo_rectangle(cr, x, y, w, h);
 	cairo_clip(cr);
 
 	surface = vnc_cairo_framebuffer_get_surface(priv->fb);
 	cairo_set_source_surface(cr, surface, 0, 0);
 	cairo_paint(cr);
-
 	cairo_destroy(cr);
 
 	window = gtk_widget_get_window(widget);
@@ -900,10 +883,6 @@ static void do_framebuffer_init(VncDisplay *obj,
 		g_object_unref(priv->fb);
 		priv->fb = NULL;
 	}
-	if (priv->pixmap) {
-		g_object_unref(priv->pixmap);
-		priv->pixmap = NULL;
-	}
 
 	if (priv->null_cursor == NULL) {
 		priv->null_cursor = create_null_cursor();
@@ -914,8 +893,6 @@ static void do_framebuffer_init(VncDisplay *obj,
 	}
 
 	priv->fb = vnc_cairo_framebuffer_new(width, height, remoteFormat);
-	priv->pixmap = gdk_pixmap_new(gtk_widget_get_window(GTK_WIDGET(obj)), width, height, -1);
-
 	vnc_connection_set_framebuffer(priv->conn, VNC_FRAMEBUFFER(priv->fb));
 
 	if (priv->force_size)
@@ -1528,7 +1505,7 @@ static void vnc_display_class_init(VncDisplayClass *klass)
 	GObjectClass *object_class = G_OBJECT_CLASS (klass);
 	GtkWidgetClass *gtkwidget_class = GTK_WIDGET_CLASS (klass);
 
-	gtkwidget_class->expose_event = expose_event;
+	gtkwidget_class->draw = draw_event;
 	gtkwidget_class->motion_notify_event = motion_event;
 	gtkwidget_class->button_press_event = button_event;
 	gtkwidget_class->button_release_event = button_event;
@@ -2017,32 +1994,22 @@ void vnc_display_set_read_only(VncDisplay *obj, gboolean enable)
 GdkPixbuf *vnc_display_get_pixbuf(VncDisplay *obj)
 {
 	VncDisplayPrivate *priv = obj->priv;
-	GdkPixbuf *pixbuf;
-	cairo_surface_t *surface;
-	gint w, h;
+	VncFramebuffer *fb;
 
 	if (!priv->conn ||
 	    !vnc_connection_is_initialized(priv->conn))
 		return NULL;
 
-	surface = vnc_cairo_framebuffer_get_surface(priv->fb);
-	w = vnc_framebuffer_get_width(VNC_FRAMEBUFFER(priv->fb));
-	h = vnc_framebuffer_get_height(VNC_FRAMEBUFFER(priv->fb));
-
-	pixbuf = gdk_pixbuf_new(GDK_COLORSPACE_RGB, FALSE, 8,
-				w,
-				h);
-
-	if (!gdk_pixbuf_get_from_drawable(pixbuf,
-					  priv->pixmap,
-					  NULL,
-					  0, 0, 0, 0,
-					  w, h))
-		return NULL;
-
-	return pixbuf;
+	fb = VNC_FRAMEBUFFER (priv->fb);
+	return gdk_pixbuf_get_from_surface (NULL,
+					    vnc_cairo_framebuffer_get_surface (priv->fb),
+					    0,
+					    0,
+					    0,
+					    0,
+					    vnc_framebuffer_get_width(fb),
+					    vnc_framebuffer_get_height(fb));
 }
-
 
 int vnc_display_get_width(VncDisplay *obj)
 {
@@ -2090,7 +2057,7 @@ gboolean vnc_display_set_scaling(VncDisplay *obj,
 {
 	obj->priv->allow_scaling = enable;
 
-	if (obj->priv->pixmap != NULL) {
+	if (obj->priv->fb != NULL) {
 		GdkWindow *window = gtk_widget_get_window(GTK_WIDGET(obj));
 		gtk_widget_queue_draw_area(GTK_WIDGET(obj),
 					   0,
