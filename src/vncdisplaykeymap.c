@@ -67,7 +67,7 @@ static unsigned int ref_count_for_untranslated_keys = 0;
 
 static gboolean check_for_xwin(void)
 {
-	char *vendor = ServerVendor(GDK_DISPLAY());
+	char *vendor = ServerVendor(GDK_DISPLAY_XDISPLAY(gdk_display_get_default()));
 
 	if (strstr(vendor, "Cygwin/X"))
 		return TRUE;
@@ -80,7 +80,7 @@ static gboolean check_for_xquartz(void)
 	int nextensions;
 	int i;
 	gboolean match = FALSE;
-	char **extensions = XListExtensions(GDK_DISPLAY(), &nextensions);
+	char **extensions = XListExtensions(GDK_DISPLAY_XDISPLAY(gdk_display_get_default()), &nextensions);
 	for (i = 0 ; extensions != NULL && i < nextensions ; i++) {
 		if (strcmp(extensions[i], "Apple-WM") == 0 ||
 		    strcmp(extensions[i], "Apple-DRI") == 0)
@@ -105,7 +105,7 @@ const guint16 const *vnc_display_keymap_gdk2rfb_table(size_t *maplen)
 	 * X servers..... patches welcomed.
 	 */
 
-	desc = XkbGetKeyboard(GDK_DISPLAY(), XkbGBN_AllComponentsMask,
+	desc = XkbGetKeyboard(GDK_DISPLAY_XDISPLAY(gdk_display_get_default()), XkbGBN_AllComponentsMask,
 			      XkbUseCoreKbd);
 	if (desc) {
 		if (desc->names) {
