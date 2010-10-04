@@ -2001,10 +2001,7 @@ GdkPixbuf *vnc_display_get_pixbuf(VncDisplay *obj)
 		return NULL;
 
 	fb = VNC_FRAMEBUFFER (priv->fb);
-	return gdk_pixbuf_get_from_surface (NULL,
-					    vnc_cairo_framebuffer_get_surface (priv->fb),
-					    0,
-					    0,
+	return gdk_pixbuf_get_from_surface (vnc_cairo_framebuffer_get_surface (priv->fb),
 					    0,
 					    0,
 					    vnc_framebuffer_get_width(fb),
